@@ -1,0 +1,21 @@
+{
+  "books": [
+    {
+      "name": "Genesis",
+      "chapters": [
+        [
+          "In the beginning God created the heaven and the earth.",
+          "And the earth was without form, and void; and darkness was upon the face of the deep."
+        ]
+      ]
+    },
+    {
+      "name": "Exodus",
+      "chapters": [
+        [
+          "Now these are the names of the children of Israel, which came into Egypt."
+        ]
+      ]
+    }
+  ]
+}
