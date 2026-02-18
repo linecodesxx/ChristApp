@@ -26,7 +26,9 @@ export default function RootLayout({
   return (
     <html lang="ru">
       <body className={`${inter.variable} ${geistMono.variable}`}>
+        <div  style={{ paddingBottom: "80px" }}>
         {children}
+        </div>
         <TabBar />
       </body>
     </html>
