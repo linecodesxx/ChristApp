@@ -5,3 +5,71 @@
 .chapter {
   margin-top: 20px;
 }
+
+.header {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  
+  
+  border-bottom: 1px solid #c4a26580;
+}
+
+.headerChapterData {
+  display: flex;
+  align-items: center;
+  flex-direction: row;
+  margin-bottom: 5px;
+  gap:16px;
+}
+
+.headerIcon {
+  display: flex;
+  width: 32px;
+  height: 32px;
+  padding: 6px;
+  justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  
+}
+
+.bookTitle {
+  color: #3A2A1E;
+  font-size: 30.60px;
+  font-weight: 400;
+  line-height: 40px;
+  word-wrap: break-word;
+  text-align: center;
+  justify-content: center;
+}
+
+.headerBookTitle {
+  color: #3A2A1E;
+font-size: 14px;
+font-style: normal;
+font-weight: 700;
+line-height: 28px; /* 183.007% */
+}
+
+.headerChapterTitle {
+  color: #C4A265;
+font-size: 14px;
+font-style: normal;
+font-weight: 500;
+line-height: 24px; /* 176.471% */
+}
+
+.sectionChapter {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: center;
+}
+
+.verseContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}

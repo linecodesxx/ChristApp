@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.scss";
+import TabBar from "@/components/TabBar";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -26,6 +27,7 @@ export default function RootLayout({
     <html lang="ru">
       <body className={`${inter.variable} ${geistMono.variable}`}>
         {children}
+        <TabBar />
       </body>
     </html>
   );
