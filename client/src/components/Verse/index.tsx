@@ -25,17 +25,25 @@ export default function Verse({ verse, text }: VerseProps) {
   })
 
   return (
-    <div className={styles.verseContainer}><p className={styles.verse} onClick={handleClick} style={{
-      borderBottom: isClicked ? "2px dashed #C4A265" : "none",
-    }}>
-    </p>
-    <span style={
-      { fontSize: verse === 1 ? "40px" : "10px",
-       }}>
-      {verse}
-    </span> 
+  <div className={styles.verseContainer}>
+    <p
+      className={styles.verse}
+      onClick={handleClick}
+      style={{
+        borderBottom: isClicked ? "2px dashed #C4A265" : "none",
+      }}
+    >
+      <span
+        style={{
+          fontSize: verse === 1 ? "40px" : "14px",
+          color: "rgba(196, 162, 101,1)",
+        }}
+      >
+        {verse}
+      </span>{" "}
       {text}
-      </div>
-    
-  );
+    </p>
+  </div>
+);
+
 }
