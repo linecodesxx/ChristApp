@@ -9,6 +9,8 @@
     flex-shrink: 0;
     border-bottom: 1px solid rgba(232, 220, 200, 0.5);
     background: rgba(253, 248, 240, 0.9);
+    color: var(--foreground);
+    background: var(--background);
     border-radius: 30px;
 
     .headerContent {
@@ -22,6 +24,7 @@
 
         .chatName {
           color: #3a2a1e;
+          color: var(--foreground);
           font-family: "Inter", sans-serif;
           font-size: 15px;
           font-style: normal;
@@ -39,7 +42,7 @@
           font-style: normal;
           font-weight: 500;
           line-height: 16px;
-          color: green;
+          // color: green;
         }
       }
 
@@ -54,7 +57,19 @@
         border-radius: 50%;
         border: 2px solid #c4a265;
         background: #e8dcc8;
+        background: var(--background);
+        color: var(--foreground);
       }
     }
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .avatar {
+    box-shadow:
+      0px 1px 12px 7px rgba(196, 162, 101, 0.4),
+      0 10px 15px -3px rgba(196, 162, 101, 0.4),
+      0 0 0 0 rgb(231 231 109),
+      0 0 0 0 rgba(0, 0, 0, 0);
   }
 }
