@@ -1,3 +1,46 @@
 .main {
-  padding: 24px;
+  .header {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    padding: 16px 0;
+    justify-content: center;
+    gap: 142px;
+    flex-shrink: 0;
+    border-bottom: 1px solid rgba(232, 220, 200, 0.5);
+    background: rgba(253, 248, 240, 0.9);
+
+    .headerContent {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+
+      .wrapContent {
+        display: flex;
+        flex-direction: column;
+
+        .title {
+          color: #3a2a1e;
+          font-family: "Inter", sans-serif;
+          font-size: 11.9px;
+          font-style: normal;
+          font-weight: 700;
+          line-height: 20px;
+        }
+      }
+
+      .avatar {
+        display: flex;
+        width: 40px;
+        height: 40px;
+        padding: 8px 12.297px 8px 12.281px;
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        border: 2px solid #c4a265;
+        background: #e8dcc8;
+      }
+    }
+  }
 }

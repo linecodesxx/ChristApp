@@ -7,7 +7,7 @@ let messages: Message[] = [
   {
     id: "welcome",
     author: "Система",
-    text: "Добро пожаловать в общий чат.",
+    text: "Добро пожаловать в общий чат c Иисусом.",
     createdAt: new Date().toISOString(),
   },
 ];

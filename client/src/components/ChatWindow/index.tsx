@@ -1,10 +1,10 @@
-import MessageBubble from "@/components/MessageBubble";
-import type { Message } from "@/types/message";
-import styles from "./ChatWindow.module.scss";
+import MessageBubble from "@/components/MessageBubble"
+import type { Message } from "@/types/message"
+import styles from "./ChatWindow.module.scss"
 
 type ChatWindowProps = {
-  messages: Message[];
-};
+  messages: Message[]
+}
 
 export default function ChatWindow({ messages }: ChatWindowProps) {
   return (
@@ -15,5 +15,5 @@ export default function ChatWindow({ messages }: ChatWindowProps) {
         messages.map((message) => <MessageBubble key={message.id} message={message} />)
       )}
     </section>
-  );
+  )
 }

@@ -19,7 +19,7 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Inter", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -29,6 +29,10 @@ body {
   max-width: 360px;
   margin: 0 auto;
   padding-inline: 16px;
+  background: #fdf8f0;
+  border-radius: 30px;
+  border: 2px solid beige;
+  margin-top: 30px;
 }
 
 * {
