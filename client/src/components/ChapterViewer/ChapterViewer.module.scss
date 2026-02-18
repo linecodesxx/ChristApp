@@ -1,3 +1,44 @@
+.viewer {
+  position: relative;
+  padding-bottom: 120px; // чтобы не перекрывалось TabBar
+}
+
+.chapter {
+  margin-top: 20px;
+}
+
+.floatingNav {
+  position: fixed;
+  bottom: 100px; // чуть выше TabBar
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 300px;
+  z-index: 1000;
+
+  button {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: none;
+    background: #C4A265;
+    color: white;
+    font-size: 22px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: 0.2s;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
 .main {
   padding: 24px;
 }
@@ -68,5 +109,4 @@ line-height: 24px; /* 176.471% */
   gap: 16px;
   align-items: center;
 }
-
 

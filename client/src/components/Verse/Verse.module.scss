@@ -1,3 +1,10 @@
 .verse {
   margin-top: 6px;
 }
+
+.verseContainer {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+

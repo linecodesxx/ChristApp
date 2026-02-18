@@ -48,7 +48,6 @@ export default function ChatPage() {
       </div>
       <ChatWindow messages={messages} />
       <MessageInput onSend={handleSend} />
-      <TabBar />
     </main>
   )
 }
