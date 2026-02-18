@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import styles from "./MessageInput.module.scss"
+import Image from "next/image"
 
 type MessageInputProps = {
   onSend: (text: string) => Promise<void>
@@ -19,15 +20,24 @@ export default function MessageInput({ onSend }: MessageInputProps) {
 
   return (
     <div className={styles.wrapper}>
+      <Image src="/icon-attachment.svg" alt="Add" width={20} height={20} className={styles.attachmentButton} />
       <input
         value={value}
         onChange={(event) => setValue(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            submit()
+          }
+        }}
         placeholder="Напиши сообщение..."
         className={styles.input}
       />
-      <button type="button" onClick={submit} className={styles.button}>
-        Отправить
-      </button>
+
+      {value ? (
+        <Image src="/icon-send.svg" alt="Send" width={20} height={20} onClick={submit} className={styles.sendButton} />
+      ) : (
+        <Image src="/icon-micro.svg" alt="Send" width={36} height={36} onClick={submit} className={styles.sendButton} />
+      )}
     </div>
   )
 }
