@@ -16,6 +16,17 @@ body {
   overflow-x: hidden;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
 body {
   color: var(--foreground);
   background: var(--background);
@@ -24,21 +35,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+img,
+picture,
+video,
+canvas,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+  border: none;
+}
+
 .container {
   width: 100%;
   max-width: 360px;
   margin: 0 auto;
-  padding-inline: 16px;
   background: #fdf8f0;
   border-radius: 30px;
-  border: 2px solid beige;
+  border: 4px solid black;
   margin-top: 30px;
-}
-
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
 }
 
 a {
