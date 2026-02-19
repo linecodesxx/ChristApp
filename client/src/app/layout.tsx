@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.scss";
-import TabBar from "@/components/TabBar";
+import TabBar from "@components/TabBar";
 
 const inter = Inter({
   variable: "--font-inter",

@@ -1,5 +1,5 @@
 :root {
-  --background: #ffffff;
+  --background: #fdf8f0;
   --foreground: #2e2c2c;
 }
 
@@ -63,6 +63,7 @@ select {
     0 4px 8px 0 rgba(0, 0, 0, 0.1),
     0 6px 20px 0 rgba(0, 0, 0, 0.1);
   padding-top: 20px;
+  padding-bottom: 20px;
   margin: 30px auto 40px auto;
 }
 
@@ -76,11 +77,11 @@ a {
     color-scheme: dark;
   }
 
-  .container {
-    box-shadow:
-      0px -3px 20px 0px rgba(196, 162, 101, 0.4),
-      0 10px 15px -3px rgba(196, 162, 101, 0.4),
-      0 0 0 0 rgb(231, 231, 109),
-      0 0 0 0 rgba(0, 0, 0, 0);
-  }
+  // .container {
+  //   box-shadow:
+  //     0px -3px 20px 0px rgba(196, 162, 101, 0.4),
+  //     0 10px 15px -3px rgba(196, 162, 101, 0.4),
+  //     0 0 0 0 rgb(231, 231, 109),
+  //     0 0 0 0 rgba(0, 0, 0, 0);
+  // }
 }

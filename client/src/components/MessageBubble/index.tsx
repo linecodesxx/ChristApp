@@ -6,8 +6,10 @@ type MessageBubbleProps = {
 };
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
+  const bubbleClassName = message.sender === "me" ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
+
   return (
-    <article className={styles.bubble}>
+    <article className={bubbleClassName}>
       <p>
         <strong>{message.username || "Unknown"}:</strong> {message.content}
       </p>

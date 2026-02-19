@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Verse from "@/components/Verse";
+import Verse from "@components/Verse";
 import { getBibleData } from "@/lib/storage";
 import styles from "./page.module.scss";
 import path from "path/win32";
-import ChapterViewer from "@/components/ChapterViewer";
+import ChapterViewer from "@components/ChapterViewer";
 
 type Props = {
   params: Promise<{ book: string }>;

@@ -10,6 +10,7 @@ type MessageInputProps = {
 
 export default function MessageInput({ onSend }: MessageInputProps) {
   const [value, setValue] = useState("")
+  const [messages, setMessages] = useState<string[]>([])
 
   const submit = async () => {
     const text = value.trim()

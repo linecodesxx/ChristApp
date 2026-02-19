@@ -1,0 +1,121 @@
+[
+  {
+    "id": 1,
+    "title": "Jesus Christ",
+    "preview": "I love u, my child",
+    "timeLabel": "9:41 AM",
+    "avatarInitials": "JC",
+    "unread": true,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "Jesus Christ",
+        "content": "Привет! Я Jesus Christ",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 2,
+    "title": "Pastor Michael",
+    "preview": "See you at the service on Sunday!",
+    "timeLabel": "Yesterday",
+    "avatarInitials": "PM",
+    "unread": false,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "Pastor Michael",
+        "content": "Привет! Я Pastor Michael",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 3,
+    "title": "Sarah Jenkins",
+    "preview": "Thanks for sharing that verse!",
+    "timeLabel": "Yesterday",
+    "avatarInitials": "SJ",
+    "unread": false,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "Sarah Jenkins",
+        "content": "Привет! Я Sarah Jenkins ",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 4,
+    "title": "David Miller",
+    "preview": "Can we pray about this?",
+    "timeLabel": "Tue",
+    "avatarInitials": "DM",
+    "unread": true,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "David Miller",
+        "content": "Привет! Я David Miller",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 5,
+    "title": "Youth Ministry",
+    "preview": "Pizza night this Friday!",
+    "timeLabel": "Mon",
+    "avatarInitials": "YM",
+    "unread": false,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "Youth Ministry",
+        "content": "Привет! Я Youth Ministry",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 6,
+    "title": "Rachel Green",
+    "preview": "I loved the sermon today.",
+    "timeLabel": "Sun",
+    "avatarInitials": "RG",
+    "unread": false,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "Rachel Green",
+        "content": "Привет! Я Rachel Green",
+        "createdAt": "09:41"
+      }
+    ]
+  },
+  {
+    "id": 7,
+    "title": "ED Hristov",
+    "preview": "I loved the sermon today.",
+    "timeLabel": "Sun",
+    "avatarInitials": "EH",
+    "unread": false,
+    "messages": [
+      {
+        "id": "1",
+        "sender": "user",
+        "username": "ED Hristov",
+        "content": "Привет! Я ED Hristov",
+        "createdAt": "09:41"
+      }
+    ]
+  }
+]

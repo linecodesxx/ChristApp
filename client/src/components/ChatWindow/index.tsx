@@ -1,4 +1,4 @@
-import MessageBubble from "@/components/MessageBubble"
+import MessageBubble from "@components/MessageBubble"
 import type { Message } from "@/types/message"
 import styles from "./ChatWindow.module.scss"
 
@@ -7,6 +7,8 @@ type ChatWindowProps = {
 }
 
 export default function ChatWindow({ messages }: ChatWindowProps) {
+  console.log(messages);
+  
   return (
     <section className={styles.window}>
       {messages.length === 0 ? (

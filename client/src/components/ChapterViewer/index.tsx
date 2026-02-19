@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import Verse from "@/components/Verse";
+import Verse from "@components/Verse";
 
 import styles from "./ChapterViewer.module.scss";
 

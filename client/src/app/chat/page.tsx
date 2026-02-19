@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
-import ChatWindow from "@/components/ChatWindow"
-import MessageInput from "@/components/MessageInput"
+import ChatWindow from "@components/ChatWindow"
+import MessageInput from "@components/MessageInput"
 import type { Message } from "@/types/message"
 import styles from "./page.module.scss"
+import ChatList from "@components/ChatList/page"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -40,24 +41,8 @@ export default function ChatPage() {
 
   const handleSend = async (text: string): Promise<void> => {
     if (!socket) return
-  socket.emit("sendMessage", text)
-}
+    socket.emit("sendMessage", text)
+  }
 
-
-  return (
-    <main className={`${styles.main} container`}>
-      <div className={styles.header}>
-        <div className={styles.headerContent}>
-          <div className={styles.avatar}>JS</div>
-          <div className={styles.wrapContent}>
-            <h2 className={styles.chatName}>Чат с Иисусом</h2>
-            <span className={styles.status}>Online now</span>
-          </div>
-        </div>
-      </div>
-
-      <ChatWindow messages={messages} />
-      <MessageInput onSend={handleSend} />
-    </main>
-  )
+  return <ChatList />
 }
