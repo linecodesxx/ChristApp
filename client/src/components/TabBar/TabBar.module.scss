@@ -10,8 +10,9 @@
   gap: 12px;
   border-top: 1px solid #e8dcc8;
   background: #fdf8f0;
-
-  border-radius: 30px ;
+  color: var(--foreground);
+  background: var(--background);
+  border-radius: 30px;
   box-shadow:
     0 -4px 20px 0 rgba(92, 64, 51, 0.05),
     0 0 0 0 rgba(0, 0, 0, 0),
@@ -28,6 +29,8 @@
     font-style: normal;
     font-weight: 500;
     line-height: 15px;
+    color: var(--foreground);
+    background: var(--background);
   }
 
   .iconChat {
@@ -45,5 +48,11 @@
       0 10px 15px -3px rgba(196, 162, 101, 0.4),
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .nav img {
+    filter: brightness(0) saturate(100%) invert(100%);
   }
 }

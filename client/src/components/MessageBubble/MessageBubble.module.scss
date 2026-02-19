@@ -7,11 +7,24 @@
   justify-content: center;
   align-items: flex-start;
   gap: 5px;
+  margin: 20px 0;
   border-radius: 16px 16px 16px 0;
   border: 1px solid #e8dcc8;
   background: #fdf8f0;
+  color: var(--foreground);
+  background: var(--background);
   box-shadow:
     0 1px 2px 0 rgba(0, 0, 0, 0.05),
-    0 0 0 0 rgba(0, 0, 0, 0),
     0 0 0 0 rgba(0, 0, 0, 0);
+  transition: all 0.2s ease-in-out;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bubble {
+    box-shadow:
+      0 4px 6px -4px rgba(196, 162, 101, 0.4),
+      0 10px 15px -3px rgba(196, 162, 101, 0.4),
+      0 0 0 0 rgba(0, 0, 0, 0),
+      0 0 0 0 rgba(0, 0, 0, 0);
+  }
 }
