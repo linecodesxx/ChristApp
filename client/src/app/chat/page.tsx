@@ -50,7 +50,7 @@ export default function ChatPage() {
         <div className={styles.headerContent}>
           <div className={styles.avatar}>JS</div>
           <div className={styles.wrapContent}>
-            <h2 className={styles.chatName}>Чат с 1</h2>
+            <h2 className={styles.chatName}>ОБЩИЙ ЧАТ - ДЛЯ ВСЕХ</h2>
             <span className={styles.status}>Online now</span>
           </div>
         </div>
