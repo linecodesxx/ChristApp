@@ -94,6 +94,15 @@ export default function LoginPage() {
           <button onClick={handleLogin} className={styles.button}>
             Войти
           </button>
+
+          <p>Нет аккаунта?{" "}
+            <span
+              className={styles.registerLink}
+              onClick={() => router.push("/auth/register")}
+            >
+              Зарегистрироваться
+            </span>
+          </p>
         </>
       ) : (
         <>
