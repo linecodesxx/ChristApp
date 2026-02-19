@@ -44,5 +44,20 @@ export default function ChatPage() {
     socket.emit("sendMessage", text)
   }
 
-  return <ChatList />
+  return (
+    <main className={`${styles.main} container`}>
+      <div className={styles.header}>
+        <div className={styles.headerContent}>
+          <div className={styles.avatar}>JS</div>
+          <div className={styles.wrapContent}>
+            <h2 className={styles.chatName}>Чат с 1</h2>
+            <span className={styles.status}>Online now</span>
+          </div>
+        </div>
+      </div>
+
+      <ChatWindow messages={messages} />
+      <MessageInput onSend={handleSend} />
+    </main>
+  )
 }
