@@ -1,5 +1,11 @@
 import { JwtService } from '@nestjs/jwt';
-import { ConnectedSocket, MessageBody, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
+import {
+  ConnectedSocket,
+  MessageBody,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -8,7 +14,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
   cors: { origin: '*' }, // для теста можно '*' или укажи свой фронтенд
 })
 export class ChatGateway {
-
   @WebSocketServer()
   server: Server;
 
@@ -24,20 +29,27 @@ export class ChatGateway {
       const token = client.handshake.auth.token;
       if (!token) throw new Error("No token provided");
 
-      const payload = this.jwt.verify(token); // проверяем JWT
+      const payload = this.jwt.verify(token);
       const user = await this.prisma.user.findUnique({
         where: { id: payload.sub },
       });
 
       if (!user) throw new Error("User not found");
 
-      client.data.user = user; // сохраняем пользователя в сокете
+      client.data.user = user;
       console.log("✅ Connected:", user.username);
 
-      // Можно сразу слать историю
+      // Сразу слать историю сообщений
       const messages = await this.messagesService.getAll();
-      client.emit("history", messages);
-
+      client.emit(
+        "history",
+        messages.map((m) => ({
+          id: m.id,
+          content: m.content,
+          username: m.sender.username, // гарантированно есть
+          createdAt: m.createdAt,
+        })),
+      );
     } catch (err: any) {
       console.error("❌ Connection error:", err.message);
       client.disconnect();
@@ -48,7 +60,15 @@ export class ChatGateway {
   @SubscribeMessage("getHistory")
   async handleGetHistory(@ConnectedSocket() client: Socket) {
     const messages = await this.messagesService.getAll();
-    client.emit("history", messages);
+    client.emit(
+      "history",
+      messages.map((m) => ({
+        id: m.id,
+        content: m.content,
+        username: m.sender.username,
+        createdAt: m.createdAt,
+      })),
+    );
   }
 
   // Отправка нового сообщения
@@ -62,11 +82,11 @@ export class ChatGateway {
 
     const message = await this.messagesService.createMessage(content, user.id);
 
-    // Шлем всем подключённым клиентам
+    // Шлем всем клиентам уже готовый объект с username
     this.server.emit("newMessage", {
       id: message.id,
       content: message.content,
-      username: message.sender.username,
+      username: message.sender.username, // гарантированно
       createdAt: message.createdAt,
     });
   }

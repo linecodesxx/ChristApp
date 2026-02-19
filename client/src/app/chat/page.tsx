@@ -1,39 +1,48 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { io, Socket } from "socket.io-client"
 import ChatWindow from "@/components/ChatWindow"
 import MessageInput from "@/components/MessageInput"
-import TabBar from "@/components/TabBar"
 import type { Message } from "@/types/message"
 import styles from "./page.module.scss"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [socket, setSocket] = useState<Socket | null>(null)
 
   useEffect(() => {
-    const loadMessages = async () => {
-      const response = await fetch("/api/messages", { cache: "no-store" })
-      if (!response.ok) return
-      const data = (await response.json()) as { messages: Message[] }
-      setMessages(data.messages)
-    }
+    const token = localStorage.getItem("token")
 
-    void loadMessages()
-  }, [])
-
-  const handleSend = async (text: string) => {
-    const response = await fetch("/api/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text, author: "Ты" }),
+    const newSocket = io("http://localhost:3001", {
+      auth: { token },
     })
 
-    if (!response.ok) return
-    const data = (await response.json()) as { message: Message }
-    setMessages((prev) => [...prev, data.message])
-  }
+    newSocket.on("connect", () => {
+      console.log("Connected to server")
+      newSocket.emit("getHistory")
+    })
+
+    newSocket.on("history", (data: Message[]) => {
+      setMessages(data)
+    })
+
+    newSocket.on("newMessage", (message: Message) => {
+      setMessages((prev) => [...prev, message])
+    })
+
+    setSocket(newSocket)
+
+    return () => {
+      newSocket.disconnect()
+    }
+  }, [])
+
+  const handleSend = async (text: string): Promise<void> => {
+    if (!socket) return
+  socket.emit("sendMessage", text)
+}
+
 
   return (
     <main className={`${styles.main} container`}>
@@ -46,6 +55,7 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
+
       <ChatWindow messages={messages} />
       <MessageInput onSend={handleSend} />
     </main>

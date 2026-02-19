@@ -9,7 +9,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   return (
     <article className={styles.bubble}>
       <p>
-        <strong>{message.author}:</strong> {message.text}
+        <strong>{message.username || "Unknown"}:</strong> {message.content}
       </p>
     </article>
   );
