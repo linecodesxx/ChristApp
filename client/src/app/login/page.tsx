@@ -1,23 +1,115 @@
-"use client";
+"use client"
 
-import { useRouter } from "next/navigation";
-import styles from "./page.module.scss";
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import styles from "./page.module.scss"
+
+type User = {
+  id: number
+  email: string
+  username: string
+}
 
 export default function LoginPage() {
-  const router = useRouter();
+  const router = useRouter()
 
-  const handleLogin = () => {
-    document.cookie = "auth=1; path=/";
-    router.push("/chat");
-  };
+  const [user, setUser] = useState<User | null>(null)
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [loading, setLoading] = useState(true)
+
+  // Проверка авторизации при открытии страницы
+  useEffect(() => {
+    const token = localStorage.getItem("token")
+
+    if (!token) {
+      setLoading(false)
+      return
+    }
+
+    fetch("http://localhost:3001/auth/me", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          localStorage.removeItem("token")
+          setLoading(false)
+          return
+        }
+
+        const data = await res.json()
+        setUser(data)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+      })
+  }, [])
+
+  const handleLogin = async () => {
+    const res = await fetch("http://localhost:3001/auth/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, password }),
+    })
+
+    const data = await res.json()
+
+    if (data.access_token) {
+      localStorage.setItem("token", data.access_token)
+      setUser(data.user) // если возвращаешь user
+    } else {
+      alert("Неверные данные")
+    }
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem("token")
+    setUser(null)
+  }
+
+  if (loading) return <p>Проверка...</p>
 
   return (
     <main className={`${styles.main} container`}>
-      <h1>Вход</h1>
-      <p className={styles.text}>Christ App</p>
-      <button onClick={handleLogin} className={styles.button}>
-        Войти
-      </button>
+      {!user ? (
+        <>
+          <h1>Вход</h1>
+
+          <input
+            placeholder="Email"
+            onChange={(e) => setEmail(e.target.value)}
+          />
+
+          <input
+            type="password"
+            placeholder="Пароль"
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
+          <button onClick={handleLogin} className={styles.button}>
+            Войти
+          </button>
+        </>
+      ) : (
+        <>
+          <h1>Профиль</h1>
+          <p><b>Username:</b> {user.username}</p>
+          <p><b>Email:</b> {user.email}</p>
+
+          <button onClick={() => router.push("/chat")}>
+            Перейти в чат
+          </button>
+
+          <button onClick={handleLogout} className={styles.button}>
+            Выйти
+          </button>
+        </>
+      )}
     </main>
-  );
+  )
 }

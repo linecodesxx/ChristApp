@@ -1,6 +1,9 @@
+
+
 export type Message = {
+  sender: any;
   id: string;
-  author: string;
-  text: string;
+  username: string;
+  content: string;
   createdAt: string;
 };
