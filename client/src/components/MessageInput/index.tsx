@@ -20,7 +20,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
   }
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.message}>
       <Image src="/icon-attachment.svg" alt="Add" width={20} height={20} className={styles.attachmentButton} />
       <input
         value={value}

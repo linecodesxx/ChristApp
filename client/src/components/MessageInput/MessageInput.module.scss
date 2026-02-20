@@ -1,12 +1,8 @@
-.wrapper {
-  margin-bottom: 10px;
+.message {
   display: flex;
-  justify-content: center;
-  justify-content: flex-start;
-  position: relative;
   justify-content: flex-start;
   align-items: center;
-  margin: 0 16px;
+  position: relative;
   max-height: 60px;
   padding: 20px;
   gap: 8px;
@@ -35,7 +31,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .wrapper {
+  .message {
     color: var(--foreground);
     background: var(--background);
 

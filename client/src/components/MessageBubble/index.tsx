@@ -6,6 +6,9 @@ type MessageBubbleProps = {
 };
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
+  console.log(message.username);
+  
+  
   const bubbleClassName = message.sender === "me" ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
 
   return (

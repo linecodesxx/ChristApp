@@ -20,6 +20,12 @@ body {
 *::before,
 *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+*::-webkit-scrollbar {
+  display: none;
 }
 
 * {
@@ -33,6 +39,7 @@ body {
   font-family: "Inter", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  padding: 20px 16px;
 }
 
 img,
@@ -52,20 +59,20 @@ select {
   border: none;
 }
 
-.container {
-  width: 100%;
-  max-width: 360px;
-  margin: 0 auto;
-  color: var(--foreground);
-  background: var(--background);
-  border-radius: 30px;
-  box-shadow:
-    0 4px 8px 0 rgba(0, 0, 0, 0.1),
-    0 6px 20px 0 rgba(0, 0, 0, 0.1);
-  padding-top: 20px;
-  padding-bottom: 20px;
-  margin: 30px auto 40px auto;
-}
+// .container {
+//   width: 100%;
+//   max-width: 360px;
+//   margin: 0 auto;
+//   color: var(--foreground);
+//   background: var(--background);
+//   border-radius: 30px;
+//   box-shadow:
+//     0 4px 8px 0 rgba(0, 0, 0, 0.1),
+//     0 6px 20px 0 rgba(0, 0, 0, 0.1);
+//   padding-top: 20px;
+//   padding-bottom: 20px;
+//   margin: 30px auto 40px auto;
+// }
 
 a {
   color: inherit;

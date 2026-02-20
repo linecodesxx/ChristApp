@@ -33,17 +33,17 @@ export default function ChatPageDetails() {
     .join("")
     .toUpperCase()
 
-  async function handleSend(text: string) {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      username: "Ты",
-      content: text,
-      createdAt: new Date().toISOString(),
-      sender: "me",
-    }
+  // async function handleSend(text: string) {
+  //   const newMessage: Message = {
+  //     id: Date.now().toString(),
+  //     username: "Ты",
+  //     content: text,
+  //     createdAt: new Date().toISOString(),
+  //     sender: "me",
+  //   }
 
-    setMessages((prev) => [...prev, newMessage])
-  }
+  //   setMessages((prev) => [...prev, newMessage])
+  // }
 
   return (
     <main className={`${styles.main} container`}>
@@ -58,7 +58,7 @@ export default function ChatPageDetails() {
       </div>
 
       <ChatWindow messages={messages} />
-      <MessageInput onSend={handleSend} />
+      <MessageInput />
     </main>
   )
 }

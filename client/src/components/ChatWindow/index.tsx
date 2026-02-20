@@ -7,15 +7,14 @@ type ChatWindowProps = {
 }
 
 export default function ChatWindow({ messages }: ChatWindowProps) {
-  console.log(messages);
   
   return (
-    <section className={styles.window}>
+    <div className={styles.chatWindow}>
       {messages.length === 0 ? (
         <p className={styles.empty}>Сообщений пока нет.</p>
       ) : (
         messages.map((message) => <MessageBubble key={message.id} message={message} />)
       )}
-    </section>
+    </div>
   )
 }

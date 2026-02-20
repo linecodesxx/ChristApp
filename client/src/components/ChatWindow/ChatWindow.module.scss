@@ -1,9 +1,11 @@
-.window {
-  min-height: 472px;
-  margin-top: 20px;
-  gap: 24px;
+.chatWindow {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   flex-shrink: 0;
-  padding: 0 10px;
+  height: calc(100% - 73px - 60px - 40px);
+  overflow-x: scroll;
+  width: 100%;
 }
 
 .empty {

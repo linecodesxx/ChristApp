@@ -45,7 +45,7 @@ export default function ChatPage() {
   }
 
   return (
-    <main className={`${styles.main} container`}>
+    <section className={styles.chat}>
       <div className={styles.header}>
         <div className={styles.headerContent}>
           <div className={styles.avatar}>JS</div>
@@ -58,6 +58,6 @@ export default function ChatPage() {
 
       <ChatWindow messages={messages} />
       <MessageInput onSend={handleSend} />
-    </main>
+    </section>
   )
 }

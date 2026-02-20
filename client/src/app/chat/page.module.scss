@@ -1,4 +1,17 @@
-.main {
+.chat {
+  color: var(--foreground);
+  background: var(--background);
+  border-radius: 30px;
+  box-shadow:
+    0 4px 8px 0 rgba(0, 0, 0, 0.1),
+    0 6px 20px 0 rgba(0, 0, 0, 0.1);
+  height: calc(100% - 20px);
+  width: 100%;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
   .header {
     width: 100%;
     display: flex;
@@ -63,7 +76,13 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  .main {
+  .chat {
+    box-shadow:
+      0px -3px 20px 0px rgba(196, 162, 101, 0.4),
+      0 10px 15px -3px rgba(196, 162, 101, 0.4),
+      0 0 0 0 rgb(231, 231, 109),
+      0 0 0 0 rgba(0, 0, 0, 0);
+
     .header {
       color: var(--foreground);
       background: var(--background);

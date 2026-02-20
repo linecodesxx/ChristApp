@@ -4,7 +4,7 @@ import chats from "@app/chatlist/chats.json"
 
 const ChatList = () => {
   return (
-    <main className={`${styles.main} container`}>
+    <section className={styles.chatList}>
       <div className={styles.chatListWrapper}>
         <div className={styles.header}>
           <h2>Messages</h2>
@@ -40,7 +40,7 @@ const ChatList = () => {
           ))}
         </ul>
       </div>
-    </main>
+    </section>
   )
 }
 

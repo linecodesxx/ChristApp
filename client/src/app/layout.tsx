@@ -1,36 +1,23 @@
-import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
-import "./globals.scss";
-import TabBar from "@components/TabBar";
+import { globalSeo } from "@/seo/global.seo"
+import { inter, geistMono } from "@/styles/fonts"
+import styles from "./layout.module.scss"
+import "@/styles/globals.scss"
+import TabBar from "@components/TabBar"
+import { Metadata } from "next"
 
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-export const metadata: Metadata = {
-  title: "Bible Chat MVP",
-  description: "MVP Bible reader and chat with Jesus",
-};
+export const metadata: Metadata = globalSeo
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="ru">
       <body className={`${inter.variable} ${geistMono.variable}`}>
-        <div  style={{ paddingBottom: "80px" }}>
-        {children}
-        </div>
+        <main className={styles.main}>{children}</main>
         <TabBar />
       </body>
     </html>
-  );
+  )
 }
