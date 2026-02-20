@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from "react";
-import styles from "./Verse.module.scss";
+import styles from "./verse.module.scss";
 
 
 

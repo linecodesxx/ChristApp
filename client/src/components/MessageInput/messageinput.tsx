@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import styles from "./MessageInput.module.scss"
+import styles from "./messageinput.module.scss"
 import Image from "next/image"
 
 type MessageInputProps = {
@@ -10,7 +10,6 @@ type MessageInputProps = {
 
 export default function MessageInput({ onSend }: MessageInputProps) {
   const [value, setValue] = useState("")
-  const [messages, setMessages] = useState<string[]>([])
 
   const submit = async () => {
     const text = value.trim()

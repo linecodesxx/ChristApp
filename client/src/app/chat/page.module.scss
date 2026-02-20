@@ -21,7 +21,8 @@
     justify-content: center;
     gap: 142px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(232, 220, 200, 0.5);
+    border: 1px solid rgba(232, 220, 200, 0.5);
+    border-top: none;
     background: rgba(253, 248, 240, 0.9);
     border-radius: 30px;
 

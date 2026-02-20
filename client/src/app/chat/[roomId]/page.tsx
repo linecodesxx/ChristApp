@@ -1,8 +1,8 @@
 "use client"
 
-import ChatWindow from "@components/ChatWindow"
+import ChatWindow from "@components/chatwindow/chatwindow"
 import styles from "./chatRoom.module.scss"
-import MessageInput from "@components/MessageInput"
+import MessageInput from "@components/messageinput/messageinput"
 import type { Message } from "@/types/message"
 import chat from "@app/chatlist/chats.json"
 import { useState } from "react"
@@ -33,17 +33,17 @@ export default function ChatPageDetails() {
     .join("")
     .toUpperCase()
 
-  // async function handleSend(text: string) {
-  //   const newMessage: Message = {
-  //     id: Date.now().toString(),
-  //     username: "Ты",
-  //     content: text,
-  //     createdAt: new Date().toISOString(),
-  //     sender: "me",
-  //   }
+  async function handleSend(text: string) {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      username: "Ты",
+      content: text,
+      createdAt: new Date().toISOString(),
+      sender: "me",
+    }
 
-  //   setMessages((prev) => [...prev, newMessage])
-  // }
+    setMessages((prev) => [...prev, newMessage])
+  }
 
   return (
     <main className={`${styles.main} container`}>
@@ -58,7 +58,7 @@ export default function ChatPageDetails() {
       </div>
 
       <ChatWindow messages={messages} />
-      <MessageInput />
+      <MessageInput onSend={handleSend} />
     </main>
   )
 }

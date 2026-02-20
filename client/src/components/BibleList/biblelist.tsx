@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { BibleBook } from "@/types/bible";
-import styles from "./BibleList.module.scss";
+import styles from "./biblelist.module.scss";
 
 type BibleListProps = {
   books: BibleBook[];

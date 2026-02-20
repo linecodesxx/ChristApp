@@ -2,7 +2,7 @@ import { globalSeo } from "@/seo/global.seo"
 import { inter, geistMono } from "@/styles/fonts"
 import styles from "./layout.module.scss"
 import "@/styles/globals.scss"
-import TabBar from "@components/TabBar"
+import TabBar from "@components/tabbar/tabbar"
 import { Metadata } from "next"
 
 export const metadata: Metadata = globalSeo

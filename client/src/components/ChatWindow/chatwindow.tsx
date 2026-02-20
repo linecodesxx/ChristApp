@@ -1,6 +1,6 @@
-import MessageBubble from "@components/MessageBubble"
+import MessageBubble from "@components/messagebubble/messagebubble"
 import type { Message } from "@/types/message"
-import styles from "./ChatWindow.module.scss"
+import styles from "./chatwindow.module.scss"
 
 type ChatWindowProps = {
   messages: Message[]

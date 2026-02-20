@@ -1,14 +1,11 @@
-import type { Message } from "@/types/message";
-import styles from "./MessageBubble.module.scss";
+import type { Message } from "@/types/message"
+import styles from "./messagebubble.module.scss"
 
 type MessageBubbleProps = {
-  message: Message;
-};
+  message: Message
+}
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
-  console.log(message.username);
-  
-  
   const bubbleClassName = message.sender === "me" ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
 
   return (
@@ -17,5 +14,5 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
         <strong>{message.username || "Unknown"}:</strong> {message.content}
       </p>
     </article>
-  );
+  )
 }

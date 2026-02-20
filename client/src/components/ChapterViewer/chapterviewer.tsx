@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from "react";
-import Verse from "@components/Verse";
+import Verse from "@components/verse/verse";
 
-import styles from "./ChapterViewer.module.scss";
+import styles from "./chapterviewer.module.scss";
 
 type Props = {
   book: {

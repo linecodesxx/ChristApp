@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
-import ChatWindow from "@components/ChatWindow"
-import MessageInput from "@components/MessageInput"
+import ChatWindow from "@components/chatwindow/chatwindow"
+import MessageInput from "@components/messageinput/messageinput"
 import type { Message } from "@/types/message"
 import styles from "./page.module.scss"
-import ChatList from "@components/ChatList/page"
+import ChatList from "@components/chatlist/chatlist"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
