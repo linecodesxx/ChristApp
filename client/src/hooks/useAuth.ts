@@ -68,6 +68,10 @@ export function useAuth(options?: UseAuthOptions) {
       setIsSubmitting(true)
       setError(null)
 
+      if (!API_URL) {
+        throw new Error("Не задан NEXT_PUBLIC_API_URL")
+      }
+
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: {
@@ -77,7 +81,14 @@ export function useAuth(options?: UseAuthOptions) {
       })
 
       if (!res.ok) {
-        throw new Error("Неверные данные")
+        const contentType = res.headers.get("content-type") || ""
+
+        if (contentType.includes("application/json")) {
+          const errData = await res.json()
+          throw new Error(errData.message || "Неверные данные")
+        }
+
+        throw new Error("Ошибка авторизации")
       }
 
       const data = await res.json()

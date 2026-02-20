@@ -18,6 +18,10 @@ export default function RegisterPage() {
     try {
       setRegisterError(null)
 
+      if (!process.env.NEXT_PUBLIC_API_URL) {
+        throw new Error("Не задан NEXT_PUBLIC_API_URL")
+      }
+
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -25,8 +29,14 @@ export default function RegisterPage() {
       })
 
       if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.message || "Ошибка регистрации")
+        const contentType = res.headers.get("content-type") || ""
+
+        if (contentType.includes("application/json")) {
+          const errData = await res.json()
+          throw new Error(errData.message || "Ошибка регистрации")
+        }
+
+        throw new Error("Ошибка регистрации: сервер вернул не JSON")
       }
 
       // после успешной регистрации автоматически логиним пользователя
