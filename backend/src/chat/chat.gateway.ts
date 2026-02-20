@@ -22,7 +22,7 @@ export class ChatGateway {
     private prisma: PrismaService,
     private messagesService: MessagesService,
   ) {}
-
+  private onlineUsers = new Map<string, number>();
   // При подключении проверяем токен и сохраняем пользователя
   async handleConnection(client: Socket) {
     try {
@@ -50,11 +50,42 @@ export class ChatGateway {
           createdAt: m.createdAt,
         })),
       );
+      const userId = user.id;
+
+      const currentConnections = this.onlineUsers.get(userId) || 0;
+      this.onlineUsers.set(userId, currentConnections + 1);
+
+      this.server.emit("onlineCount", this.onlineUsers.size);
+      client.emit("onlineCount", this.onlineUsers.size);
+
+      console.log("MAP AFTER CONNECT:", this.onlineUsers);
+      console.log("SIZE:", this.onlineUsers.size);
+      
     } catch (err: any) {
       console.error("❌ Connection error:", err.message);
       client.disconnect();
     }
   }
+
+  async handleDisconnect(client: Socket) {
+    const user = client.data.user;
+    if (!user) return;
+
+    const userId = user.id;
+    const currentConnections = this.onlineUsers.get(userId);
+
+    if (!currentConnections) return;
+
+    if (currentConnections === 1) {
+      this.onlineUsers.delete(userId);
+    } else {
+      this.onlineUsers.set(userId, currentConnections - 1);
+    }
+
+    this.server.emit("onlineCount", this.onlineUsers.size);
+
+    console.log("❌ Disconnected:", user.username);
+}
 
   // Получение истории сообщений по запросу
   @SubscribeMessage("getHistory")

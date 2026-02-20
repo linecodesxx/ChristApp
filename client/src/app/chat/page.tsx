@@ -11,6 +11,7 @@ import ChatList from "@components/chatlist/chatlist"
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [socket, setSocket] = useState<Socket | null>(null)
+  const [onlineUsers, setOnlineUsers] = useState(0)
 
   useEffect(() => {
     const token = localStorage.getItem("token")
@@ -32,6 +33,10 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, message])
     })
 
+    newSocket.on("onlineCount", (count) => {
+      setOnlineUsers(count);
+    });
+
     setSocket(newSocket)
 
     return () => {
@@ -51,7 +56,7 @@ export default function ChatPage() {
           <div className={styles.avatar}>JS</div>
           <div className={styles.wrapContent}>
             <h2 className={styles.chatName}>ОБЩИЙ ЧАТ - ДЛЯ ВСЕХ</h2>
-            <span className={styles.status}>Online now</span>
+            <span className={styles.status}>{onlineUsers} в сети</span>
           </div>
         </div>
       </div>
