@@ -1,5 +1,5 @@
 import Link from "next/link"
-import styles from "./tabbar.module.scss"
+import styles from "@/components/tabbar/tabbar.module.scss"
 import Image from "next/image"
 
 export default function TabBar() {

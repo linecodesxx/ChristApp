@@ -1,5 +1,5 @@
 import type { Message } from "@/types/message"
-import styles from "./messagebubble.module.scss"
+import styles from "@/components/messagebubble/messagebubble.module.scss"
 
 type MessageBubbleProps = {
   message: Message
