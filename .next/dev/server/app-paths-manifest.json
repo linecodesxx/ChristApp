@@ -1,8 +1,0 @@
-{
-  "/api/messages/route": "app/api/messages/route.js",
-  "/bible/[book]/page": "app/bible/[book]/page.js",
-  "/bible/page": "app/bible/page.js",
-  "/page": "app/page.js",
-  "/chat/page": "app/chat/page.js",
-  "/login/page": "app/login/page.js"
-}
