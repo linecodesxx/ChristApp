@@ -1,8 +1,6 @@
 .bubble {
   display: flex;
   max-width: 261px;
-  // min-height: 71px;
-  // max-height: 131px;
   height: auto;
   padding: 15px 15px;
   flex-direction: column;
@@ -35,7 +33,7 @@
   .bubble {
     box-shadow:
       0 4px 6px -4px rgba(196, 162, 101, 0.4),
-      0 10px 15px -3px rgba(196, 162, 101, 0.4),
+      0px 4px 15px -3px rgba(196, 162, 101, 0.4),
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
   }

@@ -5,8 +5,7 @@ import { io, Socket } from "socket.io-client"
 import ChatWindow from "@components/chatwindow/chatwindow"
 import MessageInput from "@components/messageinput/messageinput"
 import type { Message } from "@/types/message"
-import styles from "./page.module.scss"
-import ChatList from "@components/chatlist/chatlist"
+import styles from "@/app/chat/chat.module.scss"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
