@@ -22,7 +22,7 @@ export default function LoginPage() {
   if (loading) return <p>Проверка...</p>
 
   return (
-    <main className={`${styles.main} container`}>
+    <div className={styles.main}>
       {!user ? (
         <>
           <h1>Вход</h1>
@@ -51,6 +51,6 @@ export default function LoginPage() {
           <button onClick={() => router.push("/chat")}>Перейти в чат</button>
         </>
       )}
-    </main>
+    </div>
   )
 }

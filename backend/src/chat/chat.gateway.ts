@@ -17,12 +17,17 @@ export class ChatGateway {
   @WebSocketServer()
   server: Server;
 
+  private static readonly DISCONNECT_GRACE_MS = 3000;
+
   constructor(
     private jwt: JwtService,
     private prisma: PrismaService,
     private messagesService: MessagesService,
   ) {}
+
   private onlineUsers = new Map<string, number>();
+  private pendingDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
   // При подключении проверяем токен и сохраняем пользователя
   async handleConnection(client: Socket) {
     try {
@@ -51,9 +56,16 @@ export class ChatGateway {
         })),
       );
       const userId = user.id;
+      const reconnectTimer = this.pendingDisconnectTimers.get(userId);
 
-      const currentConnections = this.onlineUsers.get(userId) || 0;
-      this.onlineUsers.set(userId, currentConnections + 1);
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        this.pendingDisconnectTimers.delete(userId);
+        this.onlineUsers.set(userId, 1);
+      } else {
+        const currentConnections = this.onlineUsers.get(userId) || 0;
+        this.onlineUsers.set(userId, currentConnections + 1);
+      }
 
       this.server.emit("onlineCount", this.onlineUsers.size);
       client.emit("onlineCount", this.onlineUsers.size);
@@ -77,14 +89,27 @@ export class ChatGateway {
     if (!currentConnections) return;
 
     if (currentConnections === 1) {
-      this.onlineUsers.delete(userId);
+      const existingTimer = this.pendingDisconnectTimers.get(userId);
+      if (existingTimer) {
+        clearTimeout(existingTimer);
+      }
+
+      const timer = setTimeout(() => {
+        this.pendingDisconnectTimers.delete(userId);
+
+        if (this.onlineUsers.get(userId) === 1) {
+          this.onlineUsers.delete(userId);
+          this.server.emit("onlineCount", this.onlineUsers.size);
+          console.log("❌ Disconnected:", user.username);
+        }
+      }, ChatGateway.DISCONNECT_GRACE_MS);
+
+      this.pendingDisconnectTimers.set(userId, timer);
     } else {
       this.onlineUsers.set(userId, currentConnections - 1);
+      this.server.emit("onlineCount", this.onlineUsers.size);
+      console.log("❌ Disconnected:", user.username);
     }
-
-    this.server.emit("onlineCount", this.onlineUsers.size);
-
-    console.log("❌ Disconnected:", user.username);
 }
 
   // Получение истории сообщений по запросу
