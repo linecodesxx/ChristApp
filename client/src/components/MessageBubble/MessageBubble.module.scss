@@ -30,6 +30,9 @@
 }
 
 @media (prefers-color-scheme: dark) {
+  .myBubble {
+    background: #c4a265;
+  }
   .bubble {
     box-shadow:
       0 4px 6px -4px rgba(196, 162, 101, 0.4),
