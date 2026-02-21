@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import styles from "@/components/messageinput/messageinput.module.scss"
+import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
 
 type MessageInputProps = {

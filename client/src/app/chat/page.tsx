@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { io, Socket } from "socket.io-client"
-import ChatWindow from "@components/chatwindow/chatwindow"
-import MessageInput from "@components/messageinput/messageinput"
+import ChatWindow from "@components/ChatWindow/ChatWindow"
+import MessageInput from "@components/MessageInput/MessageInput"
 import type { Message } from "@/types/message"
 import styles from "@/app/chat/chat.module.scss"
 
