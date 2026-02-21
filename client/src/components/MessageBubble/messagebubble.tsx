@@ -1,5 +1,5 @@
 import type { Message } from "@/types/message"
-import styles from "@/components/messagebubble/messagebubble.module.scss"
+import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { useAuth } from "@/hooks/useAuth"
 
 type MessageBubbleProps = {
@@ -10,8 +10,6 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
   const { user } = useAuth()
 
   const bubbleClassName = message.username === user?.username ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
-  console.log(bubbleClassName);
-  
 
   return (
     <article className={bubbleClassName}>

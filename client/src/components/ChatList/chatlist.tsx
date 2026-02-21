@@ -1,5 +1,5 @@
 import Image from "next/image"
-import styles from "@/components/chatlist/chatlist.module.scss"
+import styles from "@/components/ChatList/ChatList.module.scss"
 import chats from "@app/chatlist/chats.json"
 
 const ChatList = () => {

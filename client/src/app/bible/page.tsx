@@ -1,4 +1,4 @@
-import BibleList from "@/components/biblelist/biblelist";
+import BibleList from "@/components/BibleList/BibleList";
 import { getBibleData } from "@/lib/storage";
 import styles from "./page.module.scss";
 
