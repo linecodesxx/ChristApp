@@ -1,8 +1,8 @@
 "use client"
 
-import ChatWindow from "@components/ChatWindow/ChatWindow"
+import ChatWindow from "@/components/ChatWindow/ChatWindow"
 import styles from "./chatRoom.module.scss"
-import MessageInput from "@components/MessageInput/MessageInput"
+import MessageInput from "@/components/MessageInput/MessageInput"
 import type { Message } from "@/types/message"
 import chat from "@app/chatlist/chats.json"
 import { useState } from "react"

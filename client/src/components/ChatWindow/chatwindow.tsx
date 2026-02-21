@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
-import MessageBubble from "@components/MessageBubble/MessageBubble"
 import type { Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
+import MessageBubble from "@/components/MessageBubble/messagebubble"
 
 type ChatWindowProps = {
   messages: Message[]
