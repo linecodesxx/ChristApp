@@ -12,12 +12,10 @@ export default function TabBar() {
       <Link className={styles.iconChat} href="/chat">
         <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} />
       </Link>
-      <Link className={styles.iconProfile} href="/auth/login">
-        <Image src="/icon-profile.svg" alt="Логин" width={24} height={24} />
+      <Link className={styles.iconProfile} href="/profile">
+        <Image src="/icon-profile.svg" alt="Профиль" width={24} height={24} />
         Profile
       </Link>
     </nav>
   )
 }
-
-

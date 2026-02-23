@@ -1,6 +1,58 @@
 :root {
   --background: #fdf8f0;
   --foreground: #2e2c2c;
+  --login-card-bg: #fffdf9;
+  --login-card-border: #e8dfd1;
+  --login-card-shadow: rgba(38, 28, 16, 0.12);
+  --login-muted: #746858;
+  --login-title: #5f4222;
+  --login-label: #5f4222;
+  --login-footer: #746858;
+  --login-input-bg: #ffffff;
+  --login-input-border: #cabca8;
+  --login-button-bg: #6b4d2a;
+  --login-button-text: #ffffff;
+  --login-link: #7c5a31;
+  --login-error-bg: #fff3f1;
+  --login-error-text: #943535;
+}
+
+[data-theme="light"] {
+  --background: #fdf8f0;
+  --foreground: #2e2c2c;
+  --login-card-bg: #fffdf9;
+  --login-card-border: #e8dfd1;
+  --login-card-shadow: rgba(38, 28, 16, 0.12);
+  --login-muted: #746858;
+  --login-title: #5f4222;
+  --login-label: #5f4222;
+  --login-footer: #746858;
+  --login-input-bg: #ffffff;
+  --login-input-border: #cabca8;
+  --login-button-bg: #6b4d2a;
+  --login-button-text: #ffffff;
+  --login-link: #7c5a31;
+  --login-error-bg: #fff3f1;
+  --login-error-text: #943535;
+}
+
+[data-theme="dark"] {
+  --background: #2e2d2dc8;
+  --foreground: #f1efef;
+  --login-card-bg: #242323;
+  --login-card-border: #3a3939;
+  --login-card-shadow: rgba(0, 0, 0, 0.35);
+  --login-muted: #bdb8b8;
+  --login-title: #f1efef;
+  --login-label: #d8d4d4;
+  --login-footer: #bdb8b8;
+  --login-input-bg: #1e1d1d;
+  --login-input-border: #4a4747;
+  --login-button-bg: #f1efef;
+  --login-button-text: #1f1d1d;
+  --login-link: #f3c98b;
+  --login-error-bg: #3d2222;
+  --login-error-text: #ffc2c2;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -40,6 +92,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   padding: 20px 16px;
+  transition: background-color 0.35s ease, color 0.35s ease;
 }
 
 img,

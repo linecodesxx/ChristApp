@@ -5,7 +5,6 @@
   padding: 15px 15px;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
   gap: 5px;
   border-radius: 16px 16px 16px 0;
   border: 1px solid #e8dcc8;
@@ -31,6 +30,18 @@
   word-break: break-all;
 }
 
+.date {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 5px;
+  color: rgba(92, 64, 51, 0.5);
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 400;
+  line-height: 15px;
+}
+
 @media (prefers-color-scheme: dark) {
   .myBubble {
     background: #c4a265;
@@ -41,5 +52,9 @@
       0px 4px 15px -3px rgba(196, 162, 101, 0.4),
       0 0 0 0 rgba(0, 0, 0, 0),
       0 0 0 0 rgba(0, 0, 0, 0);
+  }
+
+  .date {
+    color: white;
   }
 }

@@ -21,7 +21,7 @@ export default function ChatWindow({ messages }: ChatWindowProps) {
       ) : (
         <>
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} createdAt={message.createdAt} />
           ))}
           <div ref={bottomRef} />
         </>
