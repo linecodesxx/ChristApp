@@ -15,6 +15,7 @@ model User {
   password  String
   messages  Message[]
   createdAt DateTime @default(now())
+  isActive  boolean
 }
 
 model Message {
