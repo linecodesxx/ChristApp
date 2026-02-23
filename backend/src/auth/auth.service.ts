@@ -11,7 +11,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
-  ) {}
+  ) { }
 
   async register(dto: AuthDto) {
     try {
@@ -22,6 +22,7 @@ export class AuthService {
           email: dto.email,
           username: dto.username,
           password: hash,
+          isActive: true
         },
       });
 
