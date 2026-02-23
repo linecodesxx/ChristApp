@@ -1,0 +1,128 @@
+.main,
+.loginPage {
+  min-height: 100dvh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid var(--login-card-border);
+  background: var(--login-card-bg);
+  color: var(--foreground);
+  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+  box-shadow:
+    0 2px 4px -2px var(--login-card-shadow),
+    0 4px 6px -1px var(--login-card-shadow),
+    0 0 0 0 rgba(0, 0, 0, 0),
+    0 0 0 0 rgba(0, 0, 0, 0);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  margin: 0;
+  color: var(--login-title);
+}
+
+.subtitle {
+  margin: 0;
+  color: var(--login-muted);
+}
+
+.loadingText {
+  margin: 0;
+}
+
+.errorWrap {
+  margin: 0;
+}
+
+.error {
+  margin: 0;
+  color: var(--login-error-text);
+  background: var(--login-error-bg);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  margin: 0;
+  color: var(--login-label);
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--login-input-border);
+  background: var(--login-input-bg);
+  color: var(--foreground);
+  border-radius: 10px;
+  padding: 10px 12px;
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+
+  &::placeholder {
+    color: var(--login-muted);
+  }
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+}
+
+.button {
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--login-button-bg);
+  color: var(--login-button-text);
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: default;
+  }
+
+  &:active {
+    transform: translateY(1px);
+  }
+}
+
+.footer {
+  margin-top: 4px;
+}
+
+.footerText {
+  margin: 0;
+  color: var(--login-footer);
+}
+
+.registerLink {
+  cursor: pointer;
+  color: var(--login-link);
+}

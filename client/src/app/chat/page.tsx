@@ -6,6 +6,7 @@ import ChatWindow from "@/components/ChatWindow/ChatWindow"
 import MessageInput from "@/components/MessageInput/MessageInput"
 import type { Message } from "@/types/message"
 import styles from "@/app/chat/chat.module.scss"
+import ChatList from "@/components/ChatList/ChatList"
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])

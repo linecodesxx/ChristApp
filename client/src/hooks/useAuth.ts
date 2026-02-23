@@ -7,6 +7,7 @@ type User = {
   id: number
   email: string
   username: string
+  createdAt: string
 }
 
 type UseAuthOptions = {
@@ -72,7 +73,7 @@ export function useAuth(options?: UseAuthOptions) {
         throw new Error("Не задан NEXT_PUBLIC_API_URL")
       }
 
-      const res = await fetch(`${API_URL}/auth/login`, {
+      const res = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -109,7 +110,7 @@ export function useAuth(options?: UseAuthOptions) {
   const logout = () => {
     localStorage.removeItem("token")
     setUser(null)
-    router.push("/auth/login")
+    router.push("/login")
   }
 
   return {

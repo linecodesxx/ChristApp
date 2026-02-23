@@ -1,0 +1,90 @@
+.hanger {
+  position: fixed;
+  top: 0;
+  right: 22px;
+  z-index: 120;
+  width: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mount {
+  width: 24px;
+  height: 7px;
+  border-radius: 0 0 8px 8px;
+  background: color-mix(in srgb, var(--foreground) 25%, var(--background) 75%);
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+}
+
+.toggle {
+  width: 44px;
+  height: 124px;
+  display: grid;
+  place-items: end center;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  transition: transform 0.22s ease;
+
+  &:active {
+    transform: translateY(4px);
+  }
+}
+
+.rope {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 82px;
+  background: linear-gradient(to bottom, #8a7d6b, #5f564a);
+  border-radius: 999px;
+}
+
+.lamp {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+  border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
+  background: color-mix(in srgb, var(--foreground) 20%, var(--background) 80%);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  transition: box-shadow 0.3s ease, opacity 0.3s ease;
+}
+
+.light {
+  .lamp {
+    background: #facc15;
+    box-shadow: 0 0 10px #facc15;
+    transform: scale(1);
+  }
+
+  .glow {
+    box-shadow: 0 0 16px #facc15, 0 0 28px color-mix(in srgb, #facc15 60%, transparent), 0 16px 30px color-mix(in srgb, #facc15 24%, transparent);
+    opacity: 1;
+  }
+}
+
+.dark {
+  .lamp {
+    background: #e5e7eb;
+    box-shadow: 0 0 8px #e5e7eb;
+    transform: scale(0.9);
+  }
+
+  .glow {
+    box-shadow: 0 0 12px #e5e7eb, 0 0 20px color-mix(in srgb, #e5e7eb 40%, transparent), 0 10px 20px color-mix(in srgb, #e5e7eb 18%, transparent);
+    opacity: 0.95;
+  }
+}
