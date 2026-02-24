@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  backend:
+    build: ./backend
+    container_name: christapp-backend
+    ports:
+      - "3001:3000"
+    env_file:
+      - ./backend/.env
+    restart: always
+
+  
+  frontend:
+    build: ./client
+    container_name: christapp-client
+    ports: 
+    - "3000:3000"
+    depends_on:
+      - backend
+    env_file:
+      - ./client/.env.local
+    restart: always
+
+
