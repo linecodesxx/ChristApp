@@ -9,8 +9,7 @@ type MessageBubbleProps = {
 
 export default function MessageBubble({ message }: MessageBubbleProps) {
   const { user } = useAuth()
-  console.log(user?.email)
-  console.log(user?.createdAt)
+
   const date = new Date(message.createdAt)
   const formattedDate = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
@@ -18,7 +17,7 @@ export default function MessageBubble({ message }: MessageBubbleProps) {
 
   return (
     <article className={bubble}>
-      <p>
+      <p className={styles.messageContent}>
         <strong>{message.username || "Unknown"}:</strong> {message.content}
         <span className={styles.date}>{formattedDate}</span>
       </p>

@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="ru">
+    <html lang="ru" data-theme="dark">
       <body className={`${inter.variable} ${geistMono.variable}`}>
         <ThemeToggle />
         <main className={styles.main}>{children}</main>

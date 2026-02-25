@@ -19,7 +19,7 @@
 
 .toggle {
   width: 44px;
-  height: 124px;
+  height: 80px;
   display: grid;
   place-items: end center;
   cursor: pointer;
@@ -40,7 +40,7 @@
   left: 50%;
   transform: translateX(-50%);
   width: 2px;
-  height: 82px;
+  height: 60px;
   background: linear-gradient(to bottom, #8a7d6b, #5f564a);
   border-radius: 999px;
 }

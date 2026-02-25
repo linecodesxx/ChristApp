@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
-import styles from "@/app/(login)/page.module.scss"
+import styles from "@/app/(login)/login.module.scss"
 import Image from "next/image"
 
 export default function LoginPage() {

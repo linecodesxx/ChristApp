@@ -3,8 +3,8 @@
   background: var(--background);
   border-radius: 30px;
   box-shadow:
-    0 4px 8px 0 rgba(0, 0, 0, 0.1),
-    0 6px 20px 0 rgba(0, 0, 0, 0.1);
+    0 2px 8px 0 rgba(38, 28, 16, 0.08),
+    0 6px 18px 0 rgba(38, 28, 16, 0.08);
   height: calc(100% - 20px);
   width: 100%;
   padding: 0 16px;
@@ -21,9 +21,9 @@
     justify-content: center;
     gap: 142px;
     flex-shrink: 0;
-    border: 1px solid rgba(232, 220, 200, 0.5);
+    border: 1px solid var(--line-soft);
     border-top: none;
-    background: rgba(253, 248, 240, 0.9);
+    background: var(--surface-elevated);
     border-radius: 30px;
 
     .headerContent {
@@ -49,7 +49,7 @@
           display: flex;
           min-width: 65px;
           flex-shrink: 0;
-          color: #c4a265;
+          color: var(--text-muted);
           font-family: "Inter", sans-serif;
           font-size: 10px;
           font-style: normal;
@@ -67,41 +67,38 @@
         align-items: center;
         flex-shrink: 0;
         border-radius: 50%;
-        border: 2px solid #c4a265;
-        background: #e8dcc8;
-        background: var(--background);
-        color: var(--foreground);
+        border: 2px solid var(--accent);
+        background: var(--accent-soft);
+        color: #2e2c2c;
       }
     }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .chat {
-    box-shadow:
-      0px -3px 20px 0px rgba(196, 162, 101, 0.4),
-      0 10px 15px -3px rgba(196, 162, 101, 0.4),
-      0 0 0 0 rgb(231, 231, 109),
-      0 0 0 0 rgba(0, 0, 0, 0);
+html[data-theme="dark"] .chat {
+  box-shadow:
+    0px -3px 20px 0px rgba(196, 162, 101, 0.25),
+    0 10px 15px -3px rgba(196, 162, 101, 0.2),
+    0 0 0 0 rgba(231, 231, 109, 0),
+    0 0 0 0 rgba(0, 0, 0, 0);
 
-    .header {
-      color: var(--foreground);
-      background: var(--background);
-      .headerContent {
-        .wrapContent {
-          .chatName {
-            color: var(--foreground);
-          }
-
-          .status {
-            color: rgba(134, 230, 134, 0.857);
-          }
-        }
-
-        .avatar {
-          background: var(--background);
+  .header {
+    color: var(--foreground);
+    background: var(--background);
+    .headerContent {
+      .wrapContent {
+        .chatName {
           color: var(--foreground);
         }
+
+        .status {
+          color: var(--accent);
+        }
+      }
+
+      .avatar {
+        background: var(--accent-soft);
+        color: color-mix(in srgb, var(--background) 82%, #000 18%);
       }
     }
   }

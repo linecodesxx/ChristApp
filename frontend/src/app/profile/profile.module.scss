@@ -1,0 +1,90 @@
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  color: var(--foreground);
+  background: var(--background);
+
+  .userInfo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 16px;
+    background: var(--surface-elevated);
+
+    .avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--accent);
+      background: var(--accent-soft);
+      color: #2e2c2c;
+      font-weight: 700;
+    }
+
+    .info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      color: var(--text-muted);
+
+      .username {
+        color: var(--foreground);
+        font-weight: 700;
+      }
+    }
+  }
+
+  .list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .item {
+      padding: 12px;
+      border: 1px solid var(--line-soft);
+      border-radius: 12px;
+      background: var(--surface-elevated);
+    }
+  }
+
+  .account,
+  .support {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--line-soft);
+    border-radius: 14px;
+    background: var(--surface-elevated);
+
+    span {
+      color: var(--foreground);
+      font-weight: 600;
+    }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      color: var(--text-muted);
+    }
+  }
+
+  .support {
+    div {
+      a {
+        color: var(--accent);
+        font-weight: 600;
+      }
+    }
+  }
+}

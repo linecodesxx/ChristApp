@@ -8,15 +8,22 @@
   gap: 8px;
   flex-shrink: 0;
   border-radius: 30px;
-  border: 1px solid #e8dcc8;
-  background: #f5ede0;
+  border: 1px solid var(--line-soft);
+  background: var(--accent-soft);
+  box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
 
   .input {
     border-radius: 30px;
     padding: 18px 10px;
     width: 100%;
     border-radius: 9999px;
-    background: #f5ede0;
+    background: var(--accent-soft);
+    color: color-mix(in srgb, var(--foreground) 82%, #000 18%);
+
+    &::placeholder {
+      color: var(--text-muted);
+    }
+
     &:focus {
       outline: none;
     }
@@ -28,20 +35,31 @@
     display: block;
     margin-right: 10px;
   }
+
+  .attachmentButton,
+  .sendButton,
+  .microButton {
+    cursor: pointer;
+    filter: brightness(0) saturate(100%) invert(16%);
+    transition: filter 0.25s ease;
+  }
 }
 
-@media (prefers-color-scheme: dark) {
-  .message {
+html[data-theme="dark"] .message {
+  background: var(--surface-elevated);
+
+  .input {
+    background: var(--surface-elevated);
     color: var(--foreground);
-    background: var(--background);
 
-    .input {
-      color: var(--foreground);
-      background: var(--background);
+    &::placeholder {
+      color: var(--text-dim);
     }
+  }
 
-    img {
-      filter: brightness(0) saturate(100%) invert(100%);
-    }
+  .attachmentButton,
+  .sendButton,
+  .microButton {
+    filter: brightness(0) saturate(100%) invert(100%);
   }
 }
