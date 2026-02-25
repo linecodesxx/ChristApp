@@ -36,7 +36,7 @@ export default function MessageInput({ onSend }: MessageInputProps) {
       {value ? (
         <Image src="/icon-send.svg" className={styles.sendButton} alt="Send" width={18} height={18} onClick={submit} />
       ) : (
-        <Image src="/icon-micro.svg" alt="Send" width={36} height={36} onClick={submit} />
+        <Image src="/icon-micro.svg" className={styles.microButton} alt="Send" width={36} height={36} onClick={submit} />
       )}
     </div>
   )

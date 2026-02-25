@@ -8,8 +8,9 @@
     justify-content: center;
     gap: 142px;
     flex-shrink: 0;
-    border-bottom: 1px solid rgba(232, 220, 200, 0.5);
-    background: rgba(253, 248, 240, 0.9);
+    border: 1px solid var(--line-soft);
+    border-top: none;
+    background: var(--surface-elevated);
     border-radius: 30px;
 
     .headerContent {
@@ -35,7 +36,7 @@
           display: flex;
           min-width: 65px;
           flex-shrink: 0;
-          color: #c4a265;
+          color: var(--text-muted);
           font-family: "Inter", sans-serif;
           font-size: 10px;
           font-style: normal;
@@ -53,34 +54,22 @@
         align-items: center;
         flex-shrink: 0;
         border-radius: 50%;
-        border: 2px solid #c4a265;
-        background: #e8dcc8;
-        background: var(--background);
-        color: var(--foreground);
+        border: 2px solid var(--accent);
+        background: var(--accent-soft);
+        color: color-mix(in srgb, var(--background) 82%, #000 18%);
       }
     }
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .main {
-    .header {
-      color: var(--foreground);
-      background: var(--background);
-      .headerContent {
-        .wrapContent {
-          .chatName {
-            color: var(--foreground);
-          }
+html[data-theme="dark"] .main {
+  .header {
+    background: var(--background);
 
-          .status {
-            color: rgba(134, 230, 134, 0.857);
-          }
-        }
-
-        .avatar {
-          background: var(--background);
-          color: var(--foreground);
+    .headerContent {
+      .wrapContent {
+        .status {
+          color: var(--accent);
         }
       }
     }
