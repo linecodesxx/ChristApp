@@ -3,7 +3,7 @@ import { AuthDto } from './dto/AuthDTO';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt.guard';
 
-@Controller('auth')
+@Controller()
 export class AuthController {
   constructor(private authService: AuthService) {}
 
@@ -17,7 +17,7 @@ export class AuthController {
     return this.authService.login(dto);
   }
 
-  @Get("me")
+  @Get("/auth/me")
   @UseGuards(JwtAuthGuard)
   getMe(@Req() req) {
     return req.user;
