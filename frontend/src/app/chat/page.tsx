@@ -16,17 +16,24 @@ export default function ChatPage() {
   useEffect(() => {
     const token = localStorage.getItem("token")
 
+    // Fetch history from API
+    fetch("http://localhost:3001/chat/history", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((res) => res.json())
+      .then((data: Message[]) => {
+        setMessages(data)
+      })
+      .catch((err) => console.error("Failed to fetch history:", err))
+
     const newSocket = io("http://localhost:3001", {
       auth: { token },
     })
 
     newSocket.on("connect", () => {
       console.log("Connected to server")
-      newSocket.emit("getHistory")
-    })
-
-    newSocket.on("history", (data: Message[]) => {
-      setMessages(data)
     })
 
     newSocket.on("newMessage", (message: Message) => {

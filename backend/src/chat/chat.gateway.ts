@@ -46,15 +46,15 @@ export class ChatGateway {
 
       // Сразу слать историю сообщений
       const messages = await this.messagesService.getAll();
-      client.emit(
-        "history",
-        messages.map((m) => ({
-          id: m.id,
-          content: m.content,
-          username: m.sender.username, // гарантированно есть
-          createdAt: m.createdAt,
-        })),
-      );
+      // client.emit(
+      //   "history",
+      //   messages.map((m) => ({
+      //     id: m.id,
+      //     content: m.content,
+      //     username: m.sender.username, // гарантированно есть
+      //     createdAt: m.createdAt,
+      //   })),
+      // );
       const userId = user.id;
       const reconnectTimer = this.pendingDisconnectTimers.get(userId);
 
@@ -112,20 +112,7 @@ export class ChatGateway {
     }
 }
 
-  // Получение истории сообщений по запросу
-  @SubscribeMessage("getHistory")
-  async handleGetHistory(@ConnectedSocket() client: Socket) {
-    const messages = await this.messagesService.getAll();
-    client.emit(
-      "history",
-      messages.map((m) => ({
-        id: m.id,
-        content: m.content,
-        username: m.sender.username,
-        createdAt: m.createdAt,
-      })),
-    );
-  }
+
 
   // Отправка нового сообщения
   @SubscribeMessage("sendMessage")
