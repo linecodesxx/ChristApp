@@ -5,21 +5,18 @@ services:
     build: ./backend
     container_name: christapp-backend
     ports:
-      - "3001:3000"
+      - "3001:3001"
     env_file:
       - ./backend/.env
     restart: always
 
-  
   frontend:
     build: ./client
     container_name: christapp-client
-    ports: 
-    - "3000:3000"
+    ports:
+      - "3000:3000"
     depends_on:
       - backend
     env_file:
-      - ./client/.env.local
+      - ./client/.env.local.docker
     restart: always
-
-
