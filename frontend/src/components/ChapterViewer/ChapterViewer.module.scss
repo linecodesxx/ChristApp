@@ -77,7 +77,7 @@
 }
 
 .bookTitle {
-  color: #3A2A1E;
+  color: var(--book-title-color);
   font-size: 30.60px;
   font-weight: 400;
   line-height: 40px;
@@ -88,7 +88,7 @@
 }
 
 .headerBookTitle {
-  color: #3A2A1E;
+  color: var(--book-title-color);
 font-size: 14px;
 font-style: normal;
 font-weight: 700;

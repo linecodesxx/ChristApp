@@ -1,4 +1,4 @@
-.main {
+.chatlist {
   .header {
     width: 100%;
     display: flex;
@@ -18,12 +18,25 @@
       align-items: center;
       gap: 16px;
 
+      .avatar {
+        display: flex;
+        width: 50px;
+        height: 50px;
+        padding: 8px 12px 8px 12px;
+        justify-content: center;
+        align-items: center;
+        flex-shrink: 0;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        background: var(--accent-soft);
+        color: color-mix(in srgb, var(--background) 82%, #000 18%);
+      }
+
       .wrapContent {
         display: flex;
         flex-direction: column;
 
         .chatName {
-          color: #3a2a1e;
           color: var(--foreground);
           font-family: "Inter", sans-serif;
           font-size: 15px;
@@ -42,34 +55,6 @@
           font-style: normal;
           font-weight: 500;
           line-height: 16px;
-        }
-      }
-
-      .avatar {
-        display: flex;
-        width: 40px;
-        height: 40px;
-        padding: 8px 12.297px 8px 12.281px;
-        justify-content: center;
-        align-items: center;
-        flex-shrink: 0;
-        border-radius: 50%;
-        border: 2px solid var(--accent);
-        background: var(--accent-soft);
-        color: color-mix(in srgb, var(--background) 82%, #000 18%);
-      }
-    }
-  }
-}
-
-html[data-theme="dark"] .main {
-  .header {
-    background: var(--background);
-
-    .headerContent {
-      .wrapContent {
-        .status {
-          color: var(--accent);
         }
       }
     }

@@ -8,13 +8,14 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  username  String    @unique
-  password  String
-  messages  Message[]
-  createdAt DateTime  @default(now())
-  isActive  Boolean
+  id          String       @id @default(uuid())
+  email       String       @unique
+  username    String       @unique
+  password    String
+  messages    Message[]
+  memberships RoomMember[]
+  createdAt   DateTime     @default(now())
+  isActive    Boolean      @default(true)
 }
 
 model Message {
@@ -22,5 +23,28 @@ model Message {
   content   String
   sender    User     @relation(fields: [senderId], references: [id])
   senderId  String
+  room      Room     @relation(fields: [roomId], references: [id])
+  roomId    String   @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
   createdAt DateTime @default(now())
+
+  @@index([roomId, createdAt])
+}
+
+model Room {
+  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title     String       @unique
+  messages  Message[]
+  members   RoomMember[]
+  createdAt DateTime     @default(now())
+}
+
+model RoomMember {
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  roomId   String   @db.Uuid
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId   String
+  joinedAt DateTime @default(now())
+
+  @@id([roomId, userId])
+  @@index([userId])
 }

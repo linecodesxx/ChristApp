@@ -1,7 +1,6 @@
-.chatList {
-  min-height: 80vh;
+.chatListSection {
+  min-height: 100%;
   width: 100%;
-  padding: 20px;
 
   ul li {
     list-style: none;
@@ -10,8 +9,20 @@
   .header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 20px;
     width: 100%;
+
+    .newChatButton{
+      background: transparent;
+      border: none;
+    }
+
+    .dots {
+      svg {
+        width: 10px;
+        height: 10px;
+      }
+    }
   }
 
   .searchBar {
@@ -85,7 +96,7 @@
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 40px;
+          width: 50px;
           height: 40px;
           border-radius: 50%;
           background: color-mix(in srgb, var(--accent) 25%, transparent);

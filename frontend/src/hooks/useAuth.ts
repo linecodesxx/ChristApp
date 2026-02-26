@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
+import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
 
 type User = {
-  id: number
+  id: string
   email: string
   username: string
   createdAt: string
@@ -16,22 +17,56 @@ type UseAuthOptions = {
 
 export function useAuth(options?: UseAuthOptions) {
   const router = useRouter()
+  const redirectIfUnauthenticated = options?.redirectIfUnauthenticated
 
   const [user, setUser] = useState<User | null>(null)
+  const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+  const fetchUsers = useCallback(async () => {
+    const token = getAuthToken()
+
+    if (!token || !API_URL) {
+      setUsers([])
+      return
+    }
+
+    try {
+      const res = await fetch(`${API_URL}/users`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) {
+        setUsers([])
+        return
+      }
+
+      const data = await res.json()
+      setUsers(Array.isArray(data) ? data : [])
+    } catch {
+      setUsers([])
+    }
+  }, [API_URL])
+
   // Проверка текущего пользователя
   const checkAuth = useCallback(async () => {
-    const token = localStorage.getItem("token")
+    const token = getAuthToken()
 
     if (!token) {
-      if (options?.redirectIfUnauthenticated) {
-        router.push(options.redirectIfUnauthenticated)
+      if (redirectIfUnauthenticated) {
+        router.push(redirectIfUnauthenticated)
       }
+      setLoading(false)
+      return
+    }
+
+    if (!API_URL) {
       setLoading(false)
       return
     }
@@ -43,21 +78,33 @@ export function useAuth(options?: UseAuthOptions) {
         },
       })
 
-      if (!res.ok) throw new Error()
+      if (res.status === 401 || res.status === 403) {
+        clearAuthToken()
+        setUser(null)
+        setUsers([])
+
+        if (redirectIfUnauthenticated) {
+          router.push(redirectIfUnauthenticated)
+        }
+
+        return
+      }
+
+      if (!res.ok) {
+        setLoading(false)
+        return
+      }
 
       const data = await res.json()
       setUser(data)
+      await fetchUsers()
     } catch {
-      localStorage.removeItem("token")
-      setUser(null)
-
-      if (options?.redirectIfUnauthenticated) {
-        router.push(options.redirectIfUnauthenticated)
-      }
+      setLoading(false)
+      return
     } finally {
       setLoading(false)
     }
-  }, [API_URL, options, router])
+  }, [API_URL, fetchUsers, redirectIfUnauthenticated, router])
 
   useEffect(() => {
     checkAuth()
@@ -94,8 +141,9 @@ export function useAuth(options?: UseAuthOptions) {
 
       const data = await res.json()
 
-      localStorage.setItem("token", data.access_token)
+      setAuthToken(data.access_token)
       setUser(data.user)
+      await fetchUsers()
 
       return true
     } catch (err: any) {
@@ -108,17 +156,20 @@ export function useAuth(options?: UseAuthOptions) {
 
   // Логаут
   const logout = () => {
-    localStorage.removeItem("token")
+    clearAuthToken()
     setUser(null)
-    router.push("/login")
+    setUsers([])
+    router.push("/")
   }
 
   return {
     user,
+    users,
     loading,
     error,
     isSubmitting,
     login,
     logout,
+    refreshUsers: fetchUsers,
   }
 }

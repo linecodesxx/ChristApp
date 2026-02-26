@@ -1,19 +1,22 @@
 import type { Message } from "@/types/message"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
-import { useAuth } from "@/hooks/useAuth"
 
 type MessageBubbleProps = {
   message: Message
-  createdAt: string
+  currentUsername?: string
 }
 
-export default function MessageBubble({ message }: MessageBubbleProps) {
-  const { user } = useAuth()
+export default function MessageBubble({ message, currentUsername }: MessageBubbleProps) {
 
   const date = new Date(message.createdAt)
   const formattedDate = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
 
-  const bubble = message.username === user?.username ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
+  const isOwnMessage =
+    message.sender === "me" ||
+    (Boolean(currentUsername) && message.username === currentUsername) ||
+    message.username === "Ты"
+
+  const bubble = isOwnMessage ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
 
   return (
     <article className={bubble}>
