@@ -5,9 +5,10 @@ import MessageBubble from "@/components/MessageBubble/MessageBubble"
 
 type ChatWindowProps = {
   messages: Message[]
+  currentUsername?: string
 }
 
-export default function ChatWindow({ messages }: ChatWindowProps) {
+export default function ChatWindow({ messages, currentUsername }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -21,7 +22,7 @@ export default function ChatWindow({ messages }: ChatWindowProps) {
       ) : (
         <>
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} createdAt={message.createdAt} />
+            <MessageBubble key={message.id} message={message} currentUsername={currentUsername} />
           ))}
           <div ref={bottomRef} />
         </>

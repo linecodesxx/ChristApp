@@ -1,6 +1,7 @@
 :root {
   --background: #2e2d2dc8;
   --foreground: #f1efef;
+  --book-title-color: #f1efef;
   --surface: #2f2e31;
   --surface-elevated: #343336;
   --line-soft: rgba(232, 220, 200, 0.5);
@@ -27,6 +28,7 @@
 [data-theme="light"] {
   --background: #fdf8f0;
   --foreground: #2e2c2c;
+  --book-title-color: #3a2a1e;
   --surface: #f6efe4;
   --surface-elevated: #fff8ee;
   --line-soft: rgba(196, 162, 101, 0.4);
