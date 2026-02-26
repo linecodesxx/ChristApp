@@ -17,7 +17,7 @@ const Profile = () => {
   return (
     <>
       <section className={styles.profile}>
-        <h1>Профиль</h1>
+        <h1>Профиль1</h1>
 
         <div className={styles.userInfo}>
           <div className={styles.avatar}>{initials}</div>
