@@ -1,12 +1,14 @@
 .chatWindow {
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: 10px;
-  height: calc(100% - 73px - 60px - 40px);
-  overflow-x: scroll;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   width: 100%;
-  min-height: 65vh;
+  max-height: 100%;
   padding-bottom: 20px;
 }
 

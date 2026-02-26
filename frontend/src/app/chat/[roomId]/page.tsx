@@ -335,7 +335,7 @@ export default function ChatPageDetails() {
   }
 
   return (
-    <section className={`${styles.chatlist} container`}>
+    <section className={`${styles.chat} container`}>
       <div className={styles.header}>
         <div className={styles.headerContent}>
           <Link href="/chat">
