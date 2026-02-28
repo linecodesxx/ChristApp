@@ -1,19 +1,47 @@
 import Link from "next/link";
-import type { BibleBook } from "@/types/bible";
 import styles from "./BibleList.module.scss";
 
-type BibleListProps = {
-  books: BibleBook[];
+type Verse = {
+  VerseId: number;
+  Text: string;
 };
 
-export default function BibleList({ books }: BibleListProps) {
+type Chapter = {
+  ChapterId: number;
+  Verses: Verse[];
+};
+
+type Book = {
+  BookId: number;
+  BookName: string;
+  Chapters: Chapter[];
+};
+
+type BibleData = {
+  Translation: string;
+  Books: Book[];
+};
+
+type BibleListProps = {
+  data: BibleData;
+};
+
+export default function BibleList({ data }: BibleListProps) {
+  if (!data?.Books) return null; // защита от undefined
+
   return (
-    <ul className={styles.list}>
-      {books.map((book) => (
-        <li key={book.name} className={styles.item}>
-          <Link href={`/bible/${encodeURIComponent(book.name)}`}>{book.name}</Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      <h2>Перевод: {data.Translation}</h2>
+
+      <ul className={styles.list}>
+        {data.Books.map((book) => (
+          <li key={book.BookId} className={styles.item}>
+            <Link href={`/bible/${book.BookId}`}>
+              {book.BookName}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

@@ -1,14 +1,11 @@
-import BibleList from "@/components/BibleList/BibleList";
 import { getBibleData } from "@/lib/storage";
-import styles from "./page.module.scss";
+import BibleReader from "@/components/BibleReader/BibleReader";
 
 export default async function BiblePage() {
   const bible = await getBibleData();
 
-  return (
-    <main className={`${styles.main} container`}>
-      <h1>Библия</h1>
-      <BibleList books={bible.books} />
-    </main>
-  );
+  if (!bible?.Books) return <div>Нет данных</div>;
+
+  // клиентский компонент восстановит последнюю позицию чтения
+  return <BibleReader bible={bible} />;
 }

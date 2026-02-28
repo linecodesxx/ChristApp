@@ -1,0 +1,25 @@
+.list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.link {
+  display: block;
+  padding: 12px;
+  background: #fdf8f0;
+  text-align: center;
+  text-decoration: none;
+  color: #3A2A1E;
+  border-radius: 8px;
+  border: 1px solid #e8dfd1;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.link:hover {
+  background: #f0ede6;
+  color: #C4A265;
+  border-color: #C4A265;
+}

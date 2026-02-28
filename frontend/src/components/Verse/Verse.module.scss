@@ -1,10 +1,45 @@
 .verse {
   margin-top: 6px;
+  color: var(--foreground);
+  font-family: inherit;
+}
+
+.header {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.selected {
+  text-decoration: underline;
+  text-decoration-color: var(--login-link);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .verseContainer {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 8px;
 }
 
+.header {
+  display: flex;
+  gap: 10px;
+  font-size: 14px;
+  color: #3A2A1E;
+  font-weight: 500;
+}
+
+.clickable {
+  cursor: pointer;
+  color: var(--login-link);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.clickable:hover {
+  color: var(--login-button-bg);
+}
