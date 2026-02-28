@@ -3,6 +3,23 @@ export type BibleBook = {
   chapters: string[][];
 };
 
+export type Verse = {
+  VerseId: number;
+  Text: string;
+};
+
+export type Chapter = {
+  ChapterId: number;
+  Verses: Verse[];
+};
+
+export type Book = {
+  BookId: number;
+  BookName: string;
+  Chapters: Chapter[];
+};
+
 export type BibleData = {
-  books: BibleBook[];
+  Translation: string;
+  Books: Book[];
 };
