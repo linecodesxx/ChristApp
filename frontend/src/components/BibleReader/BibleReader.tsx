@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Verse from '@/components/Verse/Verse';
 import {
+  fetchChapters,
   fetchBooks,
   fetchFullChapter,
   fetchTranslations,
@@ -18,6 +19,7 @@ type ModalStep = 'testament' | 'books' | 'chapters';
 
 export default function BibleReader() {
   const [books, setBooks] = useState<string[]>([]);
+  const [chapters, setChapters] = useState<number[]>([]);
   const [translations, setTranslations] = useState<string[]>([]);
   const [translation, setTranslation] = useState('NRT');
 
@@ -51,6 +53,9 @@ export default function BibleReader() {
       }
 
       const firstBook = booksData[0];
+      const firstBookChapters = await fetchChapters(firstBook, translation);
+
+      setChapters(firstBookChapters);
       await loadChapter(firstBook, 1);
     }
 
@@ -220,8 +225,15 @@ export default function BibleReader() {
                   <button
                     className={`${styles.bookButton} ${currentBook === book ? styles.active : ''}`}
                     key={book}
-                    onClick={() => {
+                    onClick={async () => {
                       setCurrentBook(book);
+                      try {
+                        const selectedBookChapters = await fetchChapters(book, translation);
+                        setChapters(selectedBookChapters);
+                      } catch (err) {
+                        console.error('Failed to fetch chapters', err);
+                        setChapters([]);
+                      }
                       setModalStep('chapters');
                     }}
                   >
@@ -236,9 +248,10 @@ export default function BibleReader() {
               <div className={styles.modalBody}>
                 <h3>{currentBook}</h3>
                 <div className={styles.chaptersList}>
-                {Array.from({ length: 150 }, (_, i) => i + 1).map(
+                {chapters.map(
                   (chap) => (
                     <button
+                    type="button"
                     className={`${styles.chapterButton} ${currentChapter === chap ? styles.active : ''}`}
                       key={chap}
                       onClick={() => {
