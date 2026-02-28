@@ -1,0 +1,3 @@
+[submodule "BibleAPI"]
+	path = BibleAPI
+	url = https://github.com/linecodesxx/BibleAPI.git
