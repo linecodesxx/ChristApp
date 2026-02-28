@@ -153,14 +153,14 @@
 
 .floatingNavLeft {
     position: fixed;
-    left: 13px;
+    left: 5px;
     bottom: 165px;
     z-index: 1600;
 }
 
 .floatingNavRight {
     position: fixed;
-    right: 13px;
+    right: 5px;
     bottom: 165px;
     z-index: 1600;
 }
@@ -202,7 +202,7 @@
     max-height: 75vh;
     /* keep scrollable region within the page */
     overflow-y: auto;
-    padding-right: 1rem;
+    padding: 1rem;
     /* give room for scrollbar */
 }
 

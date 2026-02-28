@@ -1,101 +1,111 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import type { BibleData, Book, Chapter } from '@/types/bible';
 import Verse from '@/components/Verse/Verse';
+import {
+  fetchBooks,
+  fetchFullChapter,
+  fetchTranslations,
+} from '@/lib/bibleApi';
 import styles from './BibleReader.module.scss';
 
-type Props = {
-  bible: BibleData;
-  /** if provided, this book will be selected initially instead of lastRead value */
-  initialBookId?: number;
-  initialChapterId?: number;
-  initialVerseId?: number;
+type VerseType = {
+  verseId: number;
+  text: string;
 };
 
-export default function BibleReader({ bible, initialBookId, initialChapterId, initialVerseId }: Props) {
+type ModalStep = 'testament' | 'books' | 'chapters';
 
-  // determine initial selection, using explicit props first or localStorage as fallback
-  // compute default selection values (don't read localStorage here as it won't run on server)
-  const { initBook, initChap, initVerse } = (() => {
-    let book = bible.Books[0];
-    let chap = book.Chapters[0];
-    let verse = 1;
+export default function BibleReader() {
+  const [books, setBooks] = useState<string[]>([]);
+  const [translations, setTranslations] = useState<string[]>([]);
+  const [translation, setTranslation] = useState('NRT');
 
-    if (initialBookId != null) {
-      book = bible.Books.find((b) => b.BookId === initialBookId) || book;
-    }
-    if (initialChapterId != null) {
-      chap = book.Chapters.find((c) => c.ChapterId === initialChapterId) || book.Chapters[0];
-    }
-    if (initialVerseId != null) {
-      verse = initialVerseId;
-    }
+  const [currentBook, setCurrentBook] = useState<string | null>(null);
+  const [currentChapter, setCurrentChapter] = useState(1);
+  const [verses, setVerses] = useState<VerseType[]>([]);
 
-    return { initBook: book, initChap: chap, initVerse: verse };
-  })();
-
-  const [progress, setProgress] = useState<{
-    book: Book;
-    chapter: Chapter;
-    verse: number;
-  }>({ book: initBook, chapter: initChap, verse: initVerse });
-
-  // independent highlight state for verses (multiple allowed)
   const [highlights, setHighlights] = useState<Set<number>>(new Set());
 
-  // selector modal open
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
-
-  // modal step: 'testament' | 'books' | 'chapters'
-  type ModalStep = 'testament' | 'books' | 'chapters';
   const [modalStep, setModalStep] = useState<ModalStep>('testament');
-  const [selectedTestament, setSelectedTestament] = useState<'old' | 'new'>('old');
+  const [selectedTestament, setSelectedTestament] =
+    useState<'old' | 'new'>('old');
 
-  // helper: filter books by testament
-  const oldTestamentBooks = bible.Books.filter((b) => b.BookId <= 39);
-  const newTestamentBooks = bible.Books.filter((b) => b.BookId > 39);
-  const testamentBooks = selectedTestament === 'old' ? oldTestamentBooks : newTestamentBooks;
+  const touchStartX = useRef(0);
 
-  // after hydration try to override with stored progress if no explicit props were provided
+  // ===== INIT =====
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    if (
-      initialBookId == null &&
-      initialChapterId == null &&
-      initialVerseId == null
-    ) {
-      try {
-        const stored = localStorage.getItem('lastRead');
-        if (stored) {
-          const { bookId, chapterId, verseId } = JSON.parse(stored);
-          const b = bible.Books.find((b) => b.BookId === bookId) || bible.Books[0];
-          const c = b.Chapters.find((c) => c.ChapterId === chapterId) || b.Chapters[0];
-          // schedule update to avoid synchronous setState warning
-          setTimeout(() => {
-            setProgress({ book: b, chapter: c, verse: verseId || 1 });
-          }, 0);
-        }
-      } catch (e) {
-        console.warn('failed to parse lastRead', e);
+    async function init() {
+      const [translationsData, booksData] = await Promise.all([
+        fetchTranslations(),
+        fetchBooks(translation),
+      ]);
+
+      setTranslations(translationsData);
+      setBooks(booksData);
+
+      if (!booksData || booksData.length === 0) {
+        console.error('Books list is empty');
+        return;
       }
+
+      const firstBook = booksData[0];
+      await loadChapter(firstBook, 1);
     }
-  }, [bible, initialBookId, initialChapterId, initialVerseId]);
 
+    init();
+  }, [translation]);
 
-  // persist progress whenever it changes
-  useEffect(() => {
-    const payload = {
-      bookId: progress.book.BookId,
-      chapterId: progress.chapter.ChapterId,
-      verseId: progress.verse,
-    };
-    localStorage.setItem('lastRead', JSON.stringify(payload));
-  }, [progress]);
+  // ===== LOAD CHAPTER =====
+  const loadChapter = async (book: string | null, chapter: number) => {
+    if (!book) {
+      console.error('Book is undefined');
+      return;
+    }
 
+    try {
+      const versesData = await fetchFullChapter(
+        book,
+        chapter,
+        translation
+      );
 
+      setVerses(versesData);
+      setCurrentBook(book);
+      setCurrentChapter(chapter);
 
-  // toggles a verse highlight without affecting reading progress
+      localStorage.setItem(
+        'lastRead',
+        JSON.stringify({ book, chapter })
+      );
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('Failed to load chapter', err);
+    }
+  };
+
+  // ===== TESTAMENT FILTER =====
+  const oldTestamentBooks = books.slice(27);
+  const newTestamentBooks = books.slice(0, 27);
+  const testamentBooks =
+    selectedTestament === 'old'
+      ? oldTestamentBooks
+      : newTestamentBooks;
+
+  // ===== NAVIGATION =====
+  const goNext = () => {
+    if (!currentBook) return;
+    loadChapter(currentBook, currentChapter + 1);
+  };
+
+  const goPrev = () => {
+    if (!currentBook || currentChapter <= 1) return;
+    loadChapter(currentBook, currentChapter - 1);
+  };
+
+  // ===== HIGHLIGHT =====
   const handleVerseClick = (v: number) => {
     setHighlights((prev) => {
       const next = new Set(prev);
@@ -105,101 +115,59 @@ export default function BibleReader({ bible, initialBookId, initialChapterId, in
     });
   };
 
-  // navigation helpers: prev/next chapter/book
-  const getBookIndex = (bookId: number) => bible.Books.findIndex((b) => b.BookId === bookId);
-  const getChapterIndex = (book: Book, chapId: number) => book.Chapters.findIndex((c) => c.ChapterId === chapId);
-
-  const canGoPrev = () => {
-    const bi = getBookIndex(progress.book.BookId);
-    const ci = getChapterIndex(progress.book, progress.chapter.ChapterId);
-    return bi > -1 && (ci > 0 || bi > 0);
-  };
-
-  const canGoNext = () => {
-    const bi = getBookIndex(progress.book.BookId);
-    const ci = getChapterIndex(progress.book, progress.chapter.ChapterId);
-    if (bi === -1 || ci === -1) return false;
-    if (ci < progress.book.Chapters.length - 1) return true;
-    return bi < bible.Books.length - 1;
-  };
-
-  const goPrev = () => {
-    const bi = getBookIndex(progress.book.BookId);
-    const ci = getChapterIndex(progress.book, progress.chapter.ChapterId);
-    if (ci > 0) {
-      const prevChap = progress.book.Chapters[ci - 1];
-      setProgress({ book: progress.book, chapter: prevChap, verse: 1 });
-      return;
-    }
-    if (bi > 0) {
-      const prevBook = bible.Books[bi - 1];
-      const lastChap = prevBook.Chapters[prevBook.Chapters.length - 1];
-      setProgress({ book: prevBook, chapter: lastChap, verse: 1 });
-    }
-  };
-
-  const goNext = () => {
-    const bi = getBookIndex(progress.book.BookId);
-    const ci = getChapterIndex(progress.book, progress.chapter.ChapterId);
-    if (ci < progress.book.Chapters.length - 1) {
-      const nextChap = progress.book.Chapters[ci + 1];
-      setProgress({ book: progress.book, chapter: nextChap, verse: 1 });
-      return;
-    }
-    if (bi < bible.Books.length - 1) {
-      const nextBook = bible.Books[bi + 1];
-      const firstChap = nextBook.Chapters[0];
-      setProgress({ book: nextBook, chapter: firstChap, verse: 1 });
-    }
-  };
-
-  // whenever the selected chapter or verse changes, try scrolling the verse into view
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const el = document.getElementById(`verse-${progress.verse}`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [progress.chapter, progress.verse]);
-
-  // touch gesture handling for swipe navigation
-  const touchStartX = useRef(0);
+  // ===== TOUCH =====
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    const touchEndX = e.changedTouches[0].clientX;
-    const diff = touchEndX - touchStartX.current;
-    // swipe right (towards right) = go prev
-    if (diff > 70 && canGoPrev()) {
-      goPrev();
-    }
-    // swipe left (towards left) = go next
-    if (diff < -70 && canGoNext()) {
-      goNext();
-    }
+    const diff = e.changedTouches[0].clientX - touchStartX.current;
+    if (diff > 70) goPrev();
+    if (diff < -70) goNext();
   };
 
+  if (!currentBook) {
+    return <div>Loading...</div>;
+  }
+
   return (
-    <main className={styles.main} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* header with clickable book name opens modal */}
+    <main
+      className={styles.main}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* HEADER */}
       <div className={styles.headerBar}>
-        <h2 className={styles.clickable} onClick={() => setIsSelectorOpen(true)}>
-          {progress.book.BookName} ⠀
-          
-        <span>
-          {progress.chapter.ChapterId}
-        </span>
+        <h2
+          className={styles.clickable}
+          onClick={() => setIsSelectorOpen(true)}
+        >
+          {currentBook} {currentChapter}
         </h2>
+
+        <select
+          value={translation}
+          onChange={(e) => setTranslation(e.target.value)}
+        >
+          {translations.map((t) => (
+            <option key={t}>{t}</option>
+          ))}
+        </select>
       </div>
 
+      {/* MODAL */}
       {isSelectorOpen && (
-        <div className={styles.modalBackdrop} onClick={() => setIsSelectorOpen(false)}>
-          <div className={styles.modalSheet} onClick={(e) => e.stopPropagation()}>
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => setIsSelectorOpen(false)}
+        >
+          <div
+            className={styles.modalSheet}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className={styles.modalHeader}>
               <button
-                className={styles.backButton}
+              className={styles.backButton}
                 onClick={() => {
                   if (modalStep === 'books') setModalStep('testament');
                   else if (modalStep === 'chapters') setModalStep('books');
@@ -208,7 +176,11 @@ export default function BibleReader({ bible, initialBookId, initialChapterId, in
               >
                 ← Назад
               </button>
-              <button className={styles.closeModalButton} onClick={() => setIsSelectorOpen(false)}>
+
+              <button
+                className={styles.closeModalButton}
+                onClick={() => setIsSelectorOpen(false)}
+              >
                 ✕
               </button>
             </div>
@@ -217,25 +189,26 @@ export default function BibleReader({ bible, initialBookId, initialChapterId, in
               <div className={styles.modalBody}>
                 <h3>Выбери завет</h3>
                 <div className={styles.testamentGrid}>
-                  <button
-                    className={`${styles.testamentButton} ${selectedTestament === 'old' ? styles.active : ''}`}
-                    onClick={() => {
-                      setSelectedTestament('old');
-                      setModalStep('books');
-                    }}
-                  >
-                    Ветхий Завет
-                  </button>
-                  <button
-                    className={`${styles.testamentButton} ${selectedTestament === 'new' ? styles.active : ''}`}
-                    onClick={() => {
-                      setSelectedTestament('new');
-                      setModalStep('books');
-                    }}
-                  >
-                    Новый Завет
-                  </button>
-                </div>
+                <button
+                className={`${styles.testamentButton} ${selectedTestament === 'old' ? styles.active : ''}`}
+                  onClick={() => {
+                    setSelectedTestament('old');
+                    setModalStep('books');
+                  }}
+                >
+                  Ветхий Завет
+                </button>
+
+                <button
+                className={`${styles.testamentButton} ${selectedTestament === 'old' ? styles.active : ''}`}
+                  onClick={() => {
+                    setSelectedTestament('new');
+                    setModalStep('books');
+                  }}
+                >
+                  Новый Завет
+                </button>
+              </div>
               </div>
             )}
 
@@ -243,66 +216,69 @@ export default function BibleReader({ bible, initialBookId, initialChapterId, in
               <div className={styles.modalBody}>
                 <h3>{selectedTestament === 'old' ? 'Ветхий Завет' : 'Новый Завет'}</h3>
                 <div className={styles.booksList}>
-                  {testamentBooks.map((book) => (
-                    <button
-                      key={book.BookId}
-                      className={`${styles.bookButton} ${progress.book.BookId === book.BookId ? styles.active : ''}`}
-                      onClick={() => {
-                        setProgress({ book, chapter: book.Chapters[0], verse: 1 });
-                        setModalStep('chapters');
-                      }}
-                    >
-                      {book.BookName}
-                    </button>
-                  ))}
-                </div>
+                {testamentBooks.map((book) => (
+                  <button
+                    className={`${styles.bookButton} ${currentBook === book ? styles.active : ''}`}
+                    key={book}
+                    onClick={() => {
+                      setCurrentBook(book);
+                      setModalStep('chapters');
+                    }}
+                  >
+                    {book}
+                  </button>
+                ))}
+              </div>
               </div>
             )}
 
             {modalStep === 'chapters' && (
               <div className={styles.modalBody}>
-                <h3>{progress.book.BookName}</h3>
+                <h3>{currentBook}</h3>
                 <div className={styles.chaptersList}>
-                  {progress.book.Chapters.map((chap) => (
+                {Array.from({ length: 150 }, (_, i) => i + 1).map(
+                  (chap) => (
                     <button
-                      key={chap.ChapterId}
-                      className={`${styles.chapterButton} ${progress.chapter.ChapterId === chap.ChapterId ? styles.active : ''}`}
+                    className={`${styles.chapterButton} ${currentChapter === chap ? styles.active : ''}`}
+                      key={chap}
                       onClick={() => {
-                        setProgress((prev) => ({ ...prev, chapter: chap, verse: 1 }));
+                        loadChapter(currentBook, chap);
                         setIsSelectorOpen(false);
                         setModalStep('testament');
                       }}
                     >
-                      {chap.ChapterId}
+                      {chap}
                     </button>
-                  ))}
-                </div>
+                  )
+                )}
+              </div>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* floating navigation buttons */}
+      {/* FLOATING NAV */}
       <div className={styles.floatingNavLeft}>
-        <button aria-label="previous chapter" onClick={goPrev} disabled={!canGoPrev()} className={styles.navButton}>⬅</button>
-      </div>
-      <div className={styles.floatingNavRight}>
-        <button aria-label="next chapter" onClick={goNext} disabled={!canGoNext()} className={styles.navButton}>➡</button>
+        <button aria-label="previous chapter" onClick={goPrev} className={styles.navButton} >⬅</button>
       </div>
 
+      <div className={styles.floatingNavRight}>
+        <button aria-label="next chapter" onClick={goNext} className={styles.navButton} >➡</button>
+      </div>
+
+      {/* VERSES */}
       <section className={styles.versesSection}>
-        {progress.chapter.Verses.map((v) => (
+        {verses.map((v) => (
           <Verse
-            key={v.VerseId}
-            verse={v.VerseId}
-            text={v.Text}
-            selected={highlights.has(v.VerseId)}
+            key={v.verseId}
+            verse={v.verseId}
+            text={v.text}
+            selected={highlights.has(v.verseId)}
             onVerseClick={handleVerseClick}
-            bookName={progress.book.BookName}
-            chapter={progress.chapter.ChapterId}
-            // give an id so we can scroll to it
-            id={`verse-${v.VerseId}`}
+            bookName={currentBook}
+            chapter={currentChapter}
+            id={`verse-${v.verseId}`}
           />
         ))}
       </section>

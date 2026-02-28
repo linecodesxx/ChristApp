@@ -11,12 +11,19 @@ services:
     restart: always
 
   frontend:
-    build: ./client
+    build: ./frontend
     container_name: christapp-client
     ports:
       - "3000:3000"
     depends_on:
       - backend
     env_file:
-      - ./client/.env.local.docker
+      - ./frontend/.env.local.docker
+    restart: always
+
+  bibleapi:
+    build: ./BibleAPI
+    container_name: christapp-bibleapi
+    ports:
+      - "3002:3002"
     restart: always
