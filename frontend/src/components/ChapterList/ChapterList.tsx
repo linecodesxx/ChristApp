@@ -9,7 +9,7 @@ type ChapterListProps = {
 export default function ChapterList({ book, onSelect }: ChapterListProps) {
   return (
     <>
-      <h2>Главы {book.BookName}</h2>
+      <h2 className={styles.chapterName}>Главы {book.BookName}</h2>
       <div className={styles.list}>
         {book.Chapters.map((chapter) => (
           <button

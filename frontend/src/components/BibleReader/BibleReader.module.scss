@@ -9,6 +9,21 @@
     align-items: center;
     gap: 1rem;
     margin-bottom: 1rem;
+
+    h2 {
+        cursor: pointer;
+    }
+
+    select {
+        border: none;
+        background: transparent;
+        color: var(--foreground);
+        padding: 0.5rem;
+        border-radius: 4px;
+        font-size: 14px;
+        cursor: pointer;
+        outline: none;
+    }
 }
 
 .modalBackdrop {
@@ -21,7 +36,7 @@
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9999;
     animation: fadeIn 0.2s ease-out;
 }
 
@@ -150,7 +165,6 @@
     color: var(--foreground);
 }
 
-
 .floatingNavLeft {
     position: fixed;
     left: 5px;
@@ -166,7 +180,7 @@
 }
 
 .navButton {
-    background: #C4A265;
+    background: #c4a265;
     color: white;
     border: none;
     width: 44px;
@@ -178,7 +192,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+    transition:
+        transform 0.12s ease,
+        box-shadow 0.12s ease,
+        opacity 0.12s ease;
 }
 
 .navButton:hover:not(:disabled) {
@@ -197,7 +214,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    background-color: #856e43;
+    background-color: transparent;
     border-radius: 8px;
     max-height: 75vh;
     /* keep scrollable region within the page */

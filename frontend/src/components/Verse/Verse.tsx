@@ -31,6 +31,7 @@ export default function Verse({ verse, text, bookName, chapter, onBookClick, onC
   const handleClick = () => {
     setIsClicked(!isClicked);
     onVerseClick?.(verse);
+    navigator.clipboard.writeText(`${bookName ? bookName + ' ' : ''}${chapter ? chapter + ':' : ''}${verse} - ${text}`);
   };
 
   useEffect(() => {

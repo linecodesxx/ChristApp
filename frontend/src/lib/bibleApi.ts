@@ -26,6 +26,17 @@ export async function fetchFullChapter(
   return res.json();
 }
 
+export async function fetchChapters(book: string, translation: string) {
+  const res = await fetch(
+    `${API_URL}/bible/${encodeURIComponent(book)}/getChapters/${translation}`
+  );
+
+  if (!res.ok) throw new Error('Failed to fetch chapters');
+
+  const data = await res.json();
+  return (data.chapterId ?? []).map((chapterId: number) => Number(chapterId));
+}
+
 export async function fetchTranslations() {
   const res = await fetch(`${API_URL}/bible/translations`);
   if (!res.ok) throw new Error("Failed to fetch translations");
