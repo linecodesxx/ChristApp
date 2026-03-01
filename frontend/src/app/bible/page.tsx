@@ -1,4 +1,4 @@
-import { getBibleData } from "@/lib/storage";
+// import { getBibleData } from "@/lib/storage";
 import BibleReader from "@/components/BibleReader/BibleReader";
 
 export default async function BiblePage() {

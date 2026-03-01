@@ -13,6 +13,7 @@ export class UsersService {
         username: true,
         email: true,
         createdAt: true,
+        isActive: true,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -27,6 +28,7 @@ export class UsersService {
         username: true,
         email: true,
         createdAt: true,
+        isActive: true,
       },
     });
 

@@ -1,3 +1,7 @@
+@function random-rgba-color($alpha: 1) {
+  @return rgba(random(255), random(255), random(255), $alpha);
+}
+
 .verse {
   margin-top: 6px;
   color: var(--foreground);
@@ -13,10 +17,33 @@
 }
 
 .selected {
-  text-decoration: underline;
+  text-decoration: line-through;
   text-decoration-color: var(--login-link);
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+  text-decoration-thickness: 20px;
+  text-underline-offset: 5px;
+  text-decoration-color: random-rgba-color(0.30);
+  border-radius: 6px;
+  padding: 0 4px;
+}
+
+.copyGlow {
+  animation: verse-copy-glow 650ms ease-out;
+}
+
+@keyframes verse-copy-glow {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
+
+  35% {
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent),
+      0 0 16px 3px color-mix(in srgb, var(--accent-soft) 55%, transparent);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent);
+  }
 }
 
 .verseContainer {
@@ -25,11 +52,37 @@
   gap: 8px;
 }
 
+.verseRow {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.inlineActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.inlineActionButton {
+  padding: 2px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  font-size: 10px;
+  line-height: 1.1;
+  font-weight: 500;
+  cursor: pointer;
+}
+
 .header {
   display: flex;
   gap: 10px;
   font-size: 14px;
-  color: #3A2A1E;
+  color: #3a2a1e;
   font-weight: 500;
 }
 

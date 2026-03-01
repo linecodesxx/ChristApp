@@ -1,69 +1,59 @@
-'use client';
+"use client"
 
-import { useState } from "react";
-import Verse from "@/components/Verse/Verse";
+import { useState } from "react"
+import Verse from "@/components/Verse/Verse"
 
-import styles from "./ChapterViewer.module.scss";
+import styles from "./ChapterViewer.module.scss"
+import Image from "next/image"
 
 type Props = {
   book: {
-    name: string;
-    chapters: string[][];
-  };
-};
+    name: string
+    chapters: string[][]
+  }
+}
 
 export default function ChapterViewer({ book }: Props) {
-  const [currentChapter, setCurrentChapter] = useState(0);
+  const [currentChapter, setCurrentChapter] = useState(0)
 
   const nextChapter = () => {
     if (currentChapter < book.chapters.length - 1) {
-      setCurrentChapter((prev) => prev + 1);
+      setCurrentChapter((prev) => prev + 1)
     }
-  };
+  }
 
   const prevChapter = () => {
     if (currentChapter > 0) {
-      setCurrentChapter((prev) => prev - 1);
+      setCurrentChapter((prev) => prev - 1)
     }
-  };
+  }
 
-  // swipe
-  let touchStartX = 0;
+  // Swipe
+  let touchStartX = 0
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX = e.touches[0].clientX;
-  };
+    touchStartX = e.touches[0].clientX
+  }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = e.changedTouches[0].clientX - touchStartX;
-    if (diff > 70) prevChapter();
-    if (diff < -70) nextChapter();
-  };
+    const diff = e.changedTouches[0].clientX - touchStartX
+    if (diff > 70) prevChapter()
+    if (diff < -70) nextChapter()
+  }
 
-  const chapter = book.chapters[currentChapter];
+  const chapter = book.chapters[currentChapter]
 
   return (
-    <div
-      className={styles.viewer}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* 🔥 HEADER ВОЗВРАЩЁН */}
+    <div className={styles.viewer} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {/* HEADER ВОЗВРАЩЁН */}
       <div className={styles.header}>
         <div className={styles.headerChapterData}>
           <h1 className={styles.headerBookTitle}>{book.name}</h1>
-          <h1 className={styles.headerChapterTitle}>
-            Глава {currentChapter + 1}
-          </h1>
+          <h1 className={styles.headerChapterTitle}>Глава {currentChapter + 1}</h1>
         </div>
 
         <div className={styles.headerIcon}>
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-          >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
             <path
               fillRule="evenodd"
               clipRule="evenodd"
@@ -74,31 +64,24 @@ export default function ChapterViewer({ book }: Props) {
         </div>
       </div>
 
-      {/* 📖 Стихи */}
+      {/* Стихи */}
       <section className={styles.sectionChapter}>
-            <h1 className={styles.bookTitle}>{book.name}</h1>
-        
+        <h1 className={styles.bookTitle}>{book.name}</h1>
+
         {chapter.map((text, verseIndex) => (
-          <Verse
-            key={`${currentChapter}-${verseIndex}`}
-            verse={verseIndex + 1}
-            text={text}
-          />
+          <Verse key={`${currentChapter}-${verseIndex}`} verse={verseIndex + 1} text={text} />
         ))}
       </section>
 
-      {/* ⬅➡ Floating arrows */}
+      {/* Floating arrows */}
       <div className={styles.floatingNav}>
         <button onClick={prevChapter} disabled={currentChapter === 0}>
-          ⬅
+          <Image src="/icon-left-arrow.svg" alt="Previous Chapter" width={24} height={24} />
         </button>
-        <button
-          onClick={nextChapter}
-          disabled={currentChapter === book.chapters.length - 1}
-        >
-          ➡
+        <button onClick={nextChapter} disabled={currentChapter === book.chapters.length - 1}>
+          <Image src="/icon-right-arrow.svg" alt="Next Chapter" width={24} height={24} />
         </button>
       </div>
     </div>
-  );
+  )
 }

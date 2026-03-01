@@ -52,6 +52,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     ReturnType<typeof setTimeout>
   >();
 
+  private emitOnlinePresence() {
+    this.server.emit('onlineCount', this.onlineUsers.size);
+    this.server.emit('onlineUsers', {
+      userIds: Array.from(this.onlineUsers.keys()),
+      count: this.onlineUsers.size,
+    });
+  }
+
   private isUuid(value: string) {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
@@ -131,6 +139,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         // Обновляем онлайн-статус
         const userId = user.id;
+        const previousConnections = this.onlineUsers.get(userId) || 0;
         const reconnectTimer = this.pendingDisconnectTimers.get(userId);
 
         if (reconnectTimer) {
@@ -138,12 +147,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           this.pendingDisconnectTimers.delete(userId);
           this.onlineUsers.set(userId, 1);
         } else {
-          const currentConnections = this.onlineUsers.get(userId) || 0;
-          this.onlineUsers.set(userId, currentConnections + 1);
+          this.onlineUsers.set(userId, previousConnections + 1);
+        }
+
+        if (previousConnections === 0) {
+          this.server.emit('userPresenceChanged', { userId, isOnline: true });
         }
 
         // Рассылаем глобальный онлайн
-        this.server.emit('onlineCount', this.onlineUsers.size);
+        this.emitOnlinePresence();
       } catch (err) {
         const reason = err instanceof Error ? err.message : String(err);
         console.error('[WS] Post-connect initialization error:', reason);
@@ -179,14 +191,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         if (this.onlineUsers.get(userId) === 1) {
           this.onlineUsers.delete(userId);
-          this.server.emit('onlineCount', this.onlineUsers.size);
+          this.server.emit('userPresenceChanged', { userId, isOnline: false });
+          this.emitOnlinePresence();
         }
       }, ChatGateway.DISCONNECT_GRACE_MS);
 
       this.pendingDisconnectTimers.set(userId, timer);
     } else {
       this.onlineUsers.set(userId, currentConnections - 1);
-      this.server.emit('onlineCount', this.onlineUsers.size);
+      this.emitOnlinePresence();
     }
   }
 
@@ -529,7 +542,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const { roomId, content } = body;
 
-    // 🔹 Не отправляем пустые сообщения
+    // Не отправляем пустые сообщения
     if (!content?.trim()) return;
 
     try {
@@ -540,7 +553,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      // Сохраняем сообщение в БД (источник истины)
+      // Сохраняем сообщение в БД
       const message = await this.messagesService.createRoomMessage(
         content,
         user.id,

@@ -200,8 +200,8 @@
 
 .navButton:hover:not(:disabled) {
     transform: translateY(-3px);
-    background: #b39a55;
-    box-shadow: 0 10px 20px rgba(196, 162, 101, 0.35);
+    // background: #b39a55;
+    box-shadow: 0 10px 20px rgba(237, 210, 161, 0.35);
 }
 
 .navButton:disabled {
@@ -219,7 +219,8 @@
     max-height: 75vh;
     /* keep scrollable region within the page */
     overflow-y: auto;
-    padding: 1rem;
+    // padding: 1rem;
+    padding: 0;
     /* give room for scrollbar */
 }
 
