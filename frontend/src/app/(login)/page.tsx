@@ -33,7 +33,7 @@ export default function LoginPage() {
     return (
       <main className={styles.main}>
         <section className={styles.card}>
-          <p className={styles.loadingText}>Проверка...</p>
+          <p className={styles.loadingText}>Loading...</p>
         </section>
       </main>
     )
@@ -44,12 +44,12 @@ export default function LoginPage() {
       <main className={styles.main}>
         <section className={styles.card}>
           <header className={styles.header}>
-            <h1 className={styles.title}>Вы уже авторизованы</h1>
+            <h1 className={styles.title}>You are already logged in</h1>
           </header>
 
           <div className={styles.actions}>
             <button onClick={handleNavigateToChat} className={styles.button}>
-              Перейти в чат
+              Go to Chat
             </button>
           </div>
         </section>
@@ -90,30 +90,30 @@ export default function LoginPage() {
 
           <div className={styles.fieldGroup}>
             <label htmlFor="password" className={styles.label}>
-              Пароль
+              Password
             </label>
             <input
               id="password"
               className={styles.input}
               type="password"
               value={password}
-              placeholder="Введите пароль"
+              placeholder="Enter your password"
               onChange={(e) => setPassword(e.target.value)}
             />
           </div>
 
           <div className={styles.actions}>
             <button type="submit" disabled={isSubmitting} className={styles.button}>
-              {isSubmitting ? "Вход..." : "Войти"}
+              {isSubmitting ? "Logging in..." : "Log in"}
             </button>
           </div>
         </form>
 
         <footer className={styles.footer}>
           <p className={styles.footerText}>
-            Нет аккаунта?{" "}
+            Don't have an account?{" "}
             <span className={styles.registerLink} onClick={handleNavigateToRegister}>
-              Зарегистрироваться
+              Register
             </span>
           </p>
         </footer>

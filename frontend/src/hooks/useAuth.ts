@@ -9,6 +9,7 @@ type User = {
   email: string
   username: string
   createdAt: string
+  isActive: boolean
 }
 
 type UseAuthOptions = {

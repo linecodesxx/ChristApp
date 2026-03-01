@@ -18,7 +18,10 @@
   border: 1px solid var(--login-card-border);
   background: var(--login-card-bg);
   color: var(--foreground);
-  transition: background-color 0.35s ease, border-color 0.35s ease, color 0.35s ease;
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    color 0.35s ease;
   box-shadow:
     0 2px 4px -2px var(--login-card-shadow),
     0 4px 6px -1px var(--login-card-shadow),
@@ -29,6 +32,7 @@
 .header {
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 6px;
 }
 
@@ -43,15 +47,16 @@
 }
 
 .loadingText {
-  margin: 0;
+  color: var(--login-loading);
 }
 
 .errorWrap {
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .error {
-  margin: 0;
   color: var(--login-error-text);
   background: var(--login-error-bg);
   border-radius: 10px;
@@ -71,8 +76,12 @@
 }
 
 .label {
-  margin: 0;
   color: var(--login-label);
+  font-family: Inter;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 16px;
 }
 
 .input {
@@ -82,8 +91,11 @@
   background: var(--login-input-bg);
   color: var(--foreground);
   border-radius: 10px;
-  padding: 10px 12px;
-  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  padding: 12px 12px;
+  transition:
+    background-color 0.3s ease,
+    border-color 0.3s ease,
+    color 0.3s ease;
 
   &::placeholder {
     color: var(--login-muted);
@@ -96,12 +108,16 @@
 }
 
 .button {
-  padding: 8px 14px;
+  padding: 10px 14px;
   border-radius: 10px;
   background: var(--login-button-bg);
   color: var(--login-button-text);
   cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease, background-color 0.3s ease, color 0.3s ease;
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease,
+    background-color 0.3s ease,
+    color 0.3s ease;
 
   &:disabled {
     opacity: 0.7;
@@ -118,7 +134,6 @@
 }
 
 .footerText {
-  margin: 0;
   color: var(--login-footer);
 }
 
