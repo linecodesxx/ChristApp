@@ -31,6 +31,10 @@
       align-items: center;
       gap: 16px;
 
+      .backIcon {
+        transition: filter 180ms ease;
+      }
+
       .avatar {
         display: flex;
         width: 40px;
@@ -83,7 +87,17 @@
     font-family: "Inter", sans-serif;
     font-size: 12px;
     line-height: 16px;
-    min-height: 60vh;
+    min-height: calc(60vh - 40px - 80px);
+  }
+}
+
+html[data-theme="light"] .chat {
+  .header {
+    .headerContent {
+      .backIcon {
+        filter: brightness(0) saturate(100%);
+      }
+    }
   }
 }
 

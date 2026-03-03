@@ -15,6 +15,9 @@ import Image from "next/image"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
+const GLOBAL_ROOM_SLUG = "global"
+const HISTORY_PAGE_SIZE = 50
+const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 
 type IncomingSocketMessage = {
   id?: string | number
@@ -54,6 +57,28 @@ type UserPresencePayload = {
   isOnline: boolean
 }
 
+function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
+  if (typeof window === "undefined") return
+
+  try {
+    const rawValue = window.localStorage.getItem(LAST_SENT_PREVIEW_STORAGE_KEY)
+    const parsed = rawValue ? (JSON.parse(rawValue) as Record<string, string>) : {}
+
+    parsed[roomKey] = message
+    if (directUserId) {
+      parsed[directUserId] = message
+    }
+
+    window.localStorage.setItem(LAST_SENT_PREVIEW_STORAGE_KEY, JSON.stringify(parsed))
+  } catch {
+    // ignore localStorage errors
+  }
+}
+
+function persistRoomPreview(roomKey: string, message: string) {
+  persistLastSentPreview(roomKey, message)
+}
+
 function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined, currentUsername?: string): Message {
   const username = raw?.username ?? raw?.sender?.username ?? "Unknown"
 
@@ -89,6 +114,7 @@ function getReadableRoomTitle(
 export default function ChatPageDetails() {
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
   const socketRef = useRef<Socket | null>(null)
+  const usersRef = useRef(users)
   const currentRoomRef = useRef<string | undefined>(undefined)
   const joinedRoomRef = useRef<string | undefined>(undefined)
   const availableRoomIdsRef = useRef<Set<string>>(new Set())
@@ -104,10 +130,14 @@ export default function ChatPageDetails() {
 
   const params = useParams<{ roomId: string }>()
   const router = useRouter()
-  const roomId = params?.roomId
+  const routeRoomId = params?.roomId
+  const roomId = routeRoomId === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : routeRoomId
 
   useEffect(() => {
-    console.info("[ChatRoom] route opened", roomId)
+    usersRef.current = users
+  }, [users])
+
+  useEffect(() => {
     setMessages([])
     setRoomTitle("")
     setRoomRawTitle("")
@@ -115,25 +145,10 @@ export default function ChatPageDetails() {
   }, [roomId])
 
   useEffect(() => {
-    if (loading) {
-      console.info("[ChatRoom] auth check in progress")
-      return
-    }
-
-    if (!user) {
-      console.warn("[ChatRoom] unauthenticated, redirecting")
-      return
-    }
-
-    console.info("[ChatRoom] authenticated as", user.username)
-  }, [loading, user])
-
-  useEffect(() => {
     if (loading || !user || !roomId) return
 
     if (roomId === user.id) {
-      console.warn("[ChatRoom] self chat is not allowed, redirecting to global room")
-      router.replace(`/chat/${GLOBAL_ROOM_ID}`)
+      router.replace(`/chat/${GLOBAL_ROOM_SLUG}`)
     }
   }, [loading, user, roomId, router])
 
@@ -146,7 +161,6 @@ export default function ChatPageDetails() {
 
     const token = getAuthToken()
     if (!token) {
-      console.error("[ChatRoom] no token")
       setConnectionError("Нет токена авторизации")
       setIsHistoryLoading(false)
       return
@@ -160,25 +174,21 @@ export default function ChatPageDetails() {
     socketRef.current = socket
 
     const onConnect = () => {
-      console.info("[ChatRoom] socket connected", socket.id)
       setIsSocketConnected(true)
       setConnectionError(null)
 
       const activeRoomId = currentRoomRef.current
       if (activeRoomId === GLOBAL_ROOM_ID && joinedRoomRef.current !== activeRoomId) {
-        console.info("[ChatRoom] emit joinRoom (global on connect)", activeRoomId)
         setIsHistoryLoading(true)
-        socket.emit("joinRoom", { roomId: activeRoomId, limit: 50, skip: 0 })
+        socket.emit("joinRoom", { roomId: activeRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
         joinedRoomRef.current = activeRoomId
       }
 
-      console.info("[ChatRoom] emit getMyRooms (on connect)")
       socket.emit("getMyRooms")
     }
     socket.on("connect", onConnect)
 
-    const onDisconnect = (reason: string) => {
-      console.info("[ChatRoom] socket disconnected", reason)
+    const onDisconnect = () => {
       setIsSocketConnected(false)
       setConnectionError("Нет соединения с сервером. Сообщения временно недоступны.")
       setIsHistoryLoading(false)
@@ -186,8 +196,7 @@ export default function ChatPageDetails() {
     }
     socket.on("disconnect", onDisconnect)
 
-    const onSocketError = (error: unknown) => {
-      console.error("[ChatRoom] socket error:", error)
+    const onSocketError = () => {
       setConnectionError("Нет соединения с сервером. Проверьте интернет и попробуйте снова.")
       setIsHistoryLoading(false)
     }
@@ -196,7 +205,11 @@ export default function ChatPageDetails() {
 
     const onNewMessage = (msg: IncomingSocketMessage) => {
       const normalized = normalizeIncomingMessage(msg, user?.username)
-      console.info("[ChatRoom] newMessage", normalized.id)
+      const activeRoomId = currentRoomRef.current
+      if (activeRoomId && normalized.content?.trim()) {
+        persistRoomPreview(activeRoomId, normalized.content.trim())
+      }
+
       setMessages((prev) => {
         if (prev.some((existingMessage) => existingMessage.id === normalized.id)) {
           return prev
@@ -212,38 +225,29 @@ export default function ChatPageDetails() {
         (messageItem, index, array) => array.findIndex((candidate) => candidate.id === messageItem.id) === index,
       )
 
-      console.info("[ChatRoom] roomHistory loaded", uniqueHistory.length)
+      const lastMessage = uniqueHistory[uniqueHistory.length - 1]
+      const activeRoomId = currentRoomRef.current
+      if (activeRoomId && lastMessage?.content?.trim()) {
+        persistRoomPreview(activeRoomId, lastMessage.content.trim())
+      }
+
       setMessages(uniqueHistory)
       setIsHistoryLoading(false)
     }
     socket.on("roomHistory", onRoomHistory)
 
-    const onUserJoinedRoom = ({ username }: { username: string }) => {
-      console.info("[ChatRoom] userJoinedRoom", username)
-    }
-    socket.on("userJoinedRoom", onUserJoinedRoom)
-
-    const onUserLeftRoom = ({ username }: { username: string }) => {
-      console.info("[ChatRoom] userLeftRoom", username)
-    }
-    socket.on("userLeftRoom", onUserLeftRoom)
-
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
-      console.info("[ChatRoom] myRooms", rooms.length)
       availableRoomIdsRef.current = new Set(rooms.map((room) => room.id))
 
       const activeRoomId = currentRoomRef.current
       const currentRoom = rooms.find((room) => room.id === activeRoomId)
 
       if (!currentRoom && activeRoomId) {
-        console.warn("[ChatRoom] room is not in myRooms, skip join", activeRoomId)
-
         const isGlobal = activeRoomId === GLOBAL_ROOM_ID
         const isSelfRoute = activeRoomId === user?.id
         const alreadyOpening = openingDirectRoomRef.current.has(activeRoomId)
 
         if (!isGlobal && !isSelfRoute && !alreadyOpening) {
-          console.info("[ChatRoom] emit openDirectRoom", activeRoomId)
           openingDirectRoomRef.current.add(activeRoomId)
           socket.emit("openDirectRoom", { targetUserId: activeRoomId })
         }
@@ -251,24 +255,23 @@ export default function ChatPageDetails() {
 
       if (currentRoom?.title) {
         setRoomRawTitle(currentRoom.title)
-        setRoomTitle(getReadableRoomTitle(activeRoomId, currentRoom.title, user?.id, users))
+        setRoomTitle(getReadableRoomTitle(activeRoomId, currentRoom.title, user?.id, usersRef.current))
       }
 
       if (currentRoom && activeRoomId && joinedRoomRef.current !== activeRoomId) {
-        console.info("[ChatRoom] emit joinRoom (after myRooms)", activeRoomId)
         setIsHistoryLoading(true)
-        socket.emit("joinRoom", { roomId: activeRoomId, limit: 50, skip: 0 })
+        socket.emit("joinRoom", { roomId: activeRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
         joinedRoomRef.current = activeRoomId
       }
     }
     socket.on("myRooms", onMyRooms)
 
     const onDirectRoomOpened = (payload: DirectRoomOpenedPayload) => {
-      console.info("[ChatRoom] directRoomOpened", payload)
       openingDirectRoomRef.current.delete(payload.targetUserId)
 
       if (currentRoomRef.current === payload.targetUserId) {
-        router.replace(`/chat/${payload.roomId}`)
+        const nextRoomId = payload.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_SLUG : payload.roomId
+        router.replace(`/chat/${nextRoomId}`)
         return
       }
 
@@ -277,7 +280,7 @@ export default function ChatPageDetails() {
         setRoomRawTitle(payload.title ?? "")
       } else if (payload.title) {
         setRoomRawTitle(payload.title)
-        setRoomTitle(getReadableRoomTitle(payload.roomId, payload.title, user?.id, users))
+        setRoomTitle(getReadableRoomTitle(payload.roomId, payload.title, user?.id, usersRef.current))
       }
     }
     socket.on("directRoomOpened", onDirectRoomOpened)
@@ -327,8 +330,6 @@ export default function ChatPageDetails() {
       socket.off("error", onSocketError)
       socket.off("newMessage", onNewMessage)
       socket.off("roomHistory", onRoomHistory)
-      socket.off("userJoinedRoom", onUserJoinedRoom)
-      socket.off("userLeftRoom", onUserLeftRoom)
       socket.off("myRooms", onMyRooms)
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("userInvitedToRoom", onInvitedToRoom)
@@ -337,14 +338,13 @@ export default function ChatPageDetails() {
       socket.off("userPresenceChanged", onUserPresenceChanged)
       const activeRoomId = currentRoomRef.current
       if (activeRoomId) {
-        console.info("[ChatRoom] emit leaveRoom", activeRoomId)
         socket.emit("leaveRoom", activeRoomId)
       }
       joinedRoomRef.current = undefined
       socket.disconnect()
       socketRef.current = null
     }
-  }, [loading, router, user?.id, users])
+  }, [loading, router, user?.id])
 
   useEffect(() => {
     if (loading || !roomId) return
@@ -353,50 +353,35 @@ export default function ChatPageDetails() {
     currentRoomRef.current = roomId
 
     const socket = socketRef.current
-    if (!socket) {
-      console.warn("[ChatRoom] socket not ready yet")
-      return
-    }
+    if (!socket) return
 
-    if (!socket.connected) {
-      console.info("[ChatRoom] waiting socket connect before getMyRooms")
-      return
-    }
+    if (!socket.connected) return
 
     if (prevRoomId && prevRoomId !== roomId && joinedRoomRef.current === prevRoomId) {
-      console.info("[ChatRoom] emit leaveRoom", prevRoomId)
       socket.emit("leaveRoom", prevRoomId)
       joinedRoomRef.current = undefined
     }
 
     if (roomId === GLOBAL_ROOM_ID && joinedRoomRef.current !== roomId) {
-      console.info("[ChatRoom] emit joinRoom (global on route)", roomId)
       setIsHistoryLoading(true)
-      socket.emit("joinRoom", { roomId, limit: 150, skip: 0 })
+      socket.emit("joinRoom", { roomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
       joinedRoomRef.current = roomId
       return
     }
 
     if (availableRoomIdsRef.current.has(roomId) && joinedRoomRef.current !== roomId) {
-      console.info("[ChatRoom] emit joinRoom (known room on route)", roomId)
       setIsHistoryLoading(true)
-      socket.emit("joinRoom", { roomId, limit: 150, skip: 0 })
+      socket.emit("joinRoom", { roomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
       joinedRoomRef.current = roomId
       return
     }
 
     if (!availableRoomIdsRef.current.has(roomId)) {
-      console.info("[ChatRoom] room not available yet, requesting myRooms")
       socket.emit("getMyRooms")
-      return
     }
-
-    console.info("[ChatRoom] emit getMyRooms")
-    socket.emit("getMyRooms")
 
     return () => {
       if (joinedRoomRef.current === roomId) {
-        console.info("[ChatRoom] emit leaveRoom", roomId)
         socket.emit("leaveRoom", roomId)
         joinedRoomRef.current = undefined
       }
@@ -448,23 +433,20 @@ export default function ChatPageDetails() {
       return
     }
 
-    if (roomId === user?.id) {
-      console.warn("[ChatRoom] sending to self is blocked")
-      return
-    }
+    if (roomId === user?.id) return
 
     if (!availableRoomIdsRef.current.has(roomId) && roomId !== GLOBAL_ROOM_ID) {
       if (!openingDirectRoomRef.current.has(roomId)) {
-        console.info("[ChatRoom] openDirectRoom before send", roomId)
         openingDirectRoomRef.current.add(roomId)
         socketRef.current.emit("openDirectRoom", { targetUserId: roomId })
       }
       return
     }
 
-    // Отправляем на сервер
-    console.info("[ChatRoom] emit sendMessage", { roomId, textLength: text.length })
-    socketRef.current.emit("sendMessage", { roomId, content: text })
+    const normalizedText = text.trim()
+    persistLastSentPreview(roomId, normalizedText, directChatTargetUserId)
+
+    socketRef.current.emit("sendMessage", { roomId, content: normalizedText })
   }
 
   return (
@@ -472,7 +454,7 @@ export default function ChatPageDetails() {
       <div className={styles.header}>
         <div className={styles.headerContent}>
           <Link href="/chat">
-            <Image src="/back-icon.svg" alt="Back" width={24} height={24} />
+            <Image className={styles.backIcon} src="/back-icon.svg" alt="Back" width={24} height={24} />
           </Link>
           <div className={styles.avatar}>{getInitials(resolvedTitle)}</div>
           <div className={styles.wrapContent}>
