@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./Verse.module.scss";
+import { saveVerse } from "@/lib/versesApi";
 
 const selectedVersesClipboardStore = new Map<string, string>();
 const VERSE_COPY_BATCH_EVENT = "verse-copy-batch";
@@ -11,6 +12,7 @@ type VerseProps = {
   text: string;
   bookName?: string;
   chapter?: number;
+  translation?: string;
   onBookClick?: () => void;
   onChapterClick?: () => void;
   /** called when verse is clicked (in addition to internal highlighting) */
@@ -23,9 +25,11 @@ type VerseProps = {
   showInlineActions?: boolean;
 };
 
-export default function Verse({ verse, text, bookName, chapter, onBookClick, onChapterClick, onVerseClick, selected, id, showInlineActions }: VerseProps) {
+export default function Verse({ verse, text, bookName, chapter, translation = "default", onBookClick, onChapterClick, onVerseClick, selected, id, showInlineActions }: VerseProps) {
   const [isClicked, setIsClicked] = useState(false);
   const [isCopyGlow, setIsCopyGlow] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
   const copyGlowTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const verseReference = `${bookName ? `${bookName} ` : ""}${chapter ? `${chapter}:` : ""}${verse}`;
   const verseLine = `${verseReference} - ${text}`;
@@ -102,9 +106,33 @@ export default function Verse({ verse, text, bookName, chapter, onBookClick, onC
     syncClipboardSelection(nextIsClicked, false);
   };
 
-  const handleSave = (event: React.MouseEvent<HTMLButtonElement>) => {
+  const handleSave = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
-    console.info("[Verse] save selected verse", { verse, chapter, bookName });
+    
+    if (!bookName || !chapter) {
+      console.error("Missing book or chapter information");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      await saveVerse(bookName, chapter, verse, text, translation);
+      setIsSaved(true);
+      
+      // Reset saved state after 2 seconds
+      setTimeout(() => {
+        setIsSaved(false);
+      }, 2000);
+    } catch (error) {
+      const catchError = error as Error & { message: string };
+      console.error("Failed to save verse", catchError);
+      // Check if it's already saved
+      if (catchError.message.includes("already")) {
+        setIsSaved(true);
+      }
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleShare = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -148,8 +176,13 @@ export default function Verse({ verse, text, bookName, chapter, onBookClick, onC
 
         {showInlineActions && isSelected ? (
           <div className={styles.inlineActions}>
-            <button type="button" className={styles.inlineActionButton} onClick={handleSave}>
-              Save
+            <button 
+              type="button" 
+              className={`${styles.inlineActionButton} ${isSaved ? styles.saved : ""}`} 
+              onClick={handleSave}
+              disabled={isSaving}
+            >
+              {isSaving ? "Saving..." : isSaved ? "Saved" : "Save"}
             </button>
             <button type="button" className={styles.inlineActionButton} onClick={handleShare}>
               Share

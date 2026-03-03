@@ -257,6 +257,7 @@ export default function BibleReader() {
             onVerseClick={handleVerseClick}
             bookName={currentBook}
             chapter={currentChapter}
+            translation={translation}
             id={`verse-${v.verseId}`}
             showInlineActions={SHOW_VERSE_ACTIONS}
           />

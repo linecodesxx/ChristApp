@@ -76,6 +76,24 @@
   line-height: 1.1;
   font-weight: 500;
   cursor: pointer;
+  transition: all 200ms ease-in-out;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  &.saved {
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface-elevated));
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
+    border-color: var(--accent-soft);
+  }
 }
 
 .header {

@@ -1,8 +1,8 @@
-const API_URL = process.env.BIBLE_API_URL || "http://localhost:3002";
+const API_URL = process.env.NEXT_PUBLIC_BIBLE_API_URL
 
 export async function fetchBooks(translation: string) {
   const res = await fetch(
-    `http://localhost:3002/bible/getBooks/${translation}`
+    `${API_URL}/bible/getBooks/${translation}`
   );
 
   if (!res.ok) throw new Error("Failed to fetch books");
@@ -16,7 +16,7 @@ export async function fetchFullChapter(
   translation: string
 ) {
   const res = await fetch(
-    `http://localhost:3002/bible/fullChap/${encodeURIComponent(
+    `${API_URL}/bible/fullChap/${encodeURIComponent(
       book
     )}/${chapter}/${translation}`
   );
