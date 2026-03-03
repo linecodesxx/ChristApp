@@ -1,10 +1,32 @@
+.main{
+  height: 100vh;
+}
+
 .profile {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 16px;
+  padding: 0;
   color: var(--foreground);
   background: var(--background);
+  overflow: auto;
+
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .settingsIcon {
+      transition: filter 180ms ease;
+      cursor: pointer;
+    }
+
+    h1 {
+      color: var(--foreground);
+      font-size: 24px;
+      font-weight: 700;
+    }
+  }
 
   .userInfo {
     display: flex;
@@ -44,13 +66,55 @@
   .list {
     list-style: none;
     display: flex;
-    gap: 8px;
+    gap: 12px;
 
     .item {
       padding: 12px;
       border: 1px solid var(--line-soft);
       border-radius: 12px;
       background: var(--surface-elevated);
+      display: flex;
+      flex-direction: column;
+      padding: 15px 13px;
+      align-items: center;
+      gap: 4px;
+      border-radius: 12px;
+      max-width: 95px;
+      max-height: 109px;
+      flex: 1;
+      box-shadow:
+        0 1px 2px 0 rgba(0, 0, 0, 0.05),
+        0 0 0 0 rgba(0, 0, 0, 0),
+        0 0 0 0 rgba(0, 0, 0, 0);
+
+      .imgIcon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        padding: 8px;
+        border-radius: 50%;
+        background: rgba(196, 162, 101, 0.1);
+      }
+
+      span {
+        color: var(--book-title-color);
+        font-family: "Inter";
+        font-size: 15px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 28px;
+      }
+
+      p {
+        color: var(--text-muted);
+        font-family: "Inter";
+        font-size: 10px;
+        font-style: normal;
+        font-weight: 700;
+        line-height: 15px;
+      }
     }
   }
 
@@ -75,6 +139,15 @@
       flex-direction: column;
       gap: 6px;
       color: var(--text-muted);
+
+      li {
+        transition: color 180ms ease;
+        cursor: pointer;
+
+        &:hover {
+          color: var(--accent);
+        }
+      }
     }
   }
 
@@ -95,6 +168,8 @@
     border: 1px solid var(--line-soft);
     border-radius: 14px;
     background: var(--surface-elevated);
+    min-height: 100px;
+    overflow-y: scroll;
 
     .sectionHeader {
       display: flex;
@@ -200,6 +275,24 @@
 
     .error {
       color: #e74c3c;
+    }
+  }
+}
+
+.appVersion {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--surface-elevated);
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+}
+
+html[data-theme="dark"] .profile {
+  .header {
+    .settingsIcon {
+      filter: brightness(0) saturate(100%) invert(1);
     }
   }
 }

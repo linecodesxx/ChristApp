@@ -7,8 +7,14 @@ import { usePathname } from "next/navigation"
 
 export default function TabBar() {
   const pathname = usePathname()
+  const hiddenRoutes = ["/", "/register"]
+  const shouldHideTabBar = hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
+
+  if (shouldHideTabBar) {
+    return null
+  }
 
   return (
     <nav className={styles.nav}>
@@ -19,7 +25,7 @@ export default function TabBar() {
       </Link>
       <Link className={styles.tabLink} href="/chat">
         <span className={`${styles.iconWrap} ${isRouteActive("/chat") ? styles.activeIcon : ""}`}>
-          <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} />
+          <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} loading="eager" />
         </span>
       </Link>
       <Link className={styles.tabLink} href="/profile">

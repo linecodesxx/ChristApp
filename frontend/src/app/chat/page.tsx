@@ -10,15 +10,23 @@ import { getAuthToken } from "@/lib/auth"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
-const BASE_GLOBAL_CHAT_ITEM: ChatListItem = {
-  id: GLOBAL_ROOM_ID,
-  title: "Общий чат для всех",
-  avatarInitials: getInitials("Общий чат для всех"),
-  href: `/chat/${GLOBAL_ROOM_ID}`,
-  preview: "",
-  timeLabel: "",
-  unread: 0,
+const GLOBAL_ROOM_SLUG = "global"
+const GLOBAL_CHAT_TITLE = "Общий чат для всех"
+
+function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
+  return {
+    id: GLOBAL_ROOM_ID,
+    title: GLOBAL_CHAT_TITLE,
+    avatarInitials: getInitials(GLOBAL_CHAT_TITLE),
+    href: `/chat/${GLOBAL_ROOM_SLUG}`,
+    preview: "",
+    timeLabel: "",
+    unread: 0,
+    ...overrides,
+  }
 }
+
+const BASE_GLOBAL_CHAT_ITEM: ChatListItem = createGlobalChatItem()
 
 function getDirectTargetUserId(title: string, currentUserId?: string) {
   if (!title?.startsWith("dm:")) return undefined
@@ -47,35 +55,27 @@ export default function ChatPage() {
   const { user, users, loading } = useAuth()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const socketRef = useRef<ReturnType<typeof io> | null>(null)
+  const usersRef = useRef(users)
   const activeRoomIdRef = useRef<string | null>(null)
   const roomIdToDirectUserIdRef = useRef<Map<string, string>>(new Map())
   const directUserIdToRoomIdRef = useRef<Map<string, string>>(new Map())
   const pathname = usePathname()
   const router = useRouter()
 
-  const activeRoomId = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
+  const activeRoomIdPath = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
+  const activeRoomId = activeRoomIdPath === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : activeRoomIdPath
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
   }, [activeRoomId])
 
   useEffect(() => {
-    console.info("[ChatPage] entered /chat")
-  }, [])
+    usersRef.current = users
 
-  useEffect(() => {
-    if (loading) {
-      console.info("[ChatPage] auth check in progress")
-      return
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("getMyRooms")
     }
-
-    if (!user) {
-      console.warn("[ChatPage] unauthenticated, redirecting")
-      return
-    }
-
-    console.info("[ChatPage] authenticated as", user.username)
-  }, [loading, user])
+  }, [users])
 
   useEffect(() => {
     if (loading) return
@@ -85,10 +85,7 @@ export default function ChatPage() {
     }
 
     const token = getAuthToken()
-    if (!token) {
-      console.warn("[ChatPage] no token in storage")
-      return
-    }
+    if (!token) return
 
     const newSocket = io(WS_URL, {
       auth: { token },
@@ -96,33 +93,18 @@ export default function ChatPage() {
     })
     socketRef.current = newSocket
 
-    const onConnect = () => {
-      console.info("[ChatPage] socket connected", newSocket.id)
-    }
-    newSocket.on("connect", onConnect)
-
-    const onDisconnect = (reason: string) => {
-      console.info("[ChatPage] socket disconnected", reason)
-    }
-    newSocket.on("disconnect", onDisconnect)
-
     const onMyRooms = (data: { rooms: RoomSocketItem[] }) => {
-      console.info("[ChatPage] myRooms", data)
-
       const socketRooms = data.rooms ?? []
       setRooms((prev) => {
         if (!socketRooms.length) return [BASE_GLOBAL_CHAT_ITEM]
 
         const previousById = new Map(prev.map((room) => [room.id, room]))
-        const globalRoom: ChatListItem = {
-          id: GLOBAL_ROOM_ID,
-          title: "Общий чат для всех",
-          avatarInitials: getInitials("Общий чат для всех"),
-          href: `/chat/${GLOBAL_ROOM_ID}`,
+        const usersById = new Map(usersRef.current.map((existingUser) => [existingUser.id, existingUser]))
+        const globalRoom = createGlobalChatItem({
           preview: previousById.get(GLOBAL_ROOM_ID)?.preview ?? "",
           timeLabel: previousById.get(GLOBAL_ROOM_ID)?.timeLabel ?? "",
           unread: previousById.get(GLOBAL_ROOM_ID)?.unread ?? 0,
-        }
+        })
 
         const nextRoomToUser = new Map<string, string>()
         const nextUserToRoom = new Map<string, string>()
@@ -135,10 +117,9 @@ export default function ChatPage() {
             const targetUserId = getDirectTargetUserId(room.title, user?.id)
             if (!targetUserId) return
 
-            const targetUser = users.find((existingUser) => existingUser.id === targetUserId)
-            if (!targetUser) return
-
+            const targetUser = usersById.get(targetUserId)
             const previous = previousById.get(targetUserId)
+            const directTitle = targetUser?.username ?? "Личный чат"
 
             nextRoomToUser.set(room.id, targetUserId)
             nextUserToRoom.set(targetUserId, room.id)
@@ -146,10 +127,10 @@ export default function ChatPage() {
             if (!directChatsByUserId.has(targetUserId)) {
               directChatsByUserId.set(targetUserId, {
                 id: targetUserId,
-                title: targetUser.username,
-                avatarInitials: getInitials(targetUser.username),
+                title: directTitle,
+                avatarInitials: getInitials(directTitle),
                 href: `/chat/${targetUserId}`,
-                preview: previous?.preview ?? targetUser.email,
+                preview: previous?.preview ?? "",
                 timeLabel: previous?.timeLabel ?? "",
                 unread: previous?.unread ?? 0,
               })
@@ -165,25 +146,21 @@ export default function ChatPage() {
     newSocket.on("myRooms", onMyRooms)
 
     const onConnectError = () => {
-      console.error("[ChatPage] socket connect_error")
       setRooms((prev) => {
         const prevGlobal = prev.find((room) => room.id === GLOBAL_ROOM_ID)
 
         return [
-          {
-            ...BASE_GLOBAL_CHAT_ITEM,
+          createGlobalChatItem({
             preview: prevGlobal?.preview ?? BASE_GLOBAL_CHAT_ITEM.preview,
             timeLabel: prevGlobal?.timeLabel ?? BASE_GLOBAL_CHAT_ITEM.timeLabel,
             unread: prevGlobal?.unread ?? BASE_GLOBAL_CHAT_ITEM.unread,
-          },
+          }),
         ]
       })
     }
     newSocket.on("connect_error", onConnectError)
 
     const onNewMessage = (msg: NewMessageSocketEvent) => {
-      console.info("[ChatPage] newMessage in room", msg.roomId)
-
       const directUserId = roomIdToDirectUserIdRef.current.get(msg.roomId)
       const mappedId = msg.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserId
 
@@ -213,19 +190,16 @@ export default function ChatPage() {
     newSocket.on("newMessage", onNewMessage)
 
     const onUserInvitedToRoom = () => {
-      console.info("[ChatPage] userInvitedToRoom -> refresh myRooms")
       newSocket.emit("getMyRooms")
     }
     newSocket.on("userInvitedToRoom", onUserInvitedToRoom)
 
     const onRoomCreated = () => {
-      console.info("[ChatPage] roomCreated -> refresh myRooms")
       newSocket.emit("getMyRooms")
     }
     newSocket.on("roomCreated", onRoomCreated)
 
     const onDirectRoomOpened = (payload: DirectRoomOpenedSocketEvent) => {
-      console.info("[ChatPage] directRoomOpened", payload)
       newSocket.emit("getMyRooms")
 
       if (payload?.targetUserId) {
@@ -234,18 +208,16 @@ export default function ChatPage() {
       }
 
       if (payload?.roomId) {
-        router.push(`/chat/${payload.roomId}`)
+        const nextRouteRoomId = payload.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_SLUG : payload.roomId
+        router.push(`/chat/${nextRouteRoomId}`)
       }
     }
     newSocket.on("directRoomOpened", onDirectRoomOpened)
 
-    console.info("[ChatPage] emit getMyRooms")
     newSocket.emit("getMyRooms")
 
     return () => {
       newSocket.off("myRooms", onMyRooms)
-      newSocket.off("connect", onConnect)
-      newSocket.off("disconnect", onDisconnect)
       newSocket.off("connect_error", onConnectError)
       newSocket.off("newMessage", onNewMessage)
       newSocket.off("userInvitedToRoom", onUserInvitedToRoom)
@@ -254,7 +226,7 @@ export default function ChatPage() {
       newSocket.disconnect()
       socketRef.current = null
     }
-  }, [loading, router, user?.id, users])
+  }, [loading, router, user?.id])
 
   const handleCreateChat = () => {
     if (!user) return
@@ -279,7 +251,6 @@ export default function ChatPage() {
       return
     }
 
-    console.info("[ChatPage] emit openDirectRoom", targetUser.id)
     socket.emit("openDirectRoom", { targetUserId: targetUser.id })
   }
 
@@ -287,15 +258,9 @@ export default function ChatPage() {
     rooms.length > 0
       ? rooms
       : [
-          {
-            id: GLOBAL_ROOM_ID,
-            title: "Общий чат для всех",
-            avatarInitials: getInitials("Общий чат для всех"),
-            href: `/chat/${GLOBAL_ROOM_ID}`,
-            preview: { preious: BASE_GLOBAL_CHAT_ITEM.preview, current: "Нет подключений к чату" }.current,
-            timeLabel: "",
-            unread: 0,
-          },
+          createGlobalChatItem({
+            preview: "Нет подключений к чату",
+          }),
         ]
 
   return <ChatList items={chatItems} onCreateChat={handleCreateChat} />

@@ -1,0 +1,83 @@
+.contacts {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px;
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  p {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+}
+
+.cards {
+  display: grid;
+  gap: 12px;
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 14px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-elevated);
+}
+
+.photo {
+  width: 64px;
+  height: 64px;
+  border-radius: 9999px;
+  object-fit: cover;
+  border: 2px solid var(--accent);
+  flex-shrink: 0;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--foreground);
+  }
+
+  span {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+}
+
+.telegramLink {
+  margin-left: auto;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-elevated));
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 180ms ease-in-out;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent-soft) 30%, var(--surface-elevated));
+  }
+}
