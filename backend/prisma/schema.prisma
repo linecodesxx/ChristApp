@@ -49,16 +49,17 @@ model RoomMember {
   @@id([roomId, userId])
   @@index([userId])
 }
+
 model SavedVerse {
-  id           String   @id @default(uuid())
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId       String
-  book         String
-  chapter      Int
-  verse        Int
-  text         String
-  translation  String
-  savedAt      DateTime @default(now())
+  id          String   @id @default(uuid())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+  book        String
+  chapter     Int
+  verse       Int
+  text        String
+  translation String
+  savedAt     DateTime @default(now())
 
   @@unique([userId, book, chapter, verse, translation])
   @@index([userId, savedAt])
