@@ -1,12 +1,16 @@
 .hanger {
   position: fixed;
   top: 0;
-  right: 0px;
+  right: 10px;
   z-index: 120;
   width: 30px;
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  @media (min-width: 1440px) {
+    right: 20%;
+  }
 }
 
 .mount {
@@ -53,14 +57,19 @@
   margin-bottom: 6px;
   border: 1px solid color-mix(in srgb, var(--foreground) 20%, transparent);
   background: color-mix(in srgb, var(--foreground) 20%, var(--background) 80%);
-  transition: background-color 0.3s ease, box-shadow 0.3s ease, transform 0.3s ease;
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.3s ease;
 }
 
 .glow {
   position: absolute;
   inset: 0;
   border-radius: 999px;
-  transition: box-shadow 0.3s ease, opacity 0.3s ease;
+  transition:
+    box-shadow 0.3s ease,
+    opacity 0.3s ease;
 }
 
 .light {
@@ -71,7 +80,10 @@
   }
 
   .glow {
-    box-shadow: 0 0 16px #facc15, 0 0 28px color-mix(in srgb, #facc15 60%, transparent), 0 16px 30px color-mix(in srgb, #facc15 24%, transparent);
+    box-shadow:
+      0 0 16px #facc15,
+      0 0 28px color-mix(in srgb, #facc15 60%, transparent),
+      0 16px 30px color-mix(in srgb, #facc15 24%, transparent);
     opacity: 1;
   }
 }
@@ -84,7 +96,10 @@
   }
 
   .glow {
-    box-shadow: 0 0 12px #e5e7eb, 0 0 20px color-mix(in srgb, #e5e7eb 40%, transparent), 0 10px 20px color-mix(in srgb, #e5e7eb 18%, transparent);
+    box-shadow:
+      0 0 12px #e5e7eb,
+      0 0 20px color-mix(in srgb, #e5e7eb 40%, transparent),
+      0 10px 20px color-mix(in srgb, #e5e7eb 18%, transparent);
     opacity: 0.95;
   }
 }

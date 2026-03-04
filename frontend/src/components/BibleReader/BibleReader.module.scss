@@ -1,43 +1,209 @@
-.main {
+.bibleReader {
     padding: 16px;
     padding-left: 40px;
     padding-right: 40px;
-}
 
-.headerBar {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-bottom: 16px;
+    .headerBar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 16px;
 
-    h2 {
-        cursor: pointer;
+        .clickable {
+            cursor: pointer;
+        }
+
+        select {
+            border: none;
+            background: transparent;
+            color: var(--foreground);
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            outline: none;
+        }
     }
 
-    select {
-        border: none;
-        background: transparent;
-        color: var(--foreground);
-        padding: 0.5rem;
-        border-radius: 4px;
-        font-size: 14px;
-        cursor: pointer;
-        outline: none;
-    }
-}
+    .modalBackdrop {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.2s ease-out;
 
-.modalBackdrop {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    z-index: 9999;
-    animation: fadeIn 0.2s ease-out;
+        .modalSheet {
+            background: var(--background);
+            border-radius: 16px 16px 0 0;
+            height: 90vh;
+            width: 100%;
+            max-width: 100vw;
+            display: flex;
+            flex-direction: column;
+            animation: slideUp 0.3s ease-out;
+            box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
+
+            .modalHeader {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 1rem;
+                border-bottom: 1px solid var(--login-card-border);
+
+                .backButton {
+                    background: transparent;
+                    border: none;
+                    color: var(--foreground);
+                    cursor: pointer;
+                    font-weight: 600;
+                    font-size: 14px;
+
+                    &:disabled {
+                        opacity: 0.3;
+                        cursor: default;
+                    }
+                }
+
+                .closeModalButton {
+                    background: transparent;
+                    border: none;
+                    font-size: 20px;
+                    cursor: pointer;
+                    color: var(--foreground);
+                }
+            }
+
+            .modalBody {
+                flex: 1;
+                overflow-y: auto;
+                padding: 1.5rem;
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+
+                h3 {
+                    font-size: 18px;
+                    margin-bottom: 1rem;
+                    color: var(--foreground);
+                }
+
+                .testamentGrid {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 1rem;
+                }
+
+                .booksList {
+                    display: grid;
+                    grid-template-columns: 1fr 1fr;
+                    gap: 0.8rem;
+                }
+
+                .chaptersList {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
+                    gap: 0.6rem;
+                }
+
+                .testamentButton,
+                .bookButton,
+                .chapterButton {
+                    padding: 1rem;
+                    background: var(--login-input-bg);
+                    color: var(--foreground);
+                    border: 2px solid var(--login-card-border);
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 14px;
+                    font-weight: 500;
+                    transition: all 0.2s ease;
+
+                    &:hover {
+                        background: var(--login-button-bg);
+                        color: var(--login-button-text);
+                        border-color: var(--login-button-bg);
+                    }
+
+                    &.active {
+                        background: var(--login-button-bg);
+                        color: var(--login-button-text);
+                        border-color: var(--login-button-bg);
+                    }
+                }
+            }
+        }
+    }
+
+    .floatingNavLeft,
+    .floatingNavRight {
+        position: fixed;
+        bottom: 134px;
+        z-index: 1600;
+
+        .navButton {
+            border-radius: 9999px;
+            border: 1px solid #e8dcc8;
+            background: #fdf8f0;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 9999px;
+            box-shadow:
+                0 2px 4px -2px rgba(0, 0, 0, 0.1),
+                0 4px 6px -1px rgba(0, 0, 0, 0.1),
+                0 0 0 0 rgba(0, 0, 0, 0),
+                0 0 0 0 rgba(0, 0, 0, 0);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition:
+                transform 0.12s ease,
+                box-shadow 0.12s ease,
+                opacity 0.12s ease;
+
+            &:hover:not(:disabled) {
+                transform: translateY(-3px);
+                box-shadow: 0 10px 20px rgba(245, 212, 152, 0.457);
+            }
+
+            &:disabled {
+                opacity: 0.35;
+                cursor: default;
+                transform: none;
+            }
+
+            @media (min-width: 1440px) {
+                width: 100px;
+            }
+        }
+    }
+
+    .floatingNavLeft {
+        left: 5px;
+    }
+
+    .floatingNavRight {
+        right: 5px;
+    }
+
+    .versesSection {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        background-color: transparent;
+        border-radius: 8px;
+        max-height: 75vh;
+        overflow-y: auto;
+        padding: 0;
+    }
 }
 
 @keyframes fadeIn {
@@ -50,18 +216,6 @@
     }
 }
 
-.modalSheet {
-    background: var(--background);
-    border-radius: 16px 16px 0 0;
-    height: 90vh;
-    width: 100%;
-    max-width: 100vw;
-    display: flex;
-    flex-direction: column;
-    animation: slideUp 0.3s ease-out;
-    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.15);
-}
-
 @keyframes slideUp {
     from {
         transform: translateY(100%);
@@ -71,158 +225,3 @@
         transform: translateY(0);
     }
 }
-
-.modalHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-    border-bottom: 1px solid var(--login-card-border);
-}
-
-.modalBody {
-    flex: 1;
-    overflow-y: auto;
-    padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-}
-
-.modalBody h3 {
-    font-size: 18px;
-    margin-bottom: 1rem;
-    color: var(--foreground);
-}
-
-.testamentGrid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-}
-
-.testamentButton,
-.bookButton,
-.chapterButton {
-    padding: 1rem;
-    background: var(--login-input-bg);
-    color: var(--foreground);
-    border: 2px solid var(--login-card-border);
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: all 0.2s ease;
-}
-
-.testamentButton:hover,
-.bookButton:hover,
-.chapterButton:hover {
-    background: var(--login-button-bg);
-    color: var(--login-button-text);
-    border-color: var(--login-button-bg);
-}
-
-.testamentButton.active,
-.bookButton.active,
-.chapterButton.active {
-    background: var(--login-button-bg);
-    color: var(--login-button-text);
-    border-color: var(--login-button-bg);
-}
-
-.booksList {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.8rem;
-}
-
-.chaptersList {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(48px, 1fr));
-    gap: 0.6rem;
-}
-
-.backButton {
-    background: transparent;
-    border: none;
-    color: var(--foreground);
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.backButton:disabled {
-    opacity: 0.3;
-    cursor: default;
-}
-
-.closeModalButton {
-    background: transparent;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    color: var(--foreground);
-}
-
-.floatingNavLeft {
-    position: fixed;
-    left: 5px;
-    bottom: 134px;
-    z-index: 1600;
-}
-
-.floatingNavRight {
-    position: fixed;
-    right: 5px;
-    bottom: 134px;
-    z-index: 1600;
-}
-
-.navButton {
-    border-radius: 9999px;
-    border: 1px solid #e8dcc8;
-    background: #fdf8f0;
-    border: none;
-    width: 40px;
-    height: 40px;
-    border-radius: 9999px;
-    box-shadow:
-        0 2px 4px -2px rgba(0, 0, 0, 0.1),
-        0 4px 6px -1px rgba(0, 0, 0, 0.1),
-        0 0 0 0 rgba(0, 0, 0, 0),
-        0 0 0 0 rgba(0, 0, 0, 0);
-    cursor: pointer;
-    font-size: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition:
-        transform 0.12s ease,
-        box-shadow 0.12s ease,
-        opacity 0.12s ease;
-}
-
-.navButton:hover:not(:disabled) {
-    transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(245, 212, 152, 0.457);
-}
-
-.navButton:disabled {
-    opacity: 0.35;
-    cursor: default;
-    transform: none;
-}
-
-.versesSection {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    background-color: transparent;
-    border-radius: 8px;
-    max-height: 75vh;
-    overflow-y: auto;
-    padding: 0;
-}
-
-/* when theme changes, colors will be inverted via variables */

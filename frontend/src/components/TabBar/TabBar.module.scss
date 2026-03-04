@@ -11,6 +11,11 @@
   box-shadow:
     0 4px 8px 0 rgba(0, 0, 0, 0.1),
     0 6px 20px 0 rgba(0, 0, 0, 0.1);
+
+  @media (min-width: 1440px) {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
 }
 
 .tabLink {
@@ -35,7 +40,9 @@
   }
 
   img {
-    transition: filter 0.28s ease, drop-shadow 0.28s ease;
+    transition:
+      filter 0.28s ease,
+      drop-shadow 0.28s ease;
   }
 }
 
@@ -47,7 +54,13 @@
   align-items: center;
   flex-shrink: 0;
   border-radius: 9999px;
-  transition: width 0.28s ease, height 0.28s ease, padding 0.28s ease, background-color 0.28s ease, box-shadow 0.28s ease, transform 0.28s ease;
+  transition:
+    width 0.28s ease,
+    height 0.28s ease,
+    padding 0.28s ease,
+    background-color 0.28s ease,
+    box-shadow 0.28s ease,
+    transform 0.28s ease;
 }
 
 .activeIcon {
