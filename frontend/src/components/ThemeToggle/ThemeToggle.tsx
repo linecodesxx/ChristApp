@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { usePathname } from "next/navigation"
 import styles from "./ThemeToggle.module.scss"
 
 type ThemeMode = "light" | "dark"
@@ -12,6 +13,7 @@ function applyTheme(theme: ThemeMode) {
 
 export default function ThemeToggle() {
   const [theme, setTheme] = useState<ThemeMode>("dark")
+  const pathname = usePathname()
 
   useEffect(() => {
     try {
@@ -35,11 +37,15 @@ export default function ThemeToggle() {
   }
 
   const isLight = theme === "light"
+  const isProfilePage = pathname.startsWith("/profile")
+
+  if (isProfilePage) {
+    return null
+  }
 
   return (
     <div className={styles.hanger}>
       <span className={styles.mount} />
-
       <button
         type="button"
         className={`${styles.toggle} ${isLight ? styles.light : styles.dark}`}

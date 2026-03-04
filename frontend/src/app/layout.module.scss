@@ -2,4 +2,9 @@
   width: 100%;
   height: calc(100svh - 80px - 40px);
   padding-bottom: 80px;
+
+  @media (min-width: 1440px) {
+    max-width: 1000px;
+    margin: 0 auto;
+  }
 }
