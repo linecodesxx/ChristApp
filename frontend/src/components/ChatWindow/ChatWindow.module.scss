@@ -5,11 +5,45 @@
   gap: 10px;
   flex: 1 1 auto;
   min-height: 0;
-  overflow-y: auto;
   overflow-x: hidden;
   width: 100%;
   max-height: 100%;
-  padding-bottom: 20px;
+
+  --star-color-1: rgba(196, 162, 101, 0.28);
+  --star-color-2: rgba(196, 162, 101, 0.2);
+  --star-color-3: rgba(196, 162, 101, 0.14);
+  background-image:
+    radial-gradient(circle at 6% 9%, var(--star-color-1) 0 1.4px, transparent 2px),
+    radial-gradient(circle at 14% 26%, var(--star-color-2) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 23% 12%, var(--star-color-3) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 31% 38%, var(--star-color-2) 0 1.1px, transparent 1.7px),
+    radial-gradient(circle at 41% 18%, var(--star-color-1) 0 1.2px, transparent 1.9px),
+    radial-gradient(circle at 48% 52%, var(--star-color-3) 0 0.9px, transparent 1.4px),
+    radial-gradient(circle at 57% 27%, var(--star-color-2) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 64% 11%, var(--star-color-3) 0 0.8px, transparent 1.4px),
+    radial-gradient(circle at 72% 34%, var(--star-color-1) 0 1.3px, transparent 1.9px),
+    radial-gradient(circle at 81% 22%, var(--star-color-2) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 89% 41%, var(--star-color-3) 0 0.9px, transparent 1.5px),
+    radial-gradient(circle at 12% 63%, var(--star-color-2) 0 1px, transparent 1.6px),
+    radial-gradient(circle at 19% 78%, var(--star-color-3) 0 0.8px, transparent 1.4px);
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+
+  &::after {
+    content: "";
+    display: block;
+    height: 20px;
+  }
+}
+
+html[data-theme="light"] .chatWindow {
+  background-image: none;
+}
+
+html[data-theme="dark"] .chatWindow {
+  --star-color-1: rgba(255, 236, 180, 0.5);
+  --star-color-2: rgba(255, 236, 180, 0.34);
+  --star-color-3: rgba(255, 236, 180, 0.2);
 }
 
 .empty {

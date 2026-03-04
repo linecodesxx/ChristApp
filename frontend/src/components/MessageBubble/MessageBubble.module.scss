@@ -1,6 +1,6 @@
 .bubble {
   display: flex;
-  max-width: 261px;
+  max-width: 290px;
   height: auto;
   padding: 15px 15px;
   padding: 7px 12px 0;
@@ -9,15 +9,46 @@
   gap: 5px;
   border-radius: 16px 16px 16px 0;
   border: 1px solid var(--line-soft);
-  background: var(--surfтемаааace-elevated);
+  background: var(--surface-elevated);
   color: var(--foreground);
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
   transition: all 0.2s ease-in-out;
   word-break: break-all;
+  cursor: pointer;
+}
+
+.replyPreview {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border-left: 2px solid var(--accent);
+  background: color-mix(in srgb, var(--accent-soft) 62%, transparent);
+}
+
+.replyAuthor {
+  color: var(--accent);
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.replyText {
+  color: var(--text-muted);
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .messageContent {
   color: #2e2c2c;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .myBubble {
@@ -28,11 +59,16 @@
   color: color-mix(in srgb, var(--foreground) 82%, #000 18%);
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
   word-break: break-all;
+
+  .replyPreview {
+    background: color-mix(in srgb, var(--surface-elevated) 45%, var(--accent-soft) 55%);
+  }
 }
 
 .date {
   display: flex;
   justify-content: flex-end;
+  align-self: flex-end;
   padding-top: 5px;
   color: var(--text-muted);
   font-family: "Inter", sans-serif;
@@ -49,6 +85,10 @@ html[data-theme="dark"] .bubble {
     0 4px 12px -3px rgba(196, 162, 101, 0.16),
     0 0 0 0 rgba(0, 0, 0, 0),
     0 0 0 0 rgba(0, 0, 0, 0);
+
+  .replyPreview {
+    background: color-mix(in srgb, var(--my-bubble-dark-bg) 26%, var(--surface) 74%);
+  }
 }
 
 html[data-theme="dark"] .myBubble {

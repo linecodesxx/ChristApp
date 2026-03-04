@@ -25,33 +25,12 @@ export default function LoginPage() {
     router.push("/register")
   }
 
-  const handleNavigateToChat = () => {
-    router.push("/chat")
-  }
 
   if (loading) {
     return (
       <main className={styles.main}>
         <section className={styles.card}>
           <p className={styles.loadingText}>Loading...</p>
-        </section>
-      </main>
-    )
-  }
-
-  if (user) {
-    return (
-      <main className={styles.main}>
-        <section className={styles.card}>
-          <header className={styles.header}>
-            <h1 className={styles.title}>You are already logged in</h1>
-          </header>
-
-          <div className={styles.actions}>
-            <button onClick={handleNavigateToChat} className={styles.button}>
-              Go to Chat
-            </button>
-          </div>
         </section>
       </main>
     )

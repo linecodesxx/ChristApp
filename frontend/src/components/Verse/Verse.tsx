@@ -44,7 +44,7 @@ export default function Verse({
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
-  const [isActionsVisible, setIsActionsVisible] = useState(true)
+  const [isActionsVisible, setIsActionsVisible] = useState(false)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const verseReference = `${bookName ? `${bookName} ` : ""}${chapter ? `${chapter}:` : ""}${verse}`
@@ -105,6 +105,12 @@ export default function Verse({
   }, [verseKey])
 
   const handleClick = () => {
+    if (isSelected && !isActionsVisible) {
+      setIsActionsVisible(true)
+      syncClipboardSelection(true)
+      return
+    }
+
     const nextIsClicked = !isSelected
     if (typeof selected !== "boolean") {
       setIsClicked(nextIsClicked)
@@ -173,7 +179,9 @@ export default function Verse({
   const handleHighlightColorSelect = (event: React.MouseEvent<HTMLButtonElement>, color: string) => {
     event.stopPropagation()
 
-    setSelectedColor(color)
+    const nextColor = selectedColor === color ? null : color
+
+    setSelectedColor(nextColor)
     setIsActionsVisible(false)
 
     if (typeof window === "undefined") return
@@ -181,15 +189,23 @@ export default function Verse({
     try {
       const rawValue = window.localStorage.getItem(VERSE_HIGHLIGHT_STORAGE_KEY)
       const parsed = rawValue ? (JSON.parse(rawValue) as Record<string, string>) : {}
-      parsed[verseKey] = color
+
+      if (nextColor) {
+        parsed[verseKey] = nextColor
+      } else {
+        delete parsed[verseKey]
+      }
+
       window.localStorage.setItem(VERSE_HIGHLIGHT_STORAGE_KEY, JSON.stringify(parsed))
     } catch {
       // no-op: localStorage may be unavailable
     }
   }
 
+  const hasColorHighlight = Boolean(selectedColor)
+
   const selectedColorStyle =
-    isSelected && selectedColor
+    selectedColor
       ? ({
           "--selected-decoration-color": `color-mix(in srgb, ${selectedColor} 45%, transparent)`,
           "--selected-border-color": selectedColor,
@@ -212,7 +228,7 @@ export default function Verse({
             {verse}
           </sup>
           <span
-            className={`${isSelected ? styles.selected : ""} ${isCopied ? styles.copied : ""}`}
+            className={`${hasColorHighlight ? styles.selected : ""} ${isCopied ? styles.copied : ""}`}
             style={selectedColorStyle}
           >
             {text}
@@ -254,6 +270,7 @@ export default function Verse({
                   style={{ backgroundColor: color }}
                   onClick={(event) => handleHighlightColorSelect(event, color)}
                   aria-label={`Select highlight color ${color}`}
+                  aria-pressed={selectedColor === color}
                 />
               ))}
             </div>

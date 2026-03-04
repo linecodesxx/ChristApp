@@ -4,7 +4,7 @@ import styles from "@/app/profile/profile.module.scss"
 import { useAuth } from "@/hooks/useAuth"
 import { formatMemberSince, getInitials } from "@/lib/utils"
 import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -18,16 +18,41 @@ type SavedVerse = {
   savedAt: string
 }
 
-type CatchError = Error & { message: string }
-
 const Profile = () => {
-  const { user, logout, loading } = useAuth({ redirectIfUnauthenticated: "/" })
+  const { user, logout } = useAuth({ redirectIfUnauthenticated: "/" })
   const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
   const [versesLoading, setVersesLoading] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const settingsRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     loadSavedVerses()
   }, [])
+
+  useEffect(() => {
+    if (!isSettingsOpen) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      const target = event.target as Node
+      if (settingsRef.current && !settingsRef.current.contains(target)) {
+        setIsSettingsOpen(false)
+      }
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsSettingsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick)
+    document.addEventListener("keydown", handleEscape)
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick)
+      document.removeEventListener("keydown", handleEscape)
+    }
+  }, [isSettingsOpen])
 
   const loadSavedVerses = async () => {
     setVersesLoading(true)
@@ -44,40 +69,91 @@ const Profile = () => {
   const formattedDate = formatMemberSince(user?.createdAt)
   const initials = getInitials(user?.username)
 
+  const toggleSettingsMenu = () => setIsSettingsOpen((prev) => !prev)
+
+  const closeSettingsMenu = () => setIsSettingsOpen(false)
+
+  const handleLogoutFromMenu = () => {
+    setIsSettingsOpen(false)
+    logout()
+  }
+
   return (
     <section className={styles.profile}>
       <div className={styles.header}>
         <h1>Профиль</h1>
-        <Image className={styles.settingsIcon} src={"/icon-settings.svg"} alt="Profile" width={24} height={24} />
+        <div className={styles.settingsWrap} ref={settingsRef}>
+          <button
+            className={`${styles.settingsBtn} ${isSettingsOpen ? styles.settingsBtnActive : ""}`}
+            id="settings"
+            aria-label="Настройки"
+            aria-haspopup="menu"
+            aria-expanded={isSettingsOpen}
+            aria-controls="settings-menu"
+            onClick={toggleSettingsMenu}
+            type="button"
+          >
+            <Image className={styles.settingsIcon} src={"/icon-settings.svg"} alt="Настройки" width={24} height={24} />
+          </button>
+
+          <div className={`${styles.settingsMenu} ${isSettingsOpen ? styles.show : ""}`} id="settings-menu" role="menu">
+            <p className={styles.menuTitle}>Быстрые настройки</p>
+
+            <button type="button" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
+              <span>Редактировать профиль</span>
+              <span className={styles.menuHint}>Скоро</span>
+            </button>
+
+            <button type="button" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
+              <span>Уведомления</span>
+              <span className={styles.menuHint}>Скоро</span>
+            </button>
+
+            <Link href="/contacts" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
+              <span>Контакты и помощь</span>
+              <span className={styles.menuHint}>Открыть</span>
+            </Link>
+
+            <button
+              type="button"
+              className={`${styles.menuItem} ${styles.menuItemDanger}`}
+              role="menuitem"
+              onClick={handleLogoutFromMenu}
+            >
+              <span>Выйти из аккаунта</span>
+              <span className={styles.menuHint}>Сейчас</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className={styles.userInfo}>
         <div className={styles.avatar}>{initials}</div>
         <div className={styles.info}>
           <span className={styles.username}>{user?.username}</span>
-          <span>Member since {formattedDate}</span>
+          <span>С нами с {formattedDate}</span>
         </div>
       </div>
 
       <ul className={styles.list}>
         <li className={styles.item}>
-          <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Day Streak" width={16} height={16} />
-          <span>12</span>
-          <p>Day Streak</p>
+          <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Серия дней" width={16} height={16} />
+          <span>1</span>
+          <p>Серия дней</p>
         </li>
         <li className={styles.item}>
-          <Image className={styles.imgIcon} src={"/icon-chapters.svg"} alt="Chapters" width={16} height={16} />
-          <span>48</span>
-          <p>Chapters</p>
+          <Image className={styles.imgIcon} src={"/icon-chapters.svg"} alt="Главы" width={16} height={16} />
+          <span>0</span>
+          <p>Главы</p>
         </li>
         <li className={styles.item}>
-          <Image className={styles.imgIcon} src={"/icon-badge.svg"} alt="Badges" width={16} height={16} />
-          <span>5</span>
-          <p>Badges</p>
+          <Image className={styles.imgIcon} src={"/icon-badge.svg"} alt="Награды" width={16} height={16} />
+          <span>0</span>
+          <p>Награды</p>
         </li>
       </ul>
 
-      {/* SAVED VERSES SECTION */}
+      {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ */}
       <div className={styles.savedVersesSection}>
         <div className={styles.sectionHeader}>
           <span>Сохранённые стихи ({savedVerses.length})</span>
@@ -104,7 +180,7 @@ const Profile = () => {
                 <button
                   className={styles.deleteBtn}
                   onClick={() => handleDeleteVerse(verse.id)}
-                  aria-label="Delete verse"
+                  aria-label="Удалить стих"
                 >
                   ✕
                 </button>
@@ -115,16 +191,10 @@ const Profile = () => {
       </div>
 
       <div className={styles.support}>
-        <span>Support</span>
-        <ul>
-          <li>
-            <Link href="/contacts">Contacts</Link>
-          </li>
-          <li>
-            <Link href="/about">About the App</Link>
-          </li>
-        </ul>
+        <Link className={styles.link} href="/contacts">Контакты и помощь</Link>
+      </div>
 
+      <div className={styles.signOut}>
         <div>
           <Link
             href="/"
@@ -133,14 +203,9 @@ const Profile = () => {
               logout()
             }}
           >
-            Sign Out
+            Выйти из аккаунта
           </Link>
         </div>
-      </div>
-
-      <div className={styles.appVersion}>
-        <span>App Version 1.00</span>
-        <span>Authors: Ed Hristov, Xho Hristov</span>
       </div>
     </section>
   )

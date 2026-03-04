@@ -81,3 +81,13 @@
     background: color-mix(in srgb, var(--accent-soft) 30%, var(--surface-elevated));
   }
 }
+
+.appVersion {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: var(--surface-elevated);
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+}
