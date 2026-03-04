@@ -11,15 +11,19 @@
 
         .clickable {
             cursor: pointer;
+            border: 1px solid var(--login-card-border);
+            padding: 8px;
+            border-radius: 64px;
         }
 
         select {
             border: none;
             background: transparent;
             color: var(--foreground);
-            padding: 0.5rem;
-            border-radius: 4px;
-            font-size: 14px;
+            border: 1px solid var(--login-card-border);
+            padding: 8px;
+            border-radius: 64px;
+            font-size: 20px;
             cursor: pointer;
             outline: none;
         }
