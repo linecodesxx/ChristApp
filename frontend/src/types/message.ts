@@ -1,4 +1,8 @@
-
+export type MessageReply = {
+  id: string
+  username: string
+  content: string
+}
 
 export type Message = {
   sender?: string
@@ -6,4 +10,5 @@ export type Message = {
   username: string
   content: string
   createdAt: string
+  replyTo?: MessageReply
 }

@@ -1,3 +1,13 @@
+@keyframes message-skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .chat {
   color: var(--foreground);
   background: var(--background);
@@ -66,7 +76,7 @@
           display: flex;
           min-width: 65px;
           flex-shrink: 0;
-          color: var(--text-muted);
+          color: rgb(26, 159, 115);
           font-family: "Inter", sans-serif;
           font-size: 10px;
           font-style: normal;
@@ -79,15 +89,57 @@
 
   .stateMessage {
     width: 100%;
-    padding: 8px 12px;
+    padding: 10px 12px;
     border-radius: 12px;
-    border: 1px solid var(--line-soft);
-    background: var(--surface-elevated);
-    color: var(--text-muted);
+    border: 1px solid color-mix(in srgb, var(--line-soft) 74%, var(--accent) 26%);
+    background: color-mix(in srgb, var(--surface-elevated) 90%, var(--accent-soft) 10%);
+    color: color-mix(in srgb, var(--text-muted) 86%, var(--foreground) 14%);
     font-family: "Inter", sans-serif;
     font-size: 12px;
-    line-height: 16px;
-    min-height: calc(60vh - 40px - 80px);
+    font-weight: 500;
+    line-height: 1.35;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    box-shadow: 0 8px 18px -22px rgba(38, 28, 16, 0.5);
+  }
+
+  .messagesSkeleton {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 6px 2px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+  }
+
+  .skeletonBubble {
+    position: relative;
+    height: 42px;
+    max-width: 92%;
+    border-radius: 16px 16px 16px 4px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, var(--accent) 18%);
+    background: color-mix(in srgb, var(--surface-elevated) 92%, var(--accent-soft) 8%);
+    overflow: hidden;
+
+    &::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+      animation: message-skeleton-shimmer 1.2s ease-in-out infinite;
+    }
+
+    &:nth-child(3n) {
+      height: 54px;
+    }
+  }
+
+  .skeletonBubbleOwn {
+    align-self: flex-end;
+    border-radius: 16px 16px 4px 16px;
   }
 }
 
@@ -117,16 +169,28 @@ html[data-theme="dark"] .chat {
         .chatName {
           color: var(--foreground);
         }
-
-        .status {
-          color: var(--accent);
-        }
       }
 
       .avatar {
         background: var(--accent-soft);
         color: color-mix(in srgb, var(--background) 82%, #000 18%);
       }
+    }
+  }
+
+  .stateMessage {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--line-soft));
+    background: color-mix(in srgb, var(--surface-elevated) 88%, #111 12%);
+    color: color-mix(in srgb, var(--foreground) 78%, var(--text-muted) 22%);
+    box-shadow: 0 12px 24px -26px rgba(196, 162, 101, 0.55);
+  }
+
+  .skeletonBubble {
+    border-color: color-mix(in srgb, var(--accent) 24%, var(--line-soft));
+    background: color-mix(in srgb, var(--surface-elevated) 85%, #111 15%);
+
+    &::after {
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
     }
   }
 }

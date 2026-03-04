@@ -3,8 +3,8 @@
 import ChatWindow from "@/components/ChatWindow/ChatWindow"
 import styles from "./chatRoom.module.scss"
 import MessageInput from "@/components/MessageInput/MessageInput"
-import type { Message } from "@/types/message"
-import { useEffect, useRef, useState } from "react"
+import type { Message, MessageReply } from "@/types/message"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { io, type Socket } from "socket.io-client"
 import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
@@ -16,11 +16,23 @@ import Image from "next/image"
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
-const HISTORY_PAGE_SIZE = 50
+const HISTORY_PAGE_SIZE = 150
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
+const REPLY_META_PREFIX = "[[reply:"
+const REPLY_META_SUFFIX = "]]"
+const MAX_REPLY_PREVIEW_LENGTH = 180
+const MESSAGE_SKELETON_ITEMS = [
+  { width: "68%", own: false },
+  { width: "54%", own: true },
+  { width: "74%", own: false },
+  { width: "62%", own: true },
+  { width: "58%", own: false },
+  { width: "70%", own: false },
+]
 
 type IncomingSocketMessage = {
   id?: string | number
+  roomId?: string
   content?: string
   createdAt?: string | Date
   username?: string
@@ -79,15 +91,98 @@ function persistRoomPreview(roomKey: string, message: string) {
   persistLastSentPreview(roomKey, message)
 }
 
+function normalizeReplyContent(content: string) {
+  return content.replace(/\s+/g, " ").trim().slice(0, MAX_REPLY_PREVIEW_LENGTH)
+}
+
+function serializeMessageWithReply(content: string, replyTo?: MessageReply | null) {
+  const normalizedContent = content.trim()
+  if (!normalizedContent || !replyTo) {
+    return normalizedContent
+  }
+
+  const safeReply: MessageReply = {
+    id: String(replyTo.id),
+    username: (String(replyTo.username || "Unknown").trim() || "Unknown").slice(0, 60),
+    content: normalizeReplyContent(String(replyTo.content || "")),
+  }
+
+  try {
+    const encodedMeta = encodeURIComponent(JSON.stringify(safeReply))
+    return `${REPLY_META_PREFIX}${encodedMeta}${REPLY_META_SUFFIX}${normalizedContent}`
+  } catch {
+    return normalizedContent
+  }
+}
+
+function parseMessageWithReply(rawContent: string) {
+  if (!rawContent.startsWith(REPLY_META_PREFIX)) {
+    return {
+      content: rawContent,
+      replyTo: undefined as MessageReply | undefined,
+    }
+  }
+
+  const suffixIndex = rawContent.indexOf(REPLY_META_SUFFIX, REPLY_META_PREFIX.length)
+  if (suffixIndex === -1) {
+    return {
+      content: rawContent,
+      replyTo: undefined as MessageReply | undefined,
+    }
+  }
+
+  const encodedMeta = rawContent.slice(REPLY_META_PREFIX.length, suffixIndex)
+  const messageContent = rawContent.slice(suffixIndex + REPLY_META_SUFFIX.length)
+
+  try {
+    const parsedMeta = JSON.parse(decodeURIComponent(encodedMeta)) as Partial<MessageReply>
+    if (!parsedMeta?.id || !parsedMeta?.username) {
+      return {
+        content: rawContent,
+        replyTo: undefined as MessageReply | undefined,
+      }
+    }
+
+    return {
+      content: messageContent || rawContent,
+      replyTo: {
+        id: String(parsedMeta.id),
+        username: String(parsedMeta.username),
+        content: normalizeReplyContent(String(parsedMeta.content ?? "")),
+      },
+    }
+  } catch {
+    return {
+      content: rawContent,
+      replyTo: undefined as MessageReply | undefined,
+    }
+  }
+}
+
+function areSetsEqual<T>(left: Set<T>, right: Set<T>) {
+  if (left.size !== right.size) return false
+
+  for (const value of left) {
+    if (!right.has(value)) {
+      return false
+    }
+  }
+
+  return true
+}
+
 function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined, currentUsername?: string): Message {
   const username = raw?.username ?? raw?.sender?.username ?? "Unknown"
+  const rawContent = String(raw?.content ?? "")
+  const { content, replyTo } = parseMessageWithReply(rawContent)
 
   return {
     id: String(raw?.id ?? Date.now()),
-    content: String(raw?.content ?? ""),
+    content,
     createdAt: String(raw?.createdAt ?? new Date().toISOString()),
     username,
     sender: username === currentUsername ? "me" : undefined,
+    replyTo,
   }
 }
 
@@ -119,12 +214,14 @@ export default function ChatPageDetails() {
   const joinedRoomRef = useRef<string | undefined>(undefined)
   const availableRoomIdsRef = useRef<Set<string>>(new Set())
   const openingDirectRoomRef = useRef<Set<string>>(new Set())
+  const messageIdsRef = useRef<Set<string>>(new Set())
   const [messages, setMessages] = useState<Message[]>([])
   const [roomTitle, setRoomTitle] = useState<string>("")
   const [roomRawTitle, setRoomRawTitle] = useState<string>("")
   const [isSocketConnected, setIsSocketConnected] = useState(false)
   const [isHistoryLoading, setIsHistoryLoading] = useState(true)
   const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [replyToMessage, setReplyToMessage] = useState<Message | null>(null)
   const [onlineCount, setOnlineCount] = useState(0)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
 
@@ -139,6 +236,8 @@ export default function ChatPageDetails() {
 
   useEffect(() => {
     setMessages([])
+    messageIdsRef.current = new Set()
+    setReplyToMessage(null)
     setRoomTitle("")
     setRoomRawTitle("")
     setIsHistoryLoading(true)
@@ -204,29 +303,51 @@ export default function ChatPageDetails() {
     socket.on("error", onSocketError)
 
     const onNewMessage = (msg: IncomingSocketMessage) => {
-      const normalized = normalizeIncomingMessage(msg, user?.username)
       const activeRoomId = currentRoomRef.current
+      if (activeRoomId && msg.roomId && msg.roomId !== activeRoomId) {
+        return
+      }
+
+      const normalized = normalizeIncomingMessage(msg, user?.username)
+      if (!normalized.content.trim()) {
+        return
+      }
+
+      if (messageIdsRef.current.has(normalized.id)) {
+        return
+      }
+
+      messageIdsRef.current.add(normalized.id)
+
       if (activeRoomId && normalized.content?.trim()) {
         persistRoomPreview(activeRoomId, normalized.content.trim())
       }
 
-      setMessages((prev) => {
-        if (prev.some((existingMessage) => existingMessage.id === normalized.id)) {
-          return prev
-        }
-        return [...prev, normalized]
-      })
+      setMessages((prev) => [...prev, normalized])
     }
     socket.on("newMessage", onNewMessage)
 
-    const onRoomHistory = ({ messages: history }: RoomHistoryPayload) => {
+    const onRoomHistory = ({ roomId: historyRoomId, messages: history }: RoomHistoryPayload) => {
+      const activeRoomId = currentRoomRef.current
+      if (!activeRoomId || historyRoomId !== activeRoomId) {
+        return
+      }
+
       const normalizedHistory = (history ?? []).map((messageItem) => normalizeIncomingMessage(messageItem, user?.username))
-      const uniqueHistory = normalizedHistory.filter(
-        (messageItem, index, array) => array.findIndex((candidate) => candidate.id === messageItem.id) === index,
-      )
+
+      const nextMessageIds = new Set<string>()
+      const uniqueHistory: Message[] = []
+      for (const messageItem of normalizedHistory) {
+        if (nextMessageIds.has(messageItem.id)) {
+          continue
+        }
+        nextMessageIds.add(messageItem.id)
+        uniqueHistory.push(messageItem)
+      }
+
+      messageIdsRef.current = nextMessageIds
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
-      const activeRoomId = currentRoomRef.current
       if (activeRoomId && lastMessage?.content?.trim()) {
         persistRoomPreview(activeRoomId, lastMessage.content.trim())
       }
@@ -287,17 +408,19 @@ export default function ChatPageDetails() {
 
     const onOnlineCount = (count: number) => {
       if (typeof count === "number") {
-        setOnlineCount(count)
+        setOnlineCount((prev) => (prev === count ? prev : count))
       }
     }
     socket.on("onlineCount", onOnlineCount)
 
     const onOnlineUsers = (payload: OnlineUsersPayload) => {
       const nextUserIds = Array.isArray(payload?.userIds) ? payload.userIds : []
-      setOnlineUserIds(new Set(nextUserIds))
+      const nextUserIdsSet = new Set(nextUserIds)
+      setOnlineUserIds((prev) => (areSetsEqual(prev, nextUserIdsSet) ? prev : nextUserIdsSet))
 
       if (typeof payload?.count === "number") {
-        setOnlineCount(payload.count)
+        const nextCount = payload.count
+        setOnlineCount((prev) => (prev === nextCount ? prev : nextCount))
       }
     }
     socket.on("onlineUsers", onOnlineUsers)
@@ -306,6 +429,11 @@ export default function ChatPageDetails() {
       if (!payload?.userId) return
 
       setOnlineUserIds((prev) => {
+        const alreadyOnline = prev.has(payload.userId)
+        if (alreadyOnline === payload.isOnline) {
+          return prev
+        }
+
         const next = new Set(prev)
         if (payload.isOnline) {
           next.add(payload.userId)
@@ -389,20 +517,30 @@ export default function ChatPageDetails() {
   }, [roomId, loading])
 
   const resolvedTitle = roomTitle || getReadableRoomTitle(roomId, undefined, user?.id, users)
-  const routeUser = users.find((existingUser) => existingUser.id === roomId)
-  const directRoomUserIdFromTitle = roomRawTitle.startsWith("dm:")
-    ? roomRawTitle
-        .split(":")
-        .slice(1)
-        .find((id) => id !== user?.id)
-    : undefined
+  const routeUser = useMemo(() => users.find((existingUser) => existingUser.id === roomId), [users, roomId])
+  const directRoomUserIdFromTitle = useMemo(() => {
+    if (!roomRawTitle.startsWith("dm:")) {
+      return undefined
+    }
+
+    return roomRawTitle
+      .split(":")
+      .slice(1)
+      .find((id) => id !== user?.id)
+  }, [roomRawTitle, user?.id])
 
   const directChatTargetUserId = routeUser?.id ?? directRoomUserIdFromTitle
-  const directChatTargetUser = users.find((existingUser) => existingUser.id === directChatTargetUserId)
+  const directChatTargetUser = useMemo(
+    () => users.find((existingUser) => existingUser.id === directChatTargetUserId),
+    [users, directChatTargetUserId],
+  )
   const isDirectTargetOnline = Boolean(
     directChatTargetUserId && (onlineUserIds.has(directChatTargetUserId) || directChatTargetUser?.isActive),
   )
-  const usersOnlineByFlag = users.filter((existingUser) => existingUser.isActive).length
+  const usersOnlineByFlag = useMemo(
+    () => users.reduce((count, existingUser) => (existingUser.isActive ? count + 1 : count), 0),
+    [users],
+  )
   const globalOnlineCount = onlineCount > 0 ? onlineCount : usersOnlineByFlag
 
   const roomStatusLabel = (() => {
@@ -425,28 +563,53 @@ export default function ChatPageDetails() {
     return "Личный чат"
   })()
 
-  async function handleSend(text: string) {
-    if (!socketRef.current || !roomId || !text.trim()) return
+  const handleReplyMessage = (message: Message) => {
+    const isOwnMessage =
+      message.sender === "me" ||
+      (Boolean(user?.username) && message.username === user?.username) ||
+      message.username === "Ты"
 
-    if (!socketRef.current.connected) {
-      setConnectionError("Нет соединения с сервером. Сообщение не отправлено.")
+    if (isOwnMessage) {
       return
     }
 
-    if (roomId === user?.id) return
+    setReplyToMessage(message)
+  }
+
+  async function handleSend(text: string, replyTarget?: Message | null) {
+    if (!socketRef.current || !roomId || !text.trim()) return false
+
+    if (!socketRef.current.connected) {
+      setConnectionError("Нет соединения с сервером. Сообщение не отправлено.")
+      return false
+    }
+
+    if (roomId === user?.id) return false
 
     if (!availableRoomIdsRef.current.has(roomId) && roomId !== GLOBAL_ROOM_ID) {
       if (!openingDirectRoomRef.current.has(roomId)) {
         openingDirectRoomRef.current.add(roomId)
         socketRef.current.emit("openDirectRoom", { targetUserId: roomId })
       }
-      return
+      return false
     }
 
     const normalizedText = text.trim()
     persistLastSentPreview(roomId, normalizedText, directChatTargetUserId)
 
-    socketRef.current.emit("sendMessage", { roomId, content: normalizedText })
+    const serializedContent = serializeMessageWithReply(
+      normalizedText,
+      replyTarget
+        ? {
+            id: replyTarget.id,
+            username: replyTarget.username,
+            content: replyTarget.content,
+          }
+        : null,
+    )
+
+    socketRef.current.emit("sendMessage", { roomId, content: serializedContent })
+    return true
   }
 
   return (
@@ -464,15 +627,27 @@ export default function ChatPageDetails() {
         </div>
       </div>
 
-      {connectionError ? <p className={styles.stateMessage}>{connectionError}</p> : null}
-
-      {isHistoryLoading ? (
-        <p className={styles.stateMessage}>Загружаем историю сообщений...</p>
+      {connectionError ? (
+        <p className={styles.stateMessage}>{connectionError}</p>
+      ) : isHistoryLoading ? (
+        <div className={styles.messagesSkeleton} aria-label="Загрузка истории сообщений" role="status">
+          {MESSAGE_SKELETON_ITEMS.map((item, index) => (
+            <div
+              key={`skeleton-${index}`}
+              className={`${styles.skeletonBubble} ${item.own ? styles.skeletonBubbleOwn : ""}`}
+              style={{ width: item.width }}
+            />
+          ))}
+        </div>
       ) : (
-        <ChatWindow messages={messages} currentUsername={user?.username} />
+        <ChatWindow messages={messages} currentUsername={user?.username} onReplyMessage={handleReplyMessage} />
       )}
 
-      <MessageInput onSend={handleSend} />
+      <MessageInput
+        onSend={handleSend}
+        replyToMessage={replyToMessage}
+        onCancelReply={() => setReplyToMessage(null)}
+      />
     </section>
   )
 }
