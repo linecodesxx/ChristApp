@@ -111,7 +111,7 @@ export default function LoginPage() {
 
         <footer className={styles.footer}>
           <p className={styles.footerText}>
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <span className={styles.registerLink} onClick={handleNavigateToRegister}>
               Register
             </span>

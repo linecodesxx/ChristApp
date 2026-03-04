@@ -204,7 +204,8 @@
         gap: 0.5rem;
         background-color: transparent;
         border-radius: 8px;
-        max-height: 75vh;
+
+        height: calc(100vh - 230px); // регулируется
         overflow-y: auto;
         padding: 0;
     }
