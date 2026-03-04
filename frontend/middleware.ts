@@ -4,8 +4,10 @@ import { AUTH_COOKIE_NAME, isAuthenticated } from "@/lib/auth";
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const publicRoutes = ["/", "/register"];
+  const isPublicRoute = publicRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
 
-  if (pathname === "/") {
+  if (isPublicRoute) {
     return NextResponse.next();
   }
 
