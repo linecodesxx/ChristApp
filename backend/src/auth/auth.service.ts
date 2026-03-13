@@ -44,10 +44,14 @@ export class AuthService {
       },
     });
 
-    if (!user) throw new UnauthorizedException();
+    if (!user) {
+      throw new UnauthorizedException('Пользователь не найден');
+    }
 
     const valid = await bcrypt.compare(dto.password, user.password);
-    if (!valid) throw new UnauthorizedException();
+    if (!valid) {
+      throw new UnauthorizedException('Неверный пароль');
+    }
 
     return this.generateToken(user);
   }

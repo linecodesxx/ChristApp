@@ -68,19 +68,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
-  private isAuthError(error: unknown) {
-    if (!(error instanceof Error)) return false;
-    const message = error.message.toLowerCase();
-    return (
-      message.includes('token') ||
-      message.includes('jwt') ||
-      message.includes('unauthorized') ||
-      message.includes('not authorized') ||
-      message.includes('user not found') ||
-      message.includes('no token provided')
-    );
-  }
-
   private normalizeToken(tokenCandidate: unknown) {
     if (typeof tokenCandidate !== 'string') return '';
     return tokenCandidate.replace(/^Bearer\s+/i, '').trim();
@@ -112,68 +99,45 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ================= CONNECTION =================
   async handleConnection(client: SocketWithUser) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      console.warn('[WS] Unauthorized socket connection');
+      client.emit('error', 'Не авторизован');
+      client.disconnect();
+      return;
+    }
+
+    console.log('✅ Connected:', user.username);
+
     try {
-      // 1. Берем JWT из handshake
-      const authToken = client.handshake.auth?.token;
-      const headerAuth = client.handshake.headers?.authorization;
-      const token = this.normalizeToken(authToken || headerAuth || '');
-      if (!token) throw new Error('No token provided');
+      // Подключаем к общему чату
+      client.join(this.GLOBAL_ROOM);
 
-      const payload = this.jwt.verify(token);
+      await this.emitMyRooms(client, user.id);
 
-      // 2. Ищем пользователя в БД
-      const user = await this.prisma.user.findUnique({
-        where: { id: payload.sub },
-      });
+      // Обновляем онлайн-статус
+      const userId = user.id;
+      const previousConnections = this.onlineUsers.get(userId) || 0;
+      const reconnectTimer = this.pendingDisconnectTimers.get(userId);
 
-      if (!user) throw new Error('User not found');
-
-      // Сохраняем пользователя в сокете
-      client.data.user = user;
-
-      console.log('✅ Connected:', user.username);
-
-      try {
-        // Подключаем к общему чату
-        client.join(this.GLOBAL_ROOM);
-
-        await this.emitMyRooms(client, user.id);
-
-        // Обновляем онлайн-статус
-        const userId = user.id;
-        const previousConnections = this.onlineUsers.get(userId) || 0;
-        const reconnectTimer = this.pendingDisconnectTimers.get(userId);
-
-        if (reconnectTimer) {
-          clearTimeout(reconnectTimer);
-          this.pendingDisconnectTimers.delete(userId);
-          this.onlineUsers.set(userId, 1);
-        } else {
-          this.onlineUsers.set(userId, previousConnections + 1);
-        }
-
-        if (previousConnections === 0) {
-          this.server.emit('userPresenceChanged', { userId, isOnline: true });
-        }
-
-        // Рассылаем глобальный онлайн
-        this.emitOnlinePresence();
-      } catch (err) {
-        const reason = err instanceof Error ? err.message : String(err);
-        console.error('[WS] Post-connect initialization error:', reason);
-        client.emit('error', 'Ошибка инициализации чата');
+      if (reconnectTimer) {
+        clearTimeout(reconnectTimer);
+        this.pendingDisconnectTimers.delete(userId);
+        this.onlineUsers.set(userId, 1);
+      } else {
+        this.onlineUsers.set(userId, previousConnections + 1);
       }
-    } catch (err: any) {
+
+      if (previousConnections === 0) {
+        this.server.emit('userPresenceChanged', { userId, isOnline: true });
+      }
+
+      // Рассылаем глобальный онлайн
+      this.emitOnlinePresence();
+    } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      if (this.isAuthError(err)) {
-        console.warn('[WS] Unauthorized socket connection:', reason);
-        client.emit('error', 'Не авторизован');
-        client.disconnect();
-        return;
-      }
-
-      console.error('[WS] Unexpected connection error:', reason);
-      client.emit('error', 'Ошибка подключения');
+      console.error('[WS] Post-connect initialization error:', reason);
+      client.emit('error', 'Ошибка инициализации чата');
     }
   }
 
@@ -640,15 +604,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // К общему чату доступ есть у всех
     if (roomId === this.GLOBAL_ROOM) return true;
 
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      include: { members: true },
+    const membership = await this.prisma.roomMember.findUnique({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId,
+        },
+      },
+      select: {
+        userId: true,
+      },
     });
 
-    if (!room) return false;
-
-    // Проверяем, состоит ли пользователь в комнате
-    return room.members.some((m) => m.userId === userId);
+    return Boolean(membership);
   }
 
   private async emitMyRooms(client: SocketWithUser, userId: string) {
