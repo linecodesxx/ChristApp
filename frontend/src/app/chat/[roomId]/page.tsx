@@ -4,20 +4,20 @@ import ChatWindow from "@/components/ChatWindow/ChatWindow"
 import styles from "./chatRoom.module.scss"
 import MessageInput from "@/components/MessageInput/MessageInput"
 import type { Message, MessageReply } from "@/types/message"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { io, type Socket } from "socket.io-client"
 import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
-import { requestNotificationPermissionIfNeeded, showChatNotification } from "@/lib/notifications"
+import { showChatNotification } from "@/lib/notifications"
 import Link from "next/link"
 import Image from "next/image"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
-const HISTORY_PAGE_SIZE = 150
+const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
@@ -231,6 +231,19 @@ export default function ChatPageDetails() {
   const routeRoomId = params?.roomId
   const roomId = routeRoomId === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : routeRoomId
 
+  const markRoomAsRead = useCallback(() => {
+    if (!roomId) return
+
+    const socket = socketRef.current
+    if (!socket || !socket.connected) return
+
+    if (document.visibilityState !== "visible" || !document.hasFocus()) {
+      return
+    }
+
+    socket.emit("markRoomRead", { roomId })
+  }, [roomId])
+
   useEffect(() => {
     usersRef.current = users
   }, [users])
@@ -265,8 +278,6 @@ export default function ChatPageDetails() {
       setIsHistoryLoading(false)
       return
     }
-
-    void requestNotificationPermissionIfNeeded()
 
     const socket = io(WS_URL, {
       auth: { token },
@@ -329,8 +340,7 @@ export default function ChatPageDetails() {
       }
 
       const isOwnMessage = normalized.sender === "me" || normalized.username === user?.username
-      const shouldShowNotification =
-        !isOwnMessage && (document.visibilityState !== "visible" || !document.hasFocus())
+      const shouldShowNotification = !isOwnMessage && (document.visibilityState !== "visible" || !document.hasFocus())
 
       if (shouldShowNotification && activeRoomId) {
         const targetUrl = activeRoomId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${activeRoomId}`
@@ -542,6 +552,36 @@ export default function ChatPageDetails() {
     }
   }, [roomId, loading])
 
+  useEffect(() => {
+    if (isHistoryLoading || connectionError) {
+      return
+    }
+
+    // Как только история загрузилась или прилетело новое сообщение,
+    // и пользователь реально смотрит комнату, помечаем ее прочитанной.
+    markRoomAsRead()
+  }, [messages.length, isHistoryLoading, connectionError, markRoomAsRead])
+
+  useEffect(() => {
+    const handleFocus = () => {
+      markRoomAsRead()
+    }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        markRoomAsRead()
+      }
+    }
+
+    window.addEventListener("focus", handleFocus)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener("focus", handleFocus)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+    }
+  }, [markRoomAsRead])
+
   const resolvedTitle = roomTitle || getReadableRoomTitle(roomId, undefined, user?.id, users)
   const routeUser = useMemo(() => users.find((existingUser) => existingUser.id === roomId), [users, roomId])
   const directRoomUserIdFromTitle = useMemo(() => {
@@ -573,7 +613,7 @@ export default function ChatPageDetails() {
     }
 
     if (roomId === GLOBAL_ROOM_ID) {
-      return `${globalOnlineCount} христианин онлайн`
+      return `${globalOnlineCount} пользователей онлайн`
     }
 
     if (directChatTargetUser) {

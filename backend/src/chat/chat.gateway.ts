@@ -11,6 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { PushService } from 'src/push/push.service';
 
 interface SocketUser {
   id: string;
@@ -41,6 +42,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwt: JwtService,
     private prisma: PrismaService,
     private messagesService: MessagesService,
+    private pushService: PushService,
   ) {}
 
   // userId → количество активных соединений
@@ -239,6 +241,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         skip,
       );
 
+      // Комната открыта у пользователя: считаем текущий срез прочитанным.
+      await this.messagesService.markRoomAsRead(roomId, user.id, new Date());
+
       client.emit('roomHistory', {
         roomId,
         messages: history,
@@ -254,6 +259,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.error('[WS] joinRoom failed:', { roomId, userId: user.id, reason });
       client.emit('error', 'Ошибка загрузки истории');
     }
+  }
+
+  @SubscribeMessage('markRoomRead')
+  async handleMarkRoomRead(
+    @MessageBody() body: { roomId: string } | string,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      return;
+    }
+
+    const roomId = typeof body === 'string' ? body : body?.roomId;
+    if (!roomId) {
+      client.emit('error', 'roomId обязателен');
+      return;
+    }
+
+    const hasAccess = await this.checkRoomAccess(user.id, roomId);
+    if (!hasAccess) {
+      client.emit('error', 'Нет доступа');
+      return;
+    }
+
+    await this.messagesService.markRoomAsRead(roomId, user.id, new Date());
   }
 
   // ================= LEAVE ROOM =================
@@ -542,6 +572,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const { roomId, content } = body;
 
+    if (!roomId) {
+      client.emit('error', 'roomId обязателен');
+      return;
+    }
+
     // Не отправляем пустые сообщения
     if (!content?.trim()) return;
 
@@ -560,6 +595,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId,
       );
 
+      // Отправитель уже видит свое сообщение в активной комнате.
+      await this.messagesService.markRoomAsRead(roomId, user.id, message.createdAt);
+
       // Отправляем сообщение только участникам комнаты
       this.server.to(roomId).emit('newMessage', {
         id: message.id,
@@ -568,6 +606,24 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         createdAt: message.createdAt,
         roomId,
       });
+
+      // Push отправляем асинхронно, чтобы не тормозить realtime-канал.
+      void this.pushService
+        .sendChatMessagePush({
+          roomId,
+          senderId: user.id,
+          senderUsername: message.sender.username,
+          content: message.content,
+          createdAt: message.createdAt,
+        })
+        .catch((error: unknown) => {
+          const reason = error instanceof Error ? error.message : String(error);
+          console.error('[Push] sendChatMessagePush failed:', {
+            roomId,
+            userId: user.id,
+            reason,
+          });
+        });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] sendMessage failed:', {

@@ -4,10 +4,11 @@ import { ChatController } from './chat.controller';
 import { AuthModule } from 'src/auth/auth.module';
 import { MessagesModule } from 'src/messages/messages.module';
 import { PrismaModule } from 'src/prisma/prisma.module';
+import { PushModule } from 'src/push/push.module';
 
 @Module({
   controllers: [ChatController],
   providers: [ChatGateway],
-  imports: [PrismaModule, MessagesModule, AuthModule],
+  imports: [PrismaModule, MessagesModule, AuthModule, PushModule],
 })
 export class ChatModule {}

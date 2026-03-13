@@ -13,7 +13,7 @@
   color: var(--foreground);
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
   transition: all 0.2s ease-in-out;
-  word-break: break-all;
+  word-break: break-word;
   cursor: pointer;
 }
 
@@ -59,7 +59,7 @@
   background: var(--accent-soft) !important;
   color: color-mix(in srgb, var(--foreground) 82%, #000 18%);
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
-  word-break: break-all;
+  word-break: break-word;
 
   .replyPreview {
     background: color-mix(in srgb, var(--surface-elevated) 45%, var(--accent-soft) 55%);

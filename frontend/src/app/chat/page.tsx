@@ -9,7 +9,6 @@ import { getAuthToken } from "@/lib/auth"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import {
   normalizeNotificationBody,
-  requestNotificationPermissionIfNeeded,
   showChatNotification,
 } from "@/lib/notifications"
 
@@ -274,8 +273,6 @@ export default function ChatPage() {
     if (!currentUserIdRef.current) {
       currentUserIdRef.current = getUserIdFromJwt(token)
     }
-
-    void requestNotificationPermissionIfNeeded()
 
     const onMyRooms = (data: { rooms: RoomSocketItem[] }) => {
       const socketRooms = data.rooms ?? []

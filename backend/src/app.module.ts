@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { MessagesModule } from './messages/messages.module';
 import { ChatModule } from './chat/chat.module';
 import { VersesModule } from './verses/verses.module';
+import { PushModule } from './push/push.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { VersesModule } from './verses/verses.module';
     MessagesModule,
     ChatModule,
     VersesModule,
+    PushModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -1,5 +1,5 @@
-const STATIC_CACHE = "christapp-static-v2"
-const RUNTIME_CACHE = "christapp-runtime-v2"
+const STATIC_CACHE = "christapp-static-v3"
+const RUNTIME_CACHE = "christapp-runtime-v3"
 const OFFLINE_URL = "/offline"
 
 const APP_SHELL = [
@@ -142,6 +142,55 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) {
     event.respondWith(networkFirst(request))
   }
+})
+
+function parsePushPayload(event) {
+  if (!event.data) {
+    return {
+      title: "Новое сообщение",
+      body: "У тебя новое сообщение в чате",
+      targetUrl: "/chat",
+      roomId: "unknown",
+    }
+  }
+
+  try {
+    const payload = event.data.json()
+    return {
+      title: typeof payload?.title === "string" ? payload.title : "Новое сообщение",
+      body: typeof payload?.body === "string" ? payload.body : "У тебя новое сообщение в чате",
+      targetUrl: typeof payload?.targetUrl === "string" ? payload.targetUrl : "/chat",
+      roomId: typeof payload?.roomId === "string" ? payload.roomId : "unknown",
+      senderId: typeof payload?.senderId === "string" ? payload.senderId : undefined,
+      createdAt: typeof payload?.createdAt === "string" ? payload.createdAt : undefined,
+    }
+  } catch {
+    return {
+      title: "Новое сообщение",
+      body: "У тебя новое сообщение в чате",
+      targetUrl: "/chat",
+      roomId: "unknown",
+    }
+  }
+}
+
+self.addEventListener("push", (event) => {
+  const payload = parsePushPayload(event)
+
+  event.waitUntil(
+    self.registration.showNotification(payload.title, {
+      body: payload.body,
+      icon: "/icon-192x192.png",
+      badge: "/icon-192x192.png",
+      tag: `room-${payload.roomId}`,
+      data: {
+        url: payload.targetUrl,
+        roomId: payload.roomId,
+        senderId: payload.senderId,
+        createdAt: payload.createdAt,
+      },
+    }),
+  )
 })
 
 self.addEventListener("notificationclick", (event) => {

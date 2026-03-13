@@ -1,3 +1,5 @@
+import { hasActivePushSubscription } from "@/lib/push"
+
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
 
@@ -52,6 +54,12 @@ export async function showChatNotification({
   tag,
 }: ChatNotificationPayload): Promise<boolean> {
   if (!isClientNotificationSupported() || Notification.permission !== "granted") {
+    return false
+  }
+
+  // Если устройство уже подписано на Web Push, уведомление придет из Service Worker.
+  // Это защищает от дублей, когда чат открыт во вкладке и сервер тоже отправляет push.
+  if (await hasActivePushSubscription()) {
     return false
   }
 

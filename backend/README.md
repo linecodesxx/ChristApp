@@ -44,6 +44,34 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
+## Web Push Setup
+
+1. Сгенерируй VAPID ключи:
+
+```bash
+$ npm run push:keys
+```
+
+2. Добавь в backend `.env`:
+
+```env
+WEB_PUSH_PUBLIC_KEY="..."
+WEB_PUSH_PRIVATE_KEY="..."
+WEB_PUSH_SUBJECT="mailto:you@example.com"
+```
+
+3. Примени миграции Prisma для push-подписок и непрочитанных сообщений:
+
+```bash
+$ npx prisma migrate deploy
+```
+
+4. После изменений в `schema.prisma` обновляй Prisma Client:
+
+```bash
+$ npx prisma generate
+```
+
 ## Run tests
 
 ```bash
