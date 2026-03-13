@@ -50,6 +50,7 @@ export default function PushNotificationCenter() {
   const [isLoading, setIsLoading] = useState(true)
 
   const isPublicRoute = pathname === "/" || pathname === "/register" || pathname === "/offline"
+  const isProfileRoute = pathname === "/profile" || pathname.startsWith("/profile/")
 
   const refreshState = useCallback(
     async (options?: { syncSubscription?: boolean }) => {
@@ -183,6 +184,9 @@ export default function PushNotificationCenter() {
     return hasServerSubscription ? "Активно" : "Не подключено"
   }, [hasServerSubscription, isPushConfigured, permissionState])
 
+  // После выдачи разрешения управление push отображаем только в профиле.
+  const shouldShowBanner = permissionState !== "granted" || isProfileRoute
+
   const handleRequestPermission = async () => {
     await requestNotificationPermissionIfNeeded()
     await refreshState({ syncSubscription: true })
@@ -195,6 +199,10 @@ export default function PushNotificationCenter() {
   }
 
   if (isPublicRoute || !token) {
+    return null
+  }
+
+  if (!shouldShowBanner) {
     return null
   }
 

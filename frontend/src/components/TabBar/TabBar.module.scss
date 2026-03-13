@@ -49,6 +49,7 @@
 }
 
 .iconWrap {
+  position: relative;
   display: flex;
   width: 24px;
   height: 24px;
@@ -63,6 +64,29 @@
     background-color 0.28s ease,
     box-shadow 0.28s ease,
     transform 0.28s ease;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(45%, -40%);
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--surface, #ffffff);
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: 0;
+  pointer-events: none;
+  z-index: 2;
 }
 
 .activeIcon {
