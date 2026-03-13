@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
+import { getApiErrorMessage } from "@/lib/apiError"
 
 type User = {
   id: string
@@ -135,7 +136,7 @@ export function useAuth(options?: UseAuthOptions) {
 
         if (contentType.includes("application/json")) {
           const errData = await res.json()
-          throw new Error(errData.message || "Неверные данные")
+          throw new Error(getApiErrorMessage(errData, "Неверные данные"))
         }
 
         throw new Error("Ошибка авторизации")
@@ -152,8 +153,12 @@ export function useAuth(options?: UseAuthOptions) {
       await fetchUsers()
 
       return true
-    } catch (err: any) {
-      setError(err.message)
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message
+          ? err.message
+          : "Не удалось войти. Попробуйте еще раз."
+      setError(message)
       return false
     } finally {
       setIsSubmitting(false)

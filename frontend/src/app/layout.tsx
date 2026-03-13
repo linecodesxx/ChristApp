@@ -6,7 +6,6 @@ import TabBar from "@/components/TabBar/TabBar"
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
-import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter"
 import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = globalSeo
@@ -35,7 +34,6 @@ export default function RootLayout({
       <body className={`${inter.variable} ${geistMono.variable}`}>
         <PwaRegistration />
         <PresenceSocket>
-          <PushNotificationCenter />
           <ThemeToggle />
           <main className={styles.main}>{children}</main>
           <TabBar />

@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
+import { getApiErrorMessage } from "@/lib/apiError"
 import { type RegisterFieldErrors, validateRegisterForm } from "@/lib/formValidation"
 import styles from "@/app/(login)/login.module.scss"
 
@@ -61,10 +62,7 @@ export default function RegisterPage() {
 
         if (contentType.includes("application/json")) {
           const errData = await res.json()
-          const message = Array.isArray(errData.message)
-            ? errData.message.join(". ")
-            : errData.message || "Ошибка регистрации"
-          throw new Error(message)
+          throw new Error(getApiErrorMessage(errData, "Ошибка регистрации"))
         }
 
         throw new Error("Ошибка регистрации: сервер вернул не JSON")

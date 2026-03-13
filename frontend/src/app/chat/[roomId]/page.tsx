@@ -88,10 +88,6 @@ function persistLastSentPreview(roomKey: string, message: string, directUserId?:
   }
 }
 
-function persistRoomPreview(roomKey: string, message: string) {
-  persistLastSentPreview(roomKey, message)
-}
-
 function normalizeReplyContent(content: string) {
   return content.replace(/\s+/g, " ").trim().slice(0, MAX_REPLY_PREVIEW_LENGTH)
 }
@@ -172,6 +168,32 @@ function areSetsEqual<T>(left: Set<T>, right: Set<T>) {
   return true
 }
 
+function shouldShowBrowserNotification(isOwnMessage: boolean) {
+  return !isOwnMessage && (document.visibilityState !== "visible" || !document.hasFocus())
+}
+
+function normalizeRoomHistory(history: IncomingSocketMessage[] | undefined, currentUsername?: string) {
+  const normalizedHistory = (history ?? []).map((messageItem) =>
+    normalizeIncomingMessage(messageItem, currentUsername),
+  )
+
+  const nextMessageIds = new Set<string>()
+  const uniqueHistory: Message[] = []
+
+  for (const messageItem of normalizedHistory) {
+    if (nextMessageIds.has(messageItem.id)) {
+      continue
+    }
+    nextMessageIds.add(messageItem.id)
+    uniqueHistory.push(messageItem)
+  }
+
+  return {
+    uniqueHistory,
+    nextMessageIds,
+  }
+}
+
 function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined, currentUsername?: string): Message {
   const username = raw?.username ?? raw?.sender?.username ?? "Unknown"
   const rawContent = String(raw?.content ?? "")
@@ -209,6 +231,7 @@ function getReadableRoomTitle(
 
 export default function ChatPageDetails() {
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
+  // Runtime refs нужны для socket callbacks, чтобы избежать stale state внутри listeners.
   const socketRef = useRef<Socket | null>(null)
   const usersRef = useRef(users)
   const currentRoomRef = useRef<string | undefined>(undefined)
@@ -244,6 +267,26 @@ export default function ChatPageDetails() {
     socket.emit("markRoomRead", { roomId })
   }, [roomId])
 
+  const joinRoom = useCallback((socket: Socket, targetRoomId: string) => {
+    if (joinedRoomRef.current === targetRoomId) {
+      return
+    }
+
+    setIsHistoryLoading(true)
+    socket.emit("joinRoom", { roomId: targetRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
+    joinedRoomRef.current = targetRoomId
+  }, [])
+
+  const leaveCurrentRoom = useCallback((socket: Socket) => {
+    const joinedRoomId = joinedRoomRef.current
+    if (!joinedRoomId) {
+      return
+    }
+
+    socket.emit("leaveRoom", joinedRoomId)
+    joinedRoomRef.current = undefined
+  }, [])
+
   useEffect(() => {
     usersRef.current = users
   }, [users])
@@ -265,6 +308,7 @@ export default function ChatPageDetails() {
     }
   }, [loading, user, roomId, router])
 
+  // Полный жизненный цикл socket: connect/disconnect, история, новые сообщения, presence.
   useEffect(() => {
     if (loading) return
 
@@ -291,10 +335,8 @@ export default function ChatPageDetails() {
       setConnectionError(null)
 
       const activeRoomId = currentRoomRef.current
-      if (activeRoomId === GLOBAL_ROOM_ID && joinedRoomRef.current !== activeRoomId) {
-        setIsHistoryLoading(true)
-        socket.emit("joinRoom", { roomId: activeRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
-        joinedRoomRef.current = activeRoomId
+      if (activeRoomId === GLOBAL_ROOM_ID) {
+        joinRoom(socket, activeRoomId)
       }
 
       socket.emit("getMyRooms")
@@ -336,11 +378,11 @@ export default function ChatPageDetails() {
       messageIdsRef.current.add(normalized.id)
 
       if (activeRoomId && normalized.content?.trim()) {
-        persistRoomPreview(activeRoomId, normalized.content.trim())
+        persistLastSentPreview(activeRoomId, normalized.content.trim())
       }
 
       const isOwnMessage = normalized.sender === "me" || normalized.username === user?.username
-      const shouldShowNotification = !isOwnMessage && (document.visibilityState !== "visible" || !document.hasFocus())
+      const shouldShowNotification = shouldShowBrowserNotification(isOwnMessage)
 
       if (shouldShowNotification && activeRoomId) {
         const targetUrl = activeRoomId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${activeRoomId}`
@@ -367,25 +409,13 @@ export default function ChatPageDetails() {
         return
       }
 
-      const normalizedHistory = (history ?? []).map((messageItem) =>
-        normalizeIncomingMessage(messageItem, user?.username),
-      )
-
-      const nextMessageIds = new Set<string>()
-      const uniqueHistory: Message[] = []
-      for (const messageItem of normalizedHistory) {
-        if (nextMessageIds.has(messageItem.id)) {
-          continue
-        }
-        nextMessageIds.add(messageItem.id)
-        uniqueHistory.push(messageItem)
-      }
+      const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(history, user?.username)
 
       messageIdsRef.current = nextMessageIds
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
       if (activeRoomId && lastMessage?.content?.trim()) {
-        persistRoomPreview(activeRoomId, lastMessage.content.trim())
+        persistLastSentPreview(activeRoomId, lastMessage.content.trim())
       }
 
       setMessages(uniqueHistory)
@@ -415,10 +445,8 @@ export default function ChatPageDetails() {
         setRoomTitle(getReadableRoomTitle(activeRoomId, currentRoom.title, user?.id, usersRef.current))
       }
 
-      if (currentRoom && activeRoomId && joinedRoomRef.current !== activeRoomId) {
-        setIsHistoryLoading(true)
-        socket.emit("joinRoom", { roomId: activeRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
-        joinedRoomRef.current = activeRoomId
+      if (currentRoom && activeRoomId) {
+        joinRoom(socket, activeRoomId)
       }
     }
     socket.on("myRooms", onMyRooms)
@@ -481,8 +509,7 @@ export default function ChatPageDetails() {
     }
     socket.on("userPresenceChanged", onUserPresenceChanged)
 
-    const onInvitedToRoom = ({ invitedUserId }: { invitedUserId: string }) => {
-      void invitedUserId
+    const onInvitedToRoom = () => {
       socket.emit("getMyRooms")
     }
     socket.on("userInvitedToRoom", onInvitedToRoom)
@@ -500,16 +527,13 @@ export default function ChatPageDetails() {
       socket.off("onlineCount", onOnlineCount)
       socket.off("onlineUsers", onOnlineUsers)
       socket.off("userPresenceChanged", onUserPresenceChanged)
-      const activeRoomId = currentRoomRef.current
-      if (activeRoomId) {
-        socket.emit("leaveRoom", activeRoomId)
-      }
-      joinedRoomRef.current = undefined
+      leaveCurrentRoom(socket)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [loading, router, user?.id])
+  }, [joinRoom, leaveCurrentRoom, loading, router, user?.id])
 
+  // Синхронизируем socket-room при смене URL комнаты.
   useEffect(() => {
     if (loading || !roomId) return
 
@@ -522,21 +546,16 @@ export default function ChatPageDetails() {
     if (!socket.connected) return
 
     if (prevRoomId && prevRoomId !== roomId && joinedRoomRef.current === prevRoomId) {
-      socket.emit("leaveRoom", prevRoomId)
-      joinedRoomRef.current = undefined
+      leaveCurrentRoom(socket)
     }
 
-    if (roomId === GLOBAL_ROOM_ID && joinedRoomRef.current !== roomId) {
-      setIsHistoryLoading(true)
-      socket.emit("joinRoom", { roomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
-      joinedRoomRef.current = roomId
+    if (roomId === GLOBAL_ROOM_ID) {
+      joinRoom(socket, roomId)
       return
     }
 
-    if (availableRoomIdsRef.current.has(roomId) && joinedRoomRef.current !== roomId) {
-      setIsHistoryLoading(true)
-      socket.emit("joinRoom", { roomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
-      joinedRoomRef.current = roomId
+    if (availableRoomIdsRef.current.has(roomId)) {
+      joinRoom(socket, roomId)
       return
     }
 
@@ -546,11 +565,10 @@ export default function ChatPageDetails() {
 
     return () => {
       if (joinedRoomRef.current === roomId) {
-        socket.emit("leaveRoom", roomId)
-        joinedRoomRef.current = undefined
+        leaveCurrentRoom(socket)
       }
     }
-  }, [roomId, loading])
+  }, [joinRoom, leaveCurrentRoom, roomId, loading])
 
   useEffect(() => {
     if (isHistoryLoading || connectionError) {
