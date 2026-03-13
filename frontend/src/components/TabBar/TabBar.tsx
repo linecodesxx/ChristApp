@@ -1,16 +1,103 @@
 "use client"
 
+import { useCallback, useEffect, useState } from "react"
 import Link from "next/link"
 import styles from "@/components/TabBar/TabBar.module.scss"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { getAuthToken } from "@/lib/auth"
+import { fetchUnreadSummary } from "@/lib/push"
+import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
+
+const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
 export default function TabBar() {
   const pathname = usePathname()
+  const { socket } = usePresenceSocket()
+  const [token, setToken] = useState<string | null>(null)
+  const [unreadCount, setUnreadCount] = useState(0)
   const hiddenRoutes = ["/", "/register"]
   const shouldHideTabBar = hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
+
+  const refreshUnreadCount = useCallback(async () => {
+    if (!token) {
+      setUnreadCount(0)
+      return
+    }
+
+    const unreadSummary = await fetchUnreadSummary(token)
+    setUnreadCount(Number(unreadSummary?.totalUnread ?? 0))
+  }, [token])
+
+  useEffect(() => {
+    setToken(getAuthToken())
+  }, [pathname])
+
+  useEffect(() => {
+    const syncToken = () => setToken(getAuthToken())
+
+    window.addEventListener("focus", syncToken)
+    window.addEventListener("storage", syncToken)
+    document.addEventListener("visibilitychange", syncToken)
+
+    return () => {
+      window.removeEventListener("focus", syncToken)
+      window.removeEventListener("storage", syncToken)
+      document.removeEventListener("visibilitychange", syncToken)
+    }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+
+    const runRefresh = async () => {
+      if (cancelled) {
+        return
+      }
+
+      await refreshUnreadCount()
+    }
+
+    void runRefresh()
+
+    const intervalId = window.setInterval(() => {
+      void refreshUnreadCount()
+    }, UNREAD_REFRESH_INTERVAL_MS)
+
+    const handleVisibilityRefresh = () => {
+      if (document.visibilityState === "visible") {
+        void refreshUnreadCount()
+      }
+    }
+
+    window.addEventListener("focus", refreshUnreadCount)
+    document.addEventListener("visibilitychange", handleVisibilityRefresh)
+
+    return () => {
+      cancelled = true
+      window.clearInterval(intervalId)
+      window.removeEventListener("focus", refreshUnreadCount)
+      document.removeEventListener("visibilitychange", handleVisibilityRefresh)
+    }
+  }, [refreshUnreadCount])
+
+  useEffect(() => {
+    if (!socket) {
+      return
+    }
+
+    const handleMessageEvent = () => {
+      void refreshUnreadCount()
+    }
+
+    socket.on("newMessage", handleMessageEvent)
+
+    return () => {
+      socket.off("newMessage", handleMessageEvent)
+    }
+  }, [refreshUnreadCount, socket])
 
   if (shouldHideTabBar) {
     return null
@@ -26,6 +113,11 @@ export default function TabBar() {
       <Link className={styles.tabLink} href="/chat">
         <span className={`${styles.iconWrap} ${isRouteActive("/chat") ? styles.activeIcon : ""}`}>
           <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} loading="eager" />
+          {unreadCount > 0 ? (
+            <span className={styles.unreadBadge} aria-label={`Непрочитанных сообщений: ${unreadCount}`}>
+              {unreadCount > 99 ? "99+" : unreadCount}
+            </span>
+          ) : null}
         </span>
       </Link>
       <Link className={styles.tabLink} href="/profile">
