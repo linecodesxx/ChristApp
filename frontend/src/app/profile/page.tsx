@@ -4,7 +4,11 @@ import styles from "@/app/profile/profile.module.scss"
 import { useAuth } from "@/hooks/useAuth"
 import { formatMemberSince, getInitials } from "@/lib/utils"
 import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
-import { useEffect, useRef, useState } from "react"
+import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter"
+import { getAuthToken } from "@/lib/auth"
+import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
+import { fetchPushStatus, isPushSupportedInBrowser, syncBrowserPushSubscription } from "@/lib/push"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -18,11 +22,25 @@ type SavedVerse = {
   savedAt: string
 }
 
+type PushPermissionState = NotificationPermission | "unsupported"
+
+function getPushPermissionState(): PushPermissionState {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported"
+  }
+
+  return Notification.permission
+}
+
 const Profile = () => {
   const { user, logout } = useAuth({ redirectIfUnauthenticated: "/" })
   const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
   const [versesLoading, setVersesLoading] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [pushPermission, setPushPermission] = useState<PushPermissionState>(getPushPermissionState)
+  const [isPushConfigured, setIsPushConfigured] = useState(false)
+  const [hasPushSubscription, setHasPushSubscription] = useState(false)
+  const [isPushLoading, setIsPushLoading] = useState(false)
   const settingsRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -54,6 +72,30 @@ const Profile = () => {
     }
   }, [isSettingsOpen])
 
+  const refreshPushState = useCallback(async () => {
+    const permission = getPushPermissionState()
+    setPushPermission(permission)
+
+    const token = getAuthToken()
+    if (!token || !isPushSupportedInBrowser()) {
+      setIsPushConfigured(false)
+      setHasPushSubscription(false)
+      return
+    }
+
+    const pushStatus = await fetchPushStatus(token)
+    setIsPushConfigured(Boolean(pushStatus?.enabled))
+    setHasPushSubscription(Boolean(pushStatus?.hasSubscription))
+  }, [])
+
+  useEffect(() => {
+    if (!isSettingsOpen) {
+      return
+    }
+
+    void refreshPushState()
+  }, [isSettingsOpen, refreshPushState])
+
   const loadSavedVerses = async () => {
     setVersesLoading(true)
     const verses = await getSavedVerses()
@@ -72,6 +114,53 @@ const Profile = () => {
   const toggleSettingsMenu = () => setIsSettingsOpen((prev) => !prev)
 
   const closeSettingsMenu = () => setIsSettingsOpen(false)
+
+  const pushHint = useMemo(() => {
+    if (isPushLoading) {
+      return "Проверка..."
+    }
+
+    if (!isPushSupportedInBrowser()) {
+      return "Недоступно"
+    }
+
+    if (pushPermission === "default") {
+      return "Нужно разрешение"
+    }
+
+    if (pushPermission === "denied") {
+      return "Заблокировано"
+    }
+
+    if (!isPushConfigured) {
+      return "Сервер не настроен"
+    }
+
+    return hasPushSubscription ? "Активно" : "Не подключено"
+  }, [hasPushSubscription, isPushConfigured, isPushLoading, pushPermission])
+
+  const handlePushSettings = useCallback(async () => {
+    setIsPushLoading(true)
+
+    try {
+      const permission = await requestNotificationPermissionIfNeeded()
+      setPushPermission(permission)
+
+      if (permission !== "granted") {
+        await refreshPushState()
+        return
+      }
+
+      const token = getAuthToken()
+      if (token) {
+        await syncBrowserPushSubscription(token)
+      }
+
+      await refreshPushState()
+    } finally {
+      setIsPushLoading(false)
+    }
+  }, [refreshPushState])
 
   const handleLogoutFromMenu = () => {
     setIsSettingsOpen(false)
@@ -104,9 +193,9 @@ const Profile = () => {
               <span className={styles.menuHint}>Скоро</span>
             </button>
 
-            <button type="button" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
+            <button type="button" className={styles.menuItem} role="menuitem" onClick={handlePushSettings}>
               <span>Уведомления</span>
-              <span className={styles.menuHint}>Скоро</span>
+              <span className={styles.menuHint}>{pushHint}</span>
             </button>
 
             <Link href="/contacts" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
@@ -193,6 +282,8 @@ const Profile = () => {
       <div className={styles.support}>
         <Link className={styles.link} href="/contacts">Контакты и помощь</Link>
       </div>
+
+      <PushNotificationCenter />
 
       <div className={styles.signOut}>
         <div>

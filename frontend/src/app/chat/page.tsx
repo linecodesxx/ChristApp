@@ -31,6 +31,47 @@ function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
 
 const BASE_GLOBAL_CHAT_ITEM: ChatListItem = createGlobalChatItem()
 
+type DirectRoomItemInput = {
+  userId: string
+  title: string
+  isOnline: boolean
+  previous?: ChatListItem
+}
+
+function getGlobalRoomFromPrevious(rooms: ChatListItem[]) {
+  const previousGlobal = rooms.find((room) => room.id === GLOBAL_ROOM_ID)
+
+  return createGlobalChatItem({
+    preview: previousGlobal?.preview ?? "",
+    timeLabel: previousGlobal?.timeLabel ?? "",
+    unread: previousGlobal?.unread ?? 0,
+  })
+}
+
+function createDirectRoomItem({ userId, title, isOnline, previous }: DirectRoomItemInput): ChatListItem {
+  return {
+    id: userId,
+    title,
+    avatarInitials: getInitials(title),
+    href: `/chat/${userId}`,
+    preview: previous?.preview ?? "",
+    timeLabel: previous?.timeLabel ?? "",
+    unread: previous?.unread ?? 0,
+    isOnline,
+  }
+}
+
+function prependDirectRoomIfMissing(rooms: ChatListItem[], input: DirectRoomItemInput) {
+  if (rooms.some((room) => room.id === input.userId)) {
+    return rooms
+  }
+
+  const globalRoom = getGlobalRoomFromPrevious(rooms)
+  const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID)
+
+  return [globalRoom, createDirectRoomItem(input), ...directRooms]
+}
+
 type ChatListRuntimeCache = {
   userId?: string
   rooms: ChatListItem[]
@@ -99,11 +140,20 @@ function getUserIdFromJwt(token: string) {
   }
 }
 
+function isChatPath(path: string) {
+  return path === "/chat" || path.startsWith("/chat/")
+}
+
+function shouldShowListNotification(isActiveRoom: boolean, currentPath: string) {
+  return !isActiveRoom && (document.visibilityState !== "visible" || !isChatPath(currentPath))
+}
+
 export default function ChatPage() {
   const { user, users } = useAuth()
   const { socket } = usePresenceSocket()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
+  // Эти refs нужны socket listeners, чтобы всегда читать актуальное состояние между рендерами.
   const roomsRef = useRef<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const usersRef = useRef(users)
   const onlineUserIdsRef = useRef<Set<string>>(new Set())
@@ -281,11 +331,7 @@ export default function ChatPage() {
 
         const previousById = new Map(prev.map((room) => [room.id, room]))
         const usersById = new Map(usersRef.current.map((existingUser) => [existingUser.id, existingUser]))
-        const globalRoom = createGlobalChatItem({
-          preview: previousById.get(GLOBAL_ROOM_ID)?.preview ?? "",
-          timeLabel: previousById.get(GLOBAL_ROOM_ID)?.timeLabel ?? "",
-          unread: previousById.get(GLOBAL_ROOM_ID)?.unread ?? 0,
-        })
+        const globalRoom = getGlobalRoomFromPrevious(prev)
 
         const nextRoomToUser = new Map<string, string>()
         const nextUserToRoom = new Map<string, string>()
@@ -308,16 +354,15 @@ export default function ChatPage() {
             nextUserToRoom.set(targetUserId, room.id)
 
             if (!directChatsByUserId.has(targetUserId)) {
-              directChatsByUserId.set(targetUserId, {
-                id: targetUserId,
-                title: directTitle,
-                avatarInitials: getInitials(directTitle),
-                href: `/chat/${targetUserId}`,
-                preview: previous?.preview ?? "",
-                timeLabel: previous?.timeLabel ?? "",
-                unread: previous?.unread ?? 0,
-                isOnline: onlineUserIdsRef.current.has(targetUserId),
-              })
+              directChatsByUserId.set(
+                targetUserId,
+                createDirectRoomItem({
+                  userId: targetUserId,
+                  title: directTitle,
+                  previous,
+                  isOnline: onlineUserIdsRef.current.has(targetUserId),
+                }),
+              )
             }
           })
 
@@ -336,17 +381,7 @@ export default function ChatPage() {
 
     const onConnectError = () => {
       syncOnlinePresence(new Set())
-      setRooms((prev) => {
-        const prevGlobal = prev.find((room) => room.id === GLOBAL_ROOM_ID)
-
-        return [
-          createGlobalChatItem({
-            preview: prevGlobal?.preview ?? BASE_GLOBAL_CHAT_ITEM.preview,
-            timeLabel: prevGlobal?.timeLabel ?? BASE_GLOBAL_CHAT_ITEM.timeLabel,
-            unread: prevGlobal?.unread ?? BASE_GLOBAL_CHAT_ITEM.unread,
-          }),
-        ]
-      })
+      setRooms((prev) => [getGlobalRoomFromPrevious(prev)])
     }
     socket.on("connect_error", onConnectError)
 
@@ -386,8 +421,7 @@ export default function ChatPage() {
         activeRoomIdRef.current === mappedId || (Boolean(directRoomId) && activeRoomIdRef.current === directRoomId)
 
       const currentPath = pathnameRef.current ?? ""
-      const isChatRoute = currentPath === "/chat" || currentPath.startsWith("/chat/")
-      const shouldShowNotification = !isActiveRoom && (document.visibilityState !== "visible" || !isChatRoute)
+      const shouldShowNotification = shouldShowListNotification(isActiveRoom, currentPath)
 
       if (shouldShowNotification) {
         const mappedRoom = roomsRef.current.find((room) => room.id === mappedId)
@@ -445,29 +479,13 @@ export default function ChatPage() {
         const targetUser = usersRef.current.find((existingUser) => existingUser.id === targetUserId)
         const directTitle = targetUser?.username ?? "Личный чат"
 
-        setRooms((prev) => {
-          if (prev.some((room) => room.id === targetUserId)) {
-            return prev
-          }
-
-          const globalRoom = prev.find((room) => room.id === GLOBAL_ROOM_ID) ?? BASE_GLOBAL_CHAT_ITEM
-          const directRooms = prev.filter((room) => room.id !== GLOBAL_ROOM_ID)
-
-          return [
-            globalRoom,
-            {
-              id: targetUserId,
-              title: directTitle,
-              avatarInitials: getInitials(directTitle),
-              href: `/chat/${targetUserId}`,
-              preview: "",
-              timeLabel: "",
-              unread: 0,
-              isOnline: onlineUserIdsRef.current.has(targetUserId),
-            },
-            ...directRooms,
-          ]
-        })
+        setRooms((prev) =>
+          prependDirectRoomIfMissing(prev, {
+            userId: targetUserId,
+            title: directTitle,
+            isOnline: onlineUserIdsRef.current.has(targetUserId),
+          }),
+        )
       }
 
       if (payload?.targetUserId) {
@@ -524,29 +542,13 @@ export default function ChatPage() {
       return
     }
 
-    setRooms((prev) => {
-      if (prev.some((room) => room.id === targetUser.id)) {
-        return prev
-      }
-
-      const globalRoom = prev.find((room) => room.id === GLOBAL_ROOM_ID) ?? BASE_GLOBAL_CHAT_ITEM
-      const directRooms = prev.filter((room) => room.id !== GLOBAL_ROOM_ID)
-
-      return [
-        globalRoom,
-        {
-          id: targetUser.id,
-          title: targetUser.username,
-          avatarInitials: getInitials(targetUser.username),
-          href: `/chat/${targetUser.id}`,
-          preview: "",
-          timeLabel: "",
-          unread: 0,
-          isOnline: onlineUserIdsRef.current.has(targetUser.id),
-        },
-        ...directRooms,
-      ]
-    })
+    setRooms((prev) =>
+      prependDirectRoomIfMissing(prev, {
+        userId: targetUser.id,
+        title: targetUser.username,
+        isOnline: onlineUserIdsRef.current.has(targetUser.id),
+      }),
+    )
 
     socket.emit("openDirectRoom", { targetUserId: targetUser.id })
   }, [router, user, usersById])
