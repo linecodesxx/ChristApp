@@ -4,9 +4,22 @@ import styles from "./layout.module.scss"
 import "@/styles/globals.scss"
 import TabBar from "@/components/TabBar/TabBar"
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
-import { Metadata } from "next"
+import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
+import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
+import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = globalSeo
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fdf8f0" },
+    { media: "(prefers-color-scheme: dark)", color: "#2e2d2d" },
+  ],
+}
 
 export default function RootLayout({
   children,
@@ -16,9 +29,12 @@ export default function RootLayout({
   return (
     <html lang="ru" data-theme="dark">
       <body className={`${inter.variable} ${geistMono.variable}`}>
-        <ThemeToggle />
-        <main className={styles.main}>{children}</main>
-        <TabBar />
+        <PwaRegistration />
+        <PresenceSocket>
+          <ThemeToggle />
+          <main className={styles.main}>{children}</main>
+          <TabBar />
+        </PresenceSocket>
       </body>
     </html>
   )

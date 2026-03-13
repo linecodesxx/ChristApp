@@ -12,7 +12,7 @@
         .clickable {
             cursor: pointer;
             border: 1px solid var(--login-card-border);
-            padding: 8px;
+            padding: 8px 10px;
             border-radius: 64px;
         }
 
@@ -21,7 +21,7 @@
             background: transparent;
             color: var(--foreground);
             border: 1px solid var(--login-card-border);
-            padding: 8px;
+            padding: 8px 10px;
             border-radius: 64px;
             font-size: 20px;
             cursor: pointer;

@@ -102,6 +102,16 @@
   }
 }
 
+.inputInvalid {
+  border-color: #cf6f6f;
+}
+
+.fieldError {
+  color: var(--login-error-text);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .actions {
   display: flex;
   flex-direction: column;

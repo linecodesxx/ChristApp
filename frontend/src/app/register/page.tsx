@@ -1,10 +1,12 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
+import { type RegisterFieldErrors, validateRegisterForm } from "@/lib/formValidation"
 import styles from "@/app/(login)/login.module.scss"
-import Image from "next/image"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -13,6 +15,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({})
   const [registerError, setRegisterError] = useState<string | null>(null)
 
   const handleNavigateToLogin = () => {
@@ -23,7 +26,21 @@ export default function RegisterPage() {
     event.preventDefault()
 
     try {
+      const normalizedEmail = email.trim()
+      const normalizedUsername = username.trim()
+
+      const nextErrors = validateRegisterForm({
+        email: normalizedEmail,
+        username: normalizedUsername,
+        password,
+      })
+
+      setFieldErrors(nextErrors)
       setRegisterError(null)
+
+      if (Object.keys(nextErrors).length > 0) {
+        return
+      }
 
       if (!process.env.NEXT_PUBLIC_API_URL) {
         throw new Error("Не задан NEXT_PUBLIC_API_URL")
@@ -32,7 +49,11 @@ export default function RegisterPage() {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, password }),
+        body: JSON.stringify({
+          email: normalizedEmail,
+          username: normalizedUsername,
+          password,
+        }),
       })
 
       if (!res.ok) {
@@ -40,13 +61,21 @@ export default function RegisterPage() {
 
         if (contentType.includes("application/json")) {
           const errData = await res.json()
-          throw new Error(errData.message || "Ошибка регистрации")
+          const message = Array.isArray(errData.message)
+            ? errData.message.join(". ")
+            : errData.message || "Ошибка регистрации"
+          throw new Error(message)
         }
 
         throw new Error("Ошибка регистрации: сервер вернул не JSON")
       }
 
-      const success = await login(email, password)
+      saveRecentAuthIdentity({
+        email: normalizedEmail,
+        username: normalizedUsername,
+      })
+
+      const success = await login(normalizedEmail, password)
       if (success) router.push("/chat")
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Ошибка регистрации"
@@ -77,18 +106,25 @@ export default function RegisterPage() {
           </div>
         )}
 
-        <form className={styles.form} onSubmit={handleRegisterSubmit}>
+        <form className={styles.form} onSubmit={handleRegisterSubmit} noValidate>
           <div className={styles.fieldGroup}>
             <label htmlFor="email" className={styles.label}>
               Email
             </label>
             <input
               id="email"
-              className={styles.input}
+              className={`${styles.input} ${fieldErrors.email ? styles.inputInvalid : ""}`}
+              type="email"
               value={email}
+              autoComplete="email"
               placeholder="Enter email"
-              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={Boolean(fieldErrors.email)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setFieldErrors((prev) => ({ ...prev, email: undefined }))
+              }}
             />
+            {fieldErrors.email && <p className={styles.fieldError}>{fieldErrors.email}</p>}
           </div>
 
           <div className={styles.fieldGroup}>
@@ -97,11 +133,17 @@ export default function RegisterPage() {
             </label>
             <input
               id="username"
-              className={styles.input}
+              className={`${styles.input} ${fieldErrors.username ? styles.inputInvalid : ""}`}
               value={username}
+              autoComplete="username"
               placeholder="Enter username"
-              onChange={(e) => setUsername(e.target.value)}
+              aria-invalid={Boolean(fieldErrors.username)}
+              onChange={(e) => {
+                setUsername(e.target.value)
+                setFieldErrors((prev) => ({ ...prev, username: undefined }))
+              }}
             />
+            {fieldErrors.username && <p className={styles.fieldError}>{fieldErrors.username}</p>}
           </div>
 
           <div className={styles.fieldGroup}>
@@ -110,12 +152,18 @@ export default function RegisterPage() {
             </label>
             <input
               id="password"
-              className={styles.input}
+              className={`${styles.input} ${fieldErrors.password ? styles.inputInvalid : ""}`}
               type="password"
               value={password}
+              autoComplete="new-password"
               placeholder="Enter password"
-              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={Boolean(fieldErrors.password)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                setFieldErrors((prev) => ({ ...prev, password: undefined }))
+              }}
             />
+            {fieldErrors.password && <p className={styles.fieldError}>{fieldErrors.password}</p>}
           </div>
 
           <div className={styles.actions}>

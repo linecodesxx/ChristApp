@@ -2,7 +2,7 @@ import { ConflictException, Injectable, InternalServerErrorException, Unauthoriz
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { AuthDto } from './dto/AuthDTO';
+import { LoginDto, RegisterDto } from './dto/AuthDTO';
 import { Prisma } from '@prisma/client';
 
 
@@ -13,7 +13,7 @@ export class AuthService {
     private jwt: JwtService,
   ) { }
 
-  async register(dto: AuthDto) {
+  async register(dto: RegisterDto) {
     try {
       const hash = await bcrypt.hash(dto.password, 10);
 
@@ -36,7 +36,7 @@ export class AuthService {
     }
   }
 
-  async login(dto: AuthDto) {
+  async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });

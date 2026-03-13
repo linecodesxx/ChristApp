@@ -1,30 +1,47 @@
 "use client"
 
 import { useState } from "react"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
+import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation"
 import styles from "@/app/(login)/login.module.scss"
-import Image from "next/image"
 
 export default function LoginPage() {
   const router = useRouter()
-  const { user, loading, login, error, isSubmitting } = useAuth()
+  const { loading, login, error, isSubmitting } = useAuth()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({})
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    const success = await login(email, password)
+
+    const normalizedEmail = email.trim()
+    const nextErrors = validateLoginForm({ email: normalizedEmail, password })
+    setFieldErrors(nextErrors)
+    setSubmitError(null)
+
+    if (Object.keys(nextErrors).length > 0) {
+      return
+    }
+
+    const success = await login(normalizedEmail, password)
     if (success) {
       router.push("/chat")
+      return
+    }
+
+    if (!error) {
+      setSubmitError("Не удалось войти. Проверьте email и пароль.")
     }
   }
 
   const handleNavigateToRegister = () => {
     router.push("/register")
   }
-
 
   if (loading) {
     return (
@@ -53,18 +70,31 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form className={styles.form} onSubmit={handleLoginSubmit}>
+        {submitError && (
+          <div className={styles.errorWrap}>
+            <p className={styles.error}>{submitError}</p>
+          </div>
+        )}
+
+        <form className={styles.form} onSubmit={handleLoginSubmit} noValidate>
           <div className={styles.fieldGroup}>
             <label htmlFor="email" className={styles.label}>
               Email
             </label>
             <input
               id="email"
-              className={styles.input}
+              className={`${styles.input} ${fieldErrors.email ? styles.inputInvalid : ""}`}
+              type="email"
               value={email}
+              autoComplete="email"
               placeholder="Введите email"
-              onChange={(e) => setEmail(e.target.value)}
+              aria-invalid={Boolean(fieldErrors.email)}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                setFieldErrors((prev) => ({ ...prev, email: undefined }))
+              }}
             />
+            {fieldErrors.email && <p className={styles.fieldError}>{fieldErrors.email}</p>}
           </div>
 
           <div className={styles.fieldGroup}>
@@ -73,12 +103,18 @@ export default function LoginPage() {
             </label>
             <input
               id="password"
-              className={styles.input}
+              className={`${styles.input} ${fieldErrors.password ? styles.inputInvalid : ""}`}
               type="password"
               value={password}
+              autoComplete="current-password"
               placeholder="Enter your password"
-              onChange={(e) => setPassword(e.target.value)}
+              aria-invalid={Boolean(fieldErrors.password)}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                setFieldErrors((prev) => ({ ...prev, password: undefined }))
+              }}
             />
+            {fieldErrors.password && <p className={styles.fieldError}>{fieldErrors.password}</p>}
           </div>
 
           <div className={styles.actions}>

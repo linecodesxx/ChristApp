@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
+import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 
 type User = {
   id: string
@@ -143,6 +144,10 @@ export function useAuth(options?: UseAuthOptions) {
       const data = await res.json()
 
       setAuthToken(data.access_token)
+      saveRecentAuthIdentity({
+        email,
+        username: typeof data?.user?.username === "string" ? data.user.username : undefined,
+      })
       setUser(data.user)
       await fetchUsers()
 

@@ -151,8 +151,14 @@ export default function Verse({
 
   const handleShare = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) return
-    void navigator.clipboard.writeText(verseLine).catch(() => undefined)
+    if (typeof navigator === "undefined" || !navigator.share) return
+    void navigator
+      .share({
+        title: "Мой сайт",
+        text: "Посмотри эту страницу",
+        url: window.location.href,
+      })
+      .catch(() => undefined)
   }
 
   const handleCopy = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -204,14 +210,13 @@ export default function Verse({
 
   const hasColorHighlight = Boolean(selectedColor)
 
-  const selectedColorStyle =
-    selectedColor
-      ? ({
-          "--selected-decoration-color": `color-mix(in srgb, ${selectedColor} 45%, transparent)`,
-          "--selected-border-color": selectedColor,
-          "--selected-background": `color-mix(in srgb, ${selectedColor} 20%, transparent)`,
-        } as React.CSSProperties)
-      : undefined
+  const selectedColorStyle = selectedColor
+    ? ({
+        "--selected-decoration-color": `color-mix(in srgb, ${selectedColor} 45%, transparent)`,
+        "--selected-border-color": selectedColor,
+        "--selected-background": `color-mix(in srgb, ${selectedColor} 20%, transparent)`,
+      } as React.CSSProperties)
+    : undefined
 
   return (
     <div className={styles.verseContainer} id={id}>

@@ -2,8 +2,275 @@
   min-height: 100%;
   width: 100%;
 
+  .chatListWrapper {
+    display: flex;
+    flex-direction: column;
+  }
+
   ul li {
     list-style: none;
+  }
+
+  .userPickerOverlay {
+    position: fixed;
+    inset: 0;
+    z-index: 220;
+    background: color-mix(in srgb, var(--background) 65%, #000 35%);
+    backdrop-filter: blur(4px);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 82px 16px 20px;
+  }
+
+  .userPicker {
+    width: min(560px, 100%);
+    max-height: calc(100svh - 120px);
+    overflow: hidden;
+    border-radius: 20px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+    background: var(--surface);
+    box-shadow:
+      0 10px 30px -16px rgba(0, 0, 0, 0.55),
+      0 0 0 1px color-mix(in srgb, var(--line-soft) 18%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .userPickerHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .userPickerTitle {
+    color: var(--foreground);
+    font-family: "Inter", sans-serif;
+    font-size: 16px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 24px;
+  }
+
+  .userPickerSubtitle {
+    color: var(--text-muted);
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 18px;
+  }
+
+  .userPickerCloseButton {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 55%, transparent);
+    background: var(--surface-elevated);
+    color: var(--foreground);
+    cursor: pointer;
+    display: grid;
+    place-items: center;
+    transition:
+      transform 0.2s ease,
+      background-color 0.2s ease,
+      border-color 0.2s ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-soft) 20%, var(--surface-elevated));
+      border-color: color-mix(in srgb, var(--accent) 30%, var(--line-soft));
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  .userPickerSearch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 12px;
+    padding: 9px 12px;
+    background: var(--surface-elevated);
+    border: 1px solid color-mix(in srgb, var(--line-soft) 55%, transparent);
+  }
+
+  .userPickerSearchIcon {
+    width: 16px;
+    height: 16px;
+    max-width: none;
+    flex-shrink: 0;
+    opacity: 0.9;
+  }
+
+  .userPickerSearchInput {
+    width: 100%;
+    background: transparent;
+    color: var(--foreground);
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 18px;
+
+    &::placeholder {
+      color: var(--text-dim);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  .userPickerList {
+    margin: 0;
+    padding: 2px 1px 2px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+  }
+
+  .userPickerListItem {
+    list-style: none;
+  }
+
+  .userPickerItem {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background: var(--surface-elevated);
+    color: var(--foreground);
+    text-align: left;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      transform 0.2s ease;
+
+    &:hover {
+      background: color-mix(in srgb, var(--accent-soft) 26%, var(--surface-elevated));
+      border-color: color-mix(in srgb, var(--accent) 24%, transparent);
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  .userPickerAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 9999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: #fff;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .userPickerInfo {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+  }
+
+  .userPickerNameRow {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .userPickerName {
+    color: var(--foreground);
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 18px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .userPickerOnline {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 1px 7px;
+    color: #fff;
+    background: #2fbb66;
+    font-family: "Inter", sans-serif;
+    font-size: 9px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+
+  .userPickerEmail {
+    color: var(--text-muted);
+    font-family: "Inter", sans-serif;
+    font-size: 11px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .userPickerBadgeExisting,
+  .userPickerBadgeNew {
+    flex-shrink: 0;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 700;
+    line-height: 14px;
+  }
+
+  .userPickerBadgeExisting {
+    color: var(--text-muted);
+    background: color-mix(in srgb, var(--line-soft) 50%, transparent);
+  }
+
+  .userPickerBadgeNew {
+    color: #fff;
+    background: color-mix(in srgb, var(--accent) 92%, #000 8%);
+  }
+
+  .userPickerEmpty {
+    list-style: none;
+    color: var(--text-muted);
+    text-align: center;
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 500;
+    line-height: 18px;
+    border-radius: 12px;
+    border: 1px dashed color-mix(in srgb, var(--line-soft) 70%, transparent);
+    background: color-mix(in srgb, var(--surface-elevated) 75%, transparent);
+    padding: 16px 12px;
   }
 
   .header {
@@ -13,8 +280,34 @@
     width: 100%;
 
     .newChatButton {
-      background: transparent;
-      border: none;
+      width: 38px;
+      height: 38px;
+      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+      background: var(--surface-elevated);
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      transition:
+        transform 0.2s ease,
+        background-color 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+      &:hover {
+        background: color-mix(in srgb, var(--accent-soft) 24%, var(--surface-elevated));
+        border-color: color-mix(in srgb, var(--accent) 28%, var(--line-soft));
+        box-shadow: 0 8px 16px -12px color-mix(in srgb, var(--accent) 45%, transparent);
+      }
+
+      &:active {
+        transform: translateY(1px);
+      }
+    }
+
+    .newChatIcon {
+      width: 22px;
+      height: 22px;
     }
 
     .dots {
@@ -76,7 +369,6 @@
       display: flex;
       align-items: center;
       gap: 10px;
-
       color: #8a8a8a;
       font-family: Inter;
       font-size: 10px;
@@ -109,7 +401,7 @@
         padding: 11px 17px;
         max-width: 100%;
         border-radius: 16px;
-        border: 1px solid #f5f0ea;
+        // border: 1px solid #f5f0ea;
         background: var(--surface-elevated);
         box-shadow:
           0 1px 2px 0 rgba(0, 0, 0, 0.05),
@@ -120,26 +412,52 @@
           background-color: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
         }
 
+        .avatarWrapper {
+          position: relative;
+          width: 40px;
+          height: 40px;
+          flex-shrink: 0;
+        }
+
         .avatarInitials {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 50px;
-          height: 40px;
-          border-radius: 50%;
+          width: 100%;
+          height: 100%;
+          border-radius: 9999px;
           background: #8b9e7e;
           color: white;
           font-family: "Inter", sans-serif;
           font-size: 12px;
           font-style: normal;
           font-weight: 600;
-          line-height: 20px;
+          line-height: 1;
+          text-align: center;
+        }
+
+        .avatarOnlineDot {
+          position: absolute;
+          right: -1px;
+          bottom: -1px;
+          width: 11px;
+          height: 11px;
+          border-radius: 999px;
+          border: 2px solid var(--surface-elevated);
+          background: #2fbb66;
         }
 
         .chatInfo {
           display: flex;
           flex-direction: column;
           width: 100%;
+
+          .titleRow {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+          }
 
           .flex {
             display: flex;
@@ -154,6 +472,24 @@
             font-style: normal;
             font-weight: 600;
             line-height: 24px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+
+          .onlineLabel {
+            flex-shrink: 0;
+            border-radius: 999px;
+            padding: 1px 7px;
+            color: #fff;
+            background: #2fbb66;
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-style: normal;
+            font-weight: 700;
+            line-height: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
           }
 
           .chatPreview {
@@ -195,20 +531,13 @@
   }
 }
 
-html[data-theme="dark"] .chatListSection {
-  .chatList {
-    .chatItem {
-      .chatItemContent {
-        border: 1px solid var(--line-soft);
-        box-shadow:
-          0 0 0 1px color-mix(in srgb, var(--accent-soft) 14%, transparent),
-          0 8px 20px -12px color-mix(in srgb, var(--accent-soft) 38%, transparent);
-      }
+html[data-theme="light"] .chatListSection {
+  .header {
+    .newChatIcon {
+      filter: brightness(0) saturate(100%);
     }
   }
-}
 
-html[data-theme="light"] .chatListSection {
   .chatList {
     .chatItem {
       .chatItemContent {

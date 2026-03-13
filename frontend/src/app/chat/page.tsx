@@ -1,14 +1,18 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
-import { io } from "socket.io-client"
-import ChatList, { type ChatListItem } from "@/components/ChatList/ChatList"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import ChatList, { type ChatCreateCandidate, type ChatListItem } from "@/components/ChatList/ChatList"
 import { getInitials } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
+import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
+import {
+  normalizeNotificationBody,
+  requestNotificationPermissionIfNeeded,
+  showChatNotification,
+} from "@/lib/notifications"
 
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
 const GLOBAL_CHAT_TITLE = "Общий чат для всех"
@@ -27,6 +31,16 @@ function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
 }
 
 const BASE_GLOBAL_CHAT_ITEM: ChatListItem = createGlobalChatItem()
+
+type ChatListRuntimeCache = {
+  userId?: string
+  rooms: ChatListItem[]
+  onlineUserIds: string[]
+  roomIdToDirectUserId: Array<[string, string]>
+  directUserIdToRoomId: Array<[string, string]>
+}
+
+let chatListRuntimeCache: ChatListRuntimeCache | null = null
 
 function getDirectTargetUserId(title: string, currentUserId?: string) {
   if (!title?.startsWith("dm:")) return undefined
@@ -51,47 +65,217 @@ type DirectRoomOpenedSocketEvent = {
   targetUserId?: string
 }
 
+type OnlineUsersSocketPayload = {
+  userIds?: string[]
+  count?: number
+}
+
+type UserPresenceChangedSocketPayload = {
+  userId: string
+  isOnline: boolean
+}
+
+function areSetsEqual(leftSet: Set<string>, rightSet: Set<string>) {
+  if (leftSet.size !== rightSet.size) return false
+  for (const value of leftSet) {
+    if (!rightSet.has(value)) {
+      return false
+    }
+  }
+  return true
+}
+
+function getUserIdFromJwt(token: string) {
+  try {
+    const [, payloadPart] = token.split(".")
+    if (!payloadPart) return undefined
+
+    const normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/")
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, "=")
+
+    const parsedPayload = JSON.parse(window.atob(paddedPayload)) as { sub?: unknown }
+    return typeof parsedPayload?.sub === "string" ? parsedPayload.sub : undefined
+  } catch {
+    return undefined
+  }
+}
+
 export default function ChatPage() {
-  const { user, users, loading } = useAuth()
+  const { user, users } = useAuth()
+  const { socket } = usePresenceSocket()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
-  const socketRef = useRef<ReturnType<typeof io> | null>(null)
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
+  const roomsRef = useRef<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const usersRef = useRef(users)
+  const onlineUserIdsRef = useRef<Set<string>>(new Set())
+  const currentUserIdRef = useRef<string | undefined>(undefined)
   const activeRoomIdRef = useRef<string | null>(null)
   const roomIdToDirectUserIdRef = useRef<Map<string, string>>(new Map())
   const directUserIdToRoomIdRef = useRef<Map<string, string>>(new Map())
   const pathname = usePathname()
+  const pathnameRef = useRef(pathname)
   const router = useRouter()
 
   const activeRoomIdPath = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
   const activeRoomId = activeRoomIdPath === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : activeRoomIdPath
+
+  const applyOnlinePresenceToRooms = useCallback((nextOnlineIds: Set<string>) => {
+    setRooms((prev) => {
+      let hasUpdates = false
+
+      const nextRooms = prev.map((room) => {
+        if (room.id === GLOBAL_ROOM_ID) {
+          return room
+        }
+
+        const isOnline = nextOnlineIds.has(room.id)
+        if (room.isOnline === isOnline) {
+          return room
+        }
+
+        hasUpdates = true
+        return {
+          ...room,
+          isOnline,
+        }
+      })
+
+      return hasUpdates ? nextRooms : prev
+    })
+  }, [])
+
+  const syncOnlinePresence = useCallback((nextOnlineIds: Set<string>) => {
+    onlineUserIdsRef.current = nextOnlineIds
+    setOnlineUserIds((prev) => (areSetsEqual(prev, nextOnlineIds) ? prev : nextOnlineIds))
+    applyOnlinePresenceToRooms(nextOnlineIds)
+  }, [applyOnlinePresenceToRooms])
+
+  const usersById = useMemo(() => {
+    return new Map(users.map((existingUser) => [existingUser.id, existingUser]))
+  }, [users])
+
+  const chatCreateCandidates = useMemo<ChatCreateCandidate[]>(() => {
+    const directChatUserIds = new Set(rooms.filter((room) => room.id !== GLOBAL_ROOM_ID).map((room) => room.id))
+
+    return users
+      .filter((existingUser) => existingUser.id !== user?.id)
+      .map((existingUser) => ({
+        id: existingUser.id,
+        username: existingUser.username,
+        email: existingUser.email,
+        isOnline: onlineUserIds.has(existingUser.id),
+        hasDirectChat: directChatUserIds.has(existingUser.id),
+      }))
+      .sort((leftUser, rightUser) => {
+        if (leftUser.hasDirectChat !== rightUser.hasDirectChat) {
+          return leftUser.hasDirectChat ? 1 : -1
+        }
+
+        if (leftUser.isOnline !== rightUser.isOnline) {
+          return leftUser.isOnline ? -1 : 1
+        }
+
+        return leftUser.username.localeCompare(rightUser.username, "ru", { sensitivity: "base" })
+      })
+  }, [onlineUserIds, rooms, user?.id, users])
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
   }, [activeRoomId])
 
   useEffect(() => {
+    pathnameRef.current = pathname
+  }, [pathname])
+
+  useEffect(() => {
+    roomsRef.current = rooms
+  }, [rooms])
+
+  useEffect(() => {
+    if (!chatListRuntimeCache) {
+      return
+    }
+
+    const token = getAuthToken()
+    const tokenUserId = token ? getUserIdFromJwt(token) : undefined
+    if (tokenUserId && chatListRuntimeCache.userId && tokenUserId !== chatListRuntimeCache.userId) {
+      return
+    }
+
+    currentUserIdRef.current = chatListRuntimeCache.userId ?? currentUserIdRef.current
+
+    const cachedOnlineIds = new Set(chatListRuntimeCache.onlineUserIds)
+    onlineUserIdsRef.current = cachedOnlineIds
+    setOnlineUserIds(cachedOnlineIds)
+
+    roomIdToDirectUserIdRef.current = new Map(chatListRuntimeCache.roomIdToDirectUserId)
+    directUserIdToRoomIdRef.current = new Map(chatListRuntimeCache.directUserIdToRoomId)
+
+    setRooms(chatListRuntimeCache.rooms.length ? chatListRuntimeCache.rooms : [BASE_GLOBAL_CHAT_ITEM])
+  }, [])
+
+  useEffect(() => {
+    chatListRuntimeCache = {
+      userId: currentUserIdRef.current,
+      rooms,
+      onlineUserIds: Array.from(onlineUserIds),
+      roomIdToDirectUserId: Array.from(roomIdToDirectUserIdRef.current.entries()),
+      directUserIdToRoomId: Array.from(directUserIdToRoomIdRef.current.entries()),
+    }
+  }, [onlineUserIds, rooms])
+
+  useEffect(() => {
+    currentUserIdRef.current = user?.id
+  }, [user?.id])
+
+  useEffect(() => {
     usersRef.current = users
 
-    if (socketRef.current?.connected) {
-      socketRef.current.emit("getMyRooms")
+    if (!users.length) {
+      return
     }
+
+    const usersMap = new Map(users.map((existingUser) => [existingUser.id, existingUser]))
+
+    setRooms((prev) => {
+      let hasUpdates = false
+
+      const nextRooms = prev.map((room) => {
+        if (room.id === GLOBAL_ROOM_ID) {
+          return room
+        }
+
+        const matchedUser = usersMap.get(room.id)
+        if (!matchedUser || matchedUser.username === room.title) {
+          return room
+        }
+
+        hasUpdates = true
+        return {
+          ...room,
+          title: matchedUser.username,
+          avatarInitials: getInitials(matchedUser.username),
+        }
+      })
+
+      return hasUpdates ? nextRooms : prev
+    })
   }, [users])
 
   useEffect(() => {
-    if (loading) return
-
-    if (socketRef.current) {
+    if (!socket) {
+      syncOnlinePresence(new Set())
       return
     }
 
     const token = getAuthToken()
     if (!token) return
 
-    const newSocket = io(WS_URL, {
-      auth: { token },
-      transports: ["websocket"],
-    })
-    socketRef.current = newSocket
+    if (!currentUserIdRef.current) {
+      currentUserIdRef.current = getUserIdFromJwt(token)
+    }
+
+    void requestNotificationPermissionIfNeeded()
 
     const onMyRooms = (data: { rooms: RoomSocketItem[] }) => {
       const socketRooms = data.rooms ?? []
@@ -111,10 +295,12 @@ export default function ChatPage() {
 
         const directChatsByUserId = new Map<string, ChatListItem>()
 
+        const resolvedCurrentUserId = currentUserIdRef.current
+
         socketRooms
           .filter((room) => room.id !== GLOBAL_ROOM_ID)
           .forEach((room) => {
-            const targetUserId = getDirectTargetUserId(room.title, user?.id)
+            const targetUserId = getDirectTargetUserId(room.title, resolvedCurrentUserId)
             if (!targetUserId) return
 
             const targetUser = usersById.get(targetUserId)
@@ -133,6 +319,7 @@ export default function ChatPage() {
                 preview: previous?.preview ?? "",
                 timeLabel: previous?.timeLabel ?? "",
                 unread: previous?.unread ?? 0,
+                isOnline: onlineUserIdsRef.current.has(targetUserId),
               })
             }
           })
@@ -143,9 +330,15 @@ export default function ChatPage() {
         return [globalRoom, ...Array.from(directChatsByUserId.values())]
       })
     }
-    newSocket.on("myRooms", onMyRooms)
+    socket.on("myRooms", onMyRooms)
+
+    const onDisconnect = () => {
+      syncOnlinePresence(new Set())
+    }
+    socket.on("disconnect", onDisconnect)
 
     const onConnectError = () => {
+      syncOnlinePresence(new Set())
       setRooms((prev) => {
         const prevGlobal = prev.find((room) => room.id === GLOBAL_ROOM_ID)
 
@@ -158,26 +351,71 @@ export default function ChatPage() {
         ]
       })
     }
-    newSocket.on("connect_error", onConnectError)
+    socket.on("connect_error", onConnectError)
+
+    const onOnlineUsers = (payload: OnlineUsersSocketPayload) => {
+      const nextUserIds = Array.isArray(payload?.userIds) ? payload.userIds : []
+      syncOnlinePresence(new Set(nextUserIds))
+    }
+    socket.on("onlineUsers", onOnlineUsers)
+
+    const onUserPresenceChanged = (payload: UserPresenceChangedSocketPayload) => {
+      if (!payload?.userId) return
+
+      const nextOnlineIds = new Set(onlineUserIdsRef.current)
+      if (payload.isOnline) {
+        nextOnlineIds.add(payload.userId)
+      } else {
+        nextOnlineIds.delete(payload.userId)
+      }
+
+      if (areSetsEqual(onlineUserIdsRef.current, nextOnlineIds)) {
+        return
+      }
+
+      syncOnlinePresence(nextOnlineIds)
+    }
+    socket.on("userPresenceChanged", onUserPresenceChanged)
 
     const onNewMessage = (msg: NewMessageSocketEvent) => {
       const directUserId = roomIdToDirectUserIdRef.current.get(msg.roomId)
       const mappedId = msg.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserId
+      const normalizedContent = normalizeNotificationBody(msg.content) || msg.content
 
       if (!mappedId) return
+
+      const directRoomId = directUserId ? directUserIdToRoomIdRef.current.get(directUserId) : undefined
+      const isActiveRoom =
+        activeRoomIdRef.current === mappedId || (Boolean(directRoomId) && activeRoomIdRef.current === directRoomId)
+
+      const currentPath = pathnameRef.current ?? ""
+      const isChatRoute = currentPath === "/chat" || currentPath.startsWith("/chat/")
+      const shouldShowNotification = !isActiveRoom && (document.visibilityState !== "visible" || !isChatRoute)
+
+      if (shouldShowNotification) {
+        const mappedRoom = roomsRef.current.find((room) => room.id === mappedId)
+        const notificationTitle =
+          mappedId === GLOBAL_ROOM_ID
+            ? "Новое сообщение в общем чате"
+            : `Новое сообщение от ${mappedRoom?.title ?? "собеседника"}`
+
+        const targetUrl = mappedId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${mappedId}`
+        void showChatNotification({
+          title: notificationTitle,
+          body: normalizedContent,
+          targetUrl,
+          tag: `room-${mappedId}`,
+        })
+      }
 
       setRooms((prev) =>
         prev.map((room) => {
           if (room.id !== mappedId) return room
-
-          const directRoomId = directUserId ? directUserIdToRoomIdRef.current.get(directUserId) : undefined
-          const isActiveRoom =
-            activeRoomIdRef.current === room.id || (Boolean(directRoomId) && activeRoomIdRef.current === directRoomId)
           const currentUnread = typeof room.unread === "number" ? room.unread : 0
 
           return {
             ...room,
-            preview: msg.content,
+            preview: normalizedContent,
             timeLabel: new Date(msg.createdAt).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -187,20 +425,53 @@ export default function ChatPage() {
         }),
       )
     }
-    newSocket.on("newMessage", onNewMessage)
+    socket.on("newMessage", onNewMessage)
 
     const onUserInvitedToRoom = () => {
-      newSocket.emit("getMyRooms")
+      socket.emit("getMyRooms")
     }
-    newSocket.on("userInvitedToRoom", onUserInvitedToRoom)
+    socket.on("userInvitedToRoom", onUserInvitedToRoom)
 
     const onRoomCreated = () => {
-      newSocket.emit("getMyRooms")
+      socket.emit("getMyRooms")
     }
-    newSocket.on("roomCreated", onRoomCreated)
+    socket.on("roomCreated", onRoomCreated)
 
     const onDirectRoomOpened = (payload: DirectRoomOpenedSocketEvent) => {
-      newSocket.emit("getMyRooms")
+      if (payload?.roomId && payload?.targetUserId) {
+        roomIdToDirectUserIdRef.current.set(payload.roomId, payload.targetUserId)
+        directUserIdToRoomIdRef.current.set(payload.targetUserId, payload.roomId)
+      }
+
+      const targetUserId = payload?.targetUserId
+      if (targetUserId) {
+        const targetUser = usersRef.current.find((existingUser) => existingUser.id === targetUserId)
+        const directTitle = targetUser?.username ?? "Личный чат"
+
+        setRooms((prev) => {
+          if (prev.some((room) => room.id === targetUserId)) {
+            return prev
+          }
+
+          const globalRoom = prev.find((room) => room.id === GLOBAL_ROOM_ID) ?? BASE_GLOBAL_CHAT_ITEM
+          const directRooms = prev.filter((room) => room.id !== GLOBAL_ROOM_ID)
+
+          return [
+            globalRoom,
+            {
+              id: targetUserId,
+              title: directTitle,
+              avatarInitials: getInitials(directTitle),
+              href: `/chat/${targetUserId}`,
+              preview: "",
+              timeLabel: "",
+              unread: 0,
+              isOnline: onlineUserIdsRef.current.has(targetUserId),
+            },
+            ...directRooms,
+          ]
+        })
+      }
 
       if (payload?.targetUserId) {
         router.push(`/chat/${payload.targetUserId}`)
@@ -212,29 +483,29 @@ export default function ChatPage() {
         router.push(`/chat/${nextRouteRoomId}`)
       }
     }
-    newSocket.on("directRoomOpened", onDirectRoomOpened)
+    socket.on("directRoomOpened", onDirectRoomOpened)
 
-    newSocket.emit("getMyRooms")
+    if (!chatListRuntimeCache?.rooms.length || chatListRuntimeCache.rooms.length <= 1) {
+      socket.emit("getMyRooms")
+    }
 
     return () => {
-      newSocket.off("myRooms", onMyRooms)
-      newSocket.off("connect_error", onConnectError)
-      newSocket.off("newMessage", onNewMessage)
-      newSocket.off("userInvitedToRoom", onUserInvitedToRoom)
-      newSocket.off("roomCreated", onRoomCreated)
-      newSocket.off("directRoomOpened", onDirectRoomOpened)
-      newSocket.disconnect()
-      socketRef.current = null
+      socket.off("myRooms", onMyRooms)
+      socket.off("disconnect", onDisconnect)
+      socket.off("connect_error", onConnectError)
+      socket.off("onlineUsers", onOnlineUsers)
+      socket.off("userPresenceChanged", onUserPresenceChanged)
+      socket.off("newMessage", onNewMessage)
+      socket.off("userInvitedToRoom", onUserInvitedToRoom)
+      socket.off("roomCreated", onRoomCreated)
+      socket.off("directRoomOpened", onDirectRoomOpened)
     }
-  }, [loading, router, user?.id])
+  }, [router, socket, syncOnlinePresence, user?.id])
 
-  const handleCreateChat = () => {
+  const handleCreateChat = useCallback((targetUserId: string) => {
     if (!user) return
 
-    const usernameInput = window.prompt("Введите username пользователя")?.trim()
-    if (!usernameInput) return
-
-    const targetUser = users.find((candidate) => candidate.username.toLowerCase() === usernameInput.toLowerCase())
+    const targetUser = usersById.get(targetUserId)
     if (!targetUser) {
       window.alert("Пользователь не найден")
       return
@@ -245,14 +516,43 @@ export default function ChatPage() {
       return
     }
 
-    const socket = socketRef.current
+    const existingDirectRoomId = directUserIdToRoomIdRef.current.get(targetUser.id)
+    if (existingDirectRoomId) {
+      router.push(`/chat/${targetUser.id}`)
+      return
+    }
+
     if (!socket || !socket.connected) {
       window.alert("Сокет не подключен. Попробуй через пару секунд")
       return
     }
 
+    setRooms((prev) => {
+      if (prev.some((room) => room.id === targetUser.id)) {
+        return prev
+      }
+
+      const globalRoom = prev.find((room) => room.id === GLOBAL_ROOM_ID) ?? BASE_GLOBAL_CHAT_ITEM
+      const directRooms = prev.filter((room) => room.id !== GLOBAL_ROOM_ID)
+
+      return [
+        globalRoom,
+        {
+          id: targetUser.id,
+          title: targetUser.username,
+          avatarInitials: getInitials(targetUser.username),
+          href: `/chat/${targetUser.id}`,
+          preview: "",
+          timeLabel: "",
+          unread: 0,
+          isOnline: onlineUserIdsRef.current.has(targetUser.id),
+        },
+        ...directRooms,
+      ]
+    })
+
     socket.emit("openDirectRoom", { targetUserId: targetUser.id })
-  }
+  }, [router, user, usersById])
 
   const chatItems =
     rooms.length > 0
@@ -263,5 +563,5 @@ export default function ChatPage() {
           }),
         ]
 
-  return <ChatList items={chatItems} onCreateChat={handleCreateChat} />
+  return <ChatList items={chatItems} onCreateChat={handleCreateChat} chatCandidates={chatCreateCandidates} />
 }

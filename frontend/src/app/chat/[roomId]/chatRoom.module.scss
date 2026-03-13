@@ -117,11 +117,12 @@
 
   .skeletonBubble {
     position: relative;
-    height: 42px;
+    height: 50px;
     max-width: 92%;
     border-radius: 16px 16px 16px 4px;
-    border: 1px solid color-mix(in srgb, var(--line-soft) 82%, var(--accent) 18%);
-    background: color-mix(in srgb, var(--surface-elevated) 92%, var(--accent-soft) 8%);
+    // border: 1px solid color-mix(in srgb, var(--line-soft) 82%, var(--accent) 18%);
+    // background: color-mix(in srgb, var(--surface-elevated) 92%, var(--accent-soft) 8%);
+    background: var(--accent-soft);
     overflow: hidden;
 
     &::after {

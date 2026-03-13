@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
+import { requestNotificationPermissionIfNeeded, showChatNotification } from "@/lib/notifications"
 import Link from "next/link"
 import Image from "next/image"
 
@@ -265,6 +266,8 @@ export default function ChatPageDetails() {
       return
     }
 
+    void requestNotificationPermissionIfNeeded()
+
     const socket = io(WS_URL, {
       auth: { token },
       transports: ["websocket"],
@@ -291,6 +294,8 @@ export default function ChatPageDetails() {
       setIsSocketConnected(false)
       setConnectionError("Нет соединения с сервером. Сообщения временно недоступны.")
       setIsHistoryLoading(false)
+      setOnlineCount(0)
+      setOnlineUserIds(new Set())
       joinedRoomRef.current = undefined
     }
     socket.on("disconnect", onDisconnect)
@@ -323,6 +328,25 @@ export default function ChatPageDetails() {
         persistRoomPreview(activeRoomId, normalized.content.trim())
       }
 
+      const isOwnMessage = normalized.sender === "me" || normalized.username === user?.username
+      const shouldShowNotification =
+        !isOwnMessage && (document.visibilityState !== "visible" || !document.hasFocus())
+
+      if (shouldShowNotification && activeRoomId) {
+        const targetUrl = activeRoomId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${activeRoomId}`
+        const notificationTitle =
+          activeRoomId === GLOBAL_ROOM_ID
+            ? `Новое сообщение в общем чате от ${normalized.username}`
+            : `Новое сообщение от ${normalized.username}`
+
+        void showChatNotification({
+          title: notificationTitle,
+          body: normalized.content,
+          targetUrl,
+          tag: `room-${activeRoomId}`,
+        })
+      }
+
       setMessages((prev) => [...prev, normalized])
     }
     socket.on("newMessage", onNewMessage)
@@ -333,7 +357,9 @@ export default function ChatPageDetails() {
         return
       }
 
-      const normalizedHistory = (history ?? []).map((messageItem) => normalizeIncomingMessage(messageItem, user?.username))
+      const normalizedHistory = (history ?? []).map((messageItem) =>
+        normalizeIncomingMessage(messageItem, user?.username),
+      )
 
       const nextMessageIds = new Set<string>()
       const uniqueHistory: Message[] = []
@@ -534,14 +560,8 @@ export default function ChatPageDetails() {
     () => users.find((existingUser) => existingUser.id === directChatTargetUserId),
     [users, directChatTargetUserId],
   )
-  const isDirectTargetOnline = Boolean(
-    directChatTargetUserId && (onlineUserIds.has(directChatTargetUserId) || directChatTargetUser?.isActive),
-  )
-  const usersOnlineByFlag = useMemo(
-    () => users.reduce((count, existingUser) => (existingUser.isActive ? count + 1 : count), 0),
-    [users],
-  )
-  const globalOnlineCount = onlineCount > 0 ? onlineCount : usersOnlineByFlag
+  const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
+  const globalOnlineCount = onlineCount
 
   const roomStatusLabel = (() => {
     if (!isSocketConnected || connectionError) {
@@ -553,11 +573,13 @@ export default function ChatPageDetails() {
     }
 
     if (roomId === GLOBAL_ROOM_ID) {
-      return `${globalOnlineCount} онлайн в чате`
+      return `${globalOnlineCount} христианин онлайн`
     }
 
     if (directChatTargetUser) {
-      return isDirectTargetOnline ? `${directChatTargetUser.username} онлайн` : `${directChatTargetUser.username} не в сети`
+      return isDirectTargetOnline
+        ? `${directChatTargetUser.username} онлайн`
+        : `${directChatTargetUser.username} не в сети`
     }
 
     return "Личный чат"
@@ -643,11 +665,7 @@ export default function ChatPageDetails() {
         <ChatWindow messages={messages} currentUsername={user?.username} onReplyMessage={handleReplyMessage} />
       )}
 
-      <MessageInput
-        onSend={handleSend}
-        replyToMessage={replyToMessage}
-        onCancelReply={() => setReplyToMessage(null)}
-      />
+      <MessageInput onSend={handleSend} replyToMessage={replyToMessage} onCancelReply={() => setReplyToMessage(null)} />
     </section>
   )
 }
