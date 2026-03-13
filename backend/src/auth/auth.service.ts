@@ -37,8 +37,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: dto.email },
+    const identifier = dto.email.trim();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [{ email: identifier.toLowerCase() }, { username: identifier }],
+      },
     });
 
     if (!user) throw new UnauthorizedException();

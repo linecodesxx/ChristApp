@@ -29,9 +29,9 @@ export function validateLoginForm(values: LoginValues): LoginFieldErrors {
   const email = trimValue(values.email)
 
   if (!email) {
-    errors.email = "Введите email"
-  } else if (!EMAIL_REGEX.test(email)) {
-    errors.email = "Введите корректный email"
+    errors.email = "Введите email или username"
+  } else if (!EMAIL_REGEX.test(email) && !USERNAME_REGEX.test(email)) {
+    errors.email = "Введите корректный email или username"
   }
 
   if (!values.password) {
@@ -46,6 +46,13 @@ export function validateLoginForm(values: LoginValues): LoginFieldErrors {
 export function validateRegisterForm(values: RegisterValues): RegisterFieldErrors {
   const errors: RegisterFieldErrors = {
     ...validateLoginForm({ email: values.email, password: values.password }),
+  }
+
+  const email = trimValue(values.email)
+  if (!email) {
+    errors.email = "Введите email"
+  } else if (!EMAIL_REGEX.test(email)) {
+    errors.email = "Введите корректный email"
   }
 
   const username = trimValue(values.username)

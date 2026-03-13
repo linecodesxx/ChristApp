@@ -35,7 +35,7 @@ export default function LoginPage() {
     }
 
     if (!error) {
-      setSubmitError("Не удалось войти. Проверьте email и пароль.")
+      setSubmitError("Не удалось войти. Проверьте email/username и пароль.")
     }
   }
 
@@ -79,15 +79,15 @@ export default function LoginPage() {
         <form className={styles.form} onSubmit={handleLoginSubmit} noValidate>
           <div className={styles.fieldGroup}>
             <label htmlFor="email" className={styles.label}>
-              Email
+              Email или username
             </label>
             <input
               id="email"
               className={`${styles.input} ${fieldErrors.email ? styles.inputInvalid : ""}`}
-              type="email"
+              type="text"
               value={email}
-              autoComplete="email"
-              placeholder="Введите email"
+              autoComplete="username"
+              placeholder="Введите email или username"
               aria-invalid={Boolean(fieldErrors.email)}
               onChange={(e) => {
                 setEmail(e.target.value)
