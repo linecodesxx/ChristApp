@@ -1,7 +1,5 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/
-const PASSWORD_HAS_LETTER_REGEX = /[A-Za-z]/
-const PASSWORD_HAS_DIGIT_REGEX = /\d/
 
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 72
@@ -65,10 +63,6 @@ export function validateRegisterForm(values: RegisterValues): RegisterFieldError
 
   if (values.password && values.password.length > PASSWORD_MAX_LENGTH) {
     errors.password = `Пароль не должен быть длиннее ${PASSWORD_MAX_LENGTH} символов`
-  } else if (values.password) {
-    if (!PASSWORD_HAS_LETTER_REGEX.test(values.password) || !PASSWORD_HAS_DIGIT_REGEX.test(values.password)) {
-      errors.password = "Пароль должен содержать минимум 1 букву и 1 цифру"
-    }
   }
 
   return errors

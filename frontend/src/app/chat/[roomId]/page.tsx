@@ -10,6 +10,7 @@ import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
+import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
 import { showChatNotification } from "@/lib/notifications"
 import Link from "next/link"
 import Image from "next/image"
@@ -17,6 +18,8 @@ import Image from "next/image"
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
+const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:"
+const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом"
 const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
@@ -68,6 +71,18 @@ type OnlineUsersPayload = {
 type UserPresencePayload = {
   userId: string
   isOnline: boolean
+}
+
+type MessageDeletedSocketEvent = {
+  messageId?: string
+  roomId?: string
+}
+
+type DeleteMessageResultSocketEvent = {
+  ok?: boolean
+  messageId?: string
+  roomId?: string
+  error?: string
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -217,6 +232,10 @@ function getReadableRoomTitle(
 ) {
   if (roomId === GLOBAL_ROOM_ID) return "Общий чат для всех"
 
+  if (rawTitle?.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)) {
+    return SHARE_WITH_JESUS_CHAT_TITLE
+  }
+
   if (!rawTitle?.trim()) return "Личный чат"
 
   if (rawTitle.startsWith("dm:")) {
@@ -265,6 +284,7 @@ export default function ChatPageDetails() {
     }
 
     socket.emit("markRoomRead", { roomId })
+    dispatchChatUnreadChangedEvent()
   }, [roomId])
 
   const joinRoom = useCallback((socket: Socket, targetRoomId: string) => {
@@ -400,8 +420,47 @@ export default function ChatPageDetails() {
       }
 
       setMessages((prev) => [...prev, normalized])
+      dispatchChatUnreadChangedEvent()
     }
     socket.on("newMessage", onNewMessage)
+
+    const onMessageDeleted = (payload: MessageDeletedSocketEvent) => {
+      const deletedMessageId = payload?.messageId
+      const deletedRoomId = payload?.roomId
+      const activeRoomId = currentRoomRef.current
+
+      if (!deletedMessageId || !deletedRoomId || !activeRoomId || deletedRoomId !== activeRoomId) {
+        return
+      }
+
+      messageIdsRef.current.delete(deletedMessageId)
+
+      setMessages((prev) =>
+        prev
+          .filter((messageItem) => messageItem.id !== deletedMessageId)
+          .map((messageItem) =>
+            messageItem.replyTo?.id === deletedMessageId
+              ? {
+                  ...messageItem,
+                  replyTo: undefined,
+                }
+              : messageItem,
+          ),
+      )
+
+      setReplyToMessage((prev) => (prev?.id === deletedMessageId ? null : prev))
+      dispatchChatUnreadChangedEvent()
+    }
+    socket.on("messageDeleted", onMessageDeleted)
+
+    const onDeleteMessageResult = (payload: DeleteMessageResultSocketEvent) => {
+      if (!payload || payload.ok !== false || !payload.error) {
+        return
+      }
+
+      window.alert(payload.error)
+    }
+    socket.on("deleteMessageResult", onDeleteMessageResult)
 
     const onRoomHistory = ({ roomId: historyRoomId, messages: history }: RoomHistoryPayload) => {
       const activeRoomId = currentRoomRef.current
@@ -520,6 +579,8 @@ export default function ChatPageDetails() {
       socket.off("connect_error", onSocketError)
       socket.off("error", onSocketError)
       socket.off("newMessage", onNewMessage)
+      socket.off("messageDeleted", onMessageDeleted)
+      socket.off("deleteMessageResult", onDeleteMessageResult)
       socket.off("roomHistory", onRoomHistory)
       socket.off("myRooms", onMyRooms)
       socket.off("directRoomOpened", onDirectRoomOpened)
@@ -531,7 +592,7 @@ export default function ChatPageDetails() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, router, user?.id])
+  }, [joinRoom, leaveCurrentRoom, loading, router, user?.id, user?.username])
 
   // Синхронизируем socket-room при смене URL комнаты.
   useEffect(() => {
@@ -634,6 +695,10 @@ export default function ChatPageDetails() {
       return `${globalOnlineCount} пользователей онлайн`
     }
 
+    if (roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)) {
+      return "Личное место для заметок"
+    }
+
     if (directChatTargetUser) {
       return isDirectTargetOnline
         ? `${directChatTargetUser.username} онлайн`
@@ -655,6 +720,34 @@ export default function ChatPageDetails() {
 
     setReplyToMessage(message)
   }
+
+  const handleDeleteOwnMessage = useCallback((message: Message) => {
+    if (roomId !== GLOBAL_ROOM_ID) {
+      return
+    }
+
+    const socket = socketRef.current
+    if (!socket || !socket.connected) {
+      window.alert("Нет соединения с сервером. Попробуйте позже.")
+      return
+    }
+
+    const isOwnMessage =
+      message.sender === "me" ||
+      (Boolean(user?.username) && message.username === user?.username) ||
+      message.username === "Ты"
+
+    if (!isOwnMessage) {
+      return
+    }
+
+    const confirmed = window.confirm("Удалить это сообщение из общего чата?")
+    if (!confirmed) {
+      return
+    }
+
+    socket.emit("deleteMessage", { messageId: message.id })
+  }, [roomId, user])
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     if (!socketRef.current || !roomId || !text.trim()) return false
@@ -720,7 +813,13 @@ export default function ChatPageDetails() {
           ))}
         </div>
       ) : (
-        <ChatWindow messages={messages} currentUsername={user?.username} onReplyMessage={handleReplyMessage} />
+        <ChatWindow
+          messages={messages}
+          currentUsername={user?.username}
+          onReplyMessage={handleReplyMessage}
+          onDeleteMessage={handleDeleteOwnMessage}
+          canDeleteOwnMessages={roomId === GLOBAL_ROOM_ID}
+        />
       )}
 
       <MessageInput onSend={handleSend} replyToMessage={replyToMessage} onCancelReply={() => setReplyToMessage(null)} />

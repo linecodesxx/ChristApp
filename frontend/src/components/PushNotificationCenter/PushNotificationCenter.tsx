@@ -7,6 +7,7 @@ import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
 import {
   fetchPushStatus,
   fetchUnreadSummary,
+  getPushSyncErrorMessage,
   isPushSupportedInBrowser,
   syncBrowserPushSubscription,
 } from "@/lib/push"
@@ -42,11 +43,12 @@ function formatUnreadMessage(count: number) {
 
 export default function PushNotificationCenter() {
   const pathname = usePathname()
-  const [token, setToken] = useState<string | null>(null)
+  const [token, setToken] = useState<string | null>(() => getAuthToken())
   const [permissionState, setPermissionState] = useState<PermissionState>(getPermissionState)
   const [isPushConfigured, setIsPushConfigured] = useState(false)
   const [hasServerSubscription, setHasServerSubscription] = useState(false)
   const [unreadTotal, setUnreadTotal] = useState(0)
+  const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const isPublicRoute = pathname === "/" || pathname === "/register" || pathname === "/offline"
@@ -58,6 +60,7 @@ export default function PushNotificationCenter() {
         setIsPushConfigured(false)
         setHasServerSubscription(false)
         setUnreadTotal(0)
+        setSyncErrorMessage(null)
         setPermissionState(getPermissionState())
         setIsLoading(false)
         return
@@ -75,15 +78,23 @@ export default function PushNotificationCenter() {
       setHasServerSubscription(Boolean(pushStatus?.hasSubscription))
       setUnreadTotal(Number(unreadSummary?.totalUnread ?? 0))
 
+      if (pushStatus?.hasSubscription || nextPermission !== "granted" || !pushStatus?.enabled) {
+        setSyncErrorMessage(null)
+      }
+
       // Автосинхронизация: если разрешение уже выдано, пробуем
       // в фоне зарегистрировать (или обновить) подписку браузера.
       if (options?.syncSubscription && nextPermission === "granted" && pushStatus?.enabled) {
-        await syncBrowserPushSubscription(token)
+        const syncResult = await syncBrowserPushSubscription(token)
+        setSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
 
         const refreshedStatus = await fetchPushStatus(token)
         if (refreshedStatus) {
           setIsPushConfigured(Boolean(refreshedStatus.enabled))
           setHasServerSubscription(Boolean(refreshedStatus.hasSubscription))
+          if (refreshedStatus.hasSubscription) {
+            setSyncErrorMessage(null)
+          }
         }
       }
 
@@ -91,10 +102,6 @@ export default function PushNotificationCenter() {
     },
     [token],
   )
-
-  useEffect(() => {
-    setToken(getAuthToken())
-  }, [pathname])
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -116,7 +123,6 @@ export default function PushNotificationCenter() {
 
   useEffect(() => {
     if (!token) {
-      setIsLoading(false)
       return
     }
 
@@ -188,13 +194,17 @@ export default function PushNotificationCenter() {
   const shouldShowBanner = permissionState !== "granted" || isProfileRoute
 
   const handleRequestPermission = async () => {
-    await requestNotificationPermissionIfNeeded()
+    const permission = await requestNotificationPermissionIfNeeded()
+    if (permission !== "granted") {
+      setSyncErrorMessage(null)
+    }
     await refreshState({ syncSubscription: true })
   }
 
   const handleConnectPush = async () => {
     if (!token) return
-    await syncBrowserPushSubscription(token)
+    const syncResult = await syncBrowserPushSubscription(token)
+    setSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
     await refreshState()
   }
 
@@ -232,6 +242,8 @@ export default function PushNotificationCenter() {
       {permissionState === "denied" ? (
         <p className={styles.hint}>Уведомления заблокированы. Включи их в настройках браузера для этого сайта.</p>
       ) : null}
+
+      {syncErrorMessage ? <p className={styles.hint}>{syncErrorMessage}</p> : null}
 
       {!isPushConfigured ? (
         <p className={styles.hint}>Серверный push пока не настроен: добавь VAPID-ключи в backend.</p>

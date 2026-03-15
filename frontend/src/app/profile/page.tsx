@@ -7,7 +7,12 @@ import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
 import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter"
 import { getAuthToken } from "@/lib/auth"
 import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
-import { fetchPushStatus, isPushSupportedInBrowser, syncBrowserPushSubscription } from "@/lib/push"
+import {
+  fetchPushStatus,
+  getPushSyncErrorMessage,
+  isPushSupportedInBrowser,
+  syncBrowserPushSubscription,
+} from "@/lib/push"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
@@ -40,6 +45,7 @@ const Profile = () => {
   const [pushPermission, setPushPermission] = useState<PushPermissionState>(getPushPermissionState)
   const [isPushConfigured, setIsPushConfigured] = useState(false)
   const [hasPushSubscription, setHasPushSubscription] = useState(false)
+  const [pushSyncErrorMessage, setPushSyncErrorMessage] = useState<string | null>(null)
   const [isPushLoading, setIsPushLoading] = useState(false)
   const settingsRef = useRef<HTMLDivElement | null>(null)
 
@@ -80,12 +86,16 @@ const Profile = () => {
     if (!token || !isPushSupportedInBrowser()) {
       setIsPushConfigured(false)
       setHasPushSubscription(false)
+      setPushSyncErrorMessage(null)
       return
     }
 
     const pushStatus = await fetchPushStatus(token)
     setIsPushConfigured(Boolean(pushStatus?.enabled))
     setHasPushSubscription(Boolean(pushStatus?.hasSubscription))
+    if (pushStatus?.hasSubscription || !pushStatus?.enabled || permission !== "granted") {
+      setPushSyncErrorMessage(null)
+    }
   }, [])
 
   useEffect(() => {
@@ -132,12 +142,16 @@ const Profile = () => {
       return "Заблокировано"
     }
 
+    if (pushSyncErrorMessage) {
+      return pushSyncErrorMessage
+    }
+
     if (!isPushConfigured) {
       return "Сервер не настроен"
     }
 
     return hasPushSubscription ? "Активно" : "Не подключено"
-  }, [hasPushSubscription, isPushConfigured, isPushLoading, pushPermission])
+  }, [hasPushSubscription, isPushConfigured, isPushLoading, pushPermission, pushSyncErrorMessage])
 
   const handlePushSettings = useCallback(async () => {
     setIsPushLoading(true)
@@ -147,13 +161,15 @@ const Profile = () => {
       setPushPermission(permission)
 
       if (permission !== "granted") {
+        setPushSyncErrorMessage(null)
         await refreshPushState()
         return
       }
 
       const token = getAuthToken()
       if (token) {
-        await syncBrowserPushSubscription(token)
+        const syncResult = await syncBrowserPushSubscription(token)
+        setPushSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
       }
 
       await refreshPushState()
@@ -280,7 +296,9 @@ const Profile = () => {
       </div>
 
       <div className={styles.support}>
-        <Link className={styles.link} href="/contacts">Контакты и помощь</Link>
+        <Link className={styles.link} href="/contacts">
+          Контакты и помощь
+        </Link>
       </div>
 
       <PushNotificationCenter />

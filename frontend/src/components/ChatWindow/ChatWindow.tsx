@@ -7,9 +7,17 @@ type ChatWindowProps = {
   messages: Message[]
   currentUsername?: string
   onReplyMessage?: (message: Message) => void
+  onDeleteMessage?: (message: Message) => void
+  canDeleteOwnMessages?: boolean
 }
 
-export default function ChatWindow({ messages, currentUsername, onReplyMessage }: ChatWindowProps) {
+export default function ChatWindow({
+  messages,
+  currentUsername,
+  onReplyMessage,
+  onDeleteMessage,
+  canDeleteOwnMessages = false,
+}: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -28,6 +36,8 @@ export default function ChatWindow({ messages, currentUsername, onReplyMessage }
               message={message}
               currentUsername={currentUsername}
               onReply={onReplyMessage}
+              onDelete={onDeleteMessage}
+              canDeleteOwnMessage={canDeleteOwnMessages}
             />
           ))}
           <div ref={bottomRef} />

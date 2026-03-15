@@ -67,16 +67,40 @@
 }
 
 .date {
-  display: flex;
-  justify-content: flex-end;
-  align-self: flex-end;
-  padding-top: 5px;
+  display: inline-flex;
   color: var(--text-muted);
   font-family: "Inter", sans-serif;
   font-size: 10px;
   font-style: normal;
   font-weight: 400;
   line-height: 15px;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 5px;
+}
+
+.deleteButton {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+
+  &:hover {
+    color: #cf5a5a;
+  }
+}
+
+html[data-theme="dark"] .deleteButton {
+  color: color-mix(in srgb, var(--text-muted) 75%, #fff 25%);
 }
 
 html[data-theme="dark"] .bubble {

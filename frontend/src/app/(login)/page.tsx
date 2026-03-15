@@ -79,7 +79,7 @@ export default function LoginPage() {
         <form className={styles.form} onSubmit={handleLoginSubmit} noValidate>
           <div className={styles.fieldGroup}>
             <label htmlFor="email" className={styles.label}>
-              Email или username
+              Email or username
             </label>
             <input
               id="email"
@@ -87,7 +87,7 @@ export default function LoginPage() {
               type="text"
               value={email}
               autoComplete="username"
-              placeholder="Введите email или username"
+              placeholder="Enter your email or username"
               aria-invalid={Boolean(fieldErrors.email)}
               onChange={(e) => {
                 setEmail(e.target.value)
