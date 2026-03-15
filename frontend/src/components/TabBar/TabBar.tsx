@@ -6,6 +6,7 @@ import styles from "@/components/TabBar/TabBar.module.scss"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
 import { getAuthToken } from "@/lib/auth"
+import { CHAT_UNREAD_CHANGED_EVENT } from "@/lib/chatUnreadEvents"
 import { fetchUnreadSummary } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 
@@ -14,7 +15,6 @@ const UNREAD_REFRESH_INTERVAL_MS = 15_000
 export default function TabBar() {
   const pathname = usePathname()
   const { socket } = usePresenceSocket()
-  const [token, setToken] = useState<string | null>(null)
   const [unreadCount, setUnreadCount] = useState(0)
   const hiddenRoutes = ["/", "/register"]
   const shouldHideTabBar = hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
@@ -22,6 +22,7 @@ export default function TabBar() {
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
 
   const refreshUnreadCount = useCallback(async () => {
+    const token = getAuthToken()
     if (!token) {
       setUnreadCount(0)
       return
@@ -29,25 +30,18 @@ export default function TabBar() {
 
     const unreadSummary = await fetchUnreadSummary(token)
     setUnreadCount(Number(unreadSummary?.totalUnread ?? 0))
-  }, [token])
+  }, [])
+  console.log(`Unread count: ${unreadCount}`)
 
   useEffect(() => {
-    setToken(getAuthToken())
-  }, [pathname])
-
-  useEffect(() => {
-    const syncToken = () => setToken(getAuthToken())
-
-    window.addEventListener("focus", syncToken)
-    window.addEventListener("storage", syncToken)
-    document.addEventListener("visibilitychange", syncToken)
+    const timeoutId = window.setTimeout(() => {
+      void refreshUnreadCount()
+    }, 0)
 
     return () => {
-      window.removeEventListener("focus", syncToken)
-      window.removeEventListener("storage", syncToken)
-      document.removeEventListener("visibilitychange", syncToken)
+      window.clearTimeout(timeoutId)
     }
-  }, [])
+  }, [pathname, refreshUnreadCount])
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +92,18 @@ export default function TabBar() {
       socket.off("newMessage", handleMessageEvent)
     }
   }, [refreshUnreadCount, socket])
+
+  useEffect(() => {
+    const handleUnreadChanged = () => {
+      void refreshUnreadCount()
+    }
+
+    window.addEventListener(CHAT_UNREAD_CHANGED_EVENT, handleUnreadChanged)
+
+    return () => {
+      window.removeEventListener(CHAT_UNREAD_CHANGED_EVENT, handleUnreadChanged)
+    }
+  }, [refreshUnreadCount])
 
   if (shouldHideTabBar) {
     return null

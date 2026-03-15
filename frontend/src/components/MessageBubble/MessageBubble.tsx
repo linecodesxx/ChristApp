@@ -1,4 +1,4 @@
-import { useRef, type TouchEvent } from "react"
+import { useRef, type MouseEvent, type TouchEvent } from "react"
 import type { Message } from "@/types/message"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 
@@ -6,12 +6,20 @@ type MessageBubbleProps = {
   message: Message
   currentUsername?: string
   onReply?: (message: Message) => void
+  onDelete?: (message: Message) => void
+  canDeleteOwnMessage?: boolean
 }
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
 
-export default function MessageBubble({ message, currentUsername, onReply }: MessageBubbleProps) {
+export default function MessageBubble({
+  message,
+  currentUsername,
+  onReply,
+  onDelete,
+  canDeleteOwnMessage = false,
+}: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
 
@@ -63,6 +71,11 @@ export default function MessageBubble({ message, currentUsername, onReply }: Mes
     handleReplyIntent()
   }
 
+  const handleDeleteClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onDelete?.(message)
+  }
+
   return (
     <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {message.replyTo ? (
@@ -75,7 +88,22 @@ export default function MessageBubble({ message, currentUsername, onReply }: Mes
       <p className={styles.messageContent}>
         <strong>{message.username || "Unknown"}:</strong> {message.content}
       </p>
-      <span className={styles.date}>{formattedDate}</span>
+
+      <div className={styles.metaRow}>
+        {isOwnMessage && canDeleteOwnMessage ? (
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={handleDeleteClick}
+            aria-label="Удалить сообщение"
+            title="Удалить сообщение"
+          >
+            Удалить
+          </button>
+        ) : null}
+
+        <span className={styles.date}>{formattedDate}</span>
+      </div>
     </article>
   )
 }

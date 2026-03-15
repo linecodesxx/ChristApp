@@ -5,6 +5,7 @@ import "@/styles/globals.scss"
 import TabBar from "@/components/TabBar/TabBar"
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
+import PushAutoSync from "@/components/PushAutoSync/PushAutoSync"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
 import type { Metadata, Viewport } from "next"
 
@@ -33,6 +34,7 @@ export default function RootLayout({
     <html lang="ru" data-theme="dark">
       <body className={`${inter.variable} ${geistMono.variable}`}>
         <PwaRegistration />
+        <PushAutoSync />
         <PresenceSocket>
           <ThemeToggle />
           <main className={styles.main}>{children}</main>

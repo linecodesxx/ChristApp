@@ -192,10 +192,10 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [] }: ChatListProps) =
         </div>
 
         <ul className={styles.chatList}>
-          <span className={styles.pinnedLabel}>
+          {/* <span className={styles.pinnedLabel}>
             <Image src="/icon-pinned.svg" alt="Pinned" width={12} height={12} />
             Pinned
-          </span>
+          </span> */}
 
           {list.map((chat) => (
             <li key={chat.id} className={styles.chatItem}>

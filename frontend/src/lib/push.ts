@@ -11,13 +11,37 @@ export type PushPublicKeyResponse = {
   publicKey: string | null
 }
 
+export type UnreadSummaryRoomLastMessage = {
+  id: string
+  content: string
+  createdAt: string
+  senderId: string
+  senderUsername: string
+}
+
+export type UnreadSummaryRoom = {
+  roomId: string
+  unread: number
+  lastMessage: UnreadSummaryRoomLastMessage | null
+}
+
 export type UnreadSummaryResponse = {
   totalUnread: number
-  rooms: Array<{
-    roomId: string
-    unread: number
-  }>
+  rooms: UnreadSummaryRoom[]
 }
+
+export type PushSyncFailureReason =
+  | 'unsupported'
+  | 'permission-not-granted'
+  | 'public-key-fetch-failed'
+  | 'server-disabled'
+  | 'invalid-subscription'
+  | 'subscribe-request-failed'
+  | 'unexpected-error'
+
+export type PushSyncResult =
+  | { success: true }
+  | { success: false; reason: PushSyncFailureReason }
 
 export function isPushSupportedInBrowser() {
   return (
@@ -80,13 +104,32 @@ export async function fetchUnreadSummary(token: string): Promise<UnreadSummaryRe
   }
 }
 
-export async function syncBrowserPushSubscription(token: string) {
+export function getPushSyncErrorMessage(reason: PushSyncFailureReason) {
+  switch (reason) {
+    case 'unsupported':
+      return 'Устройство или браузер не поддерживает Push API.'
+    case 'permission-not-granted':
+      return 'Браузер не выдал разрешение на уведомления.'
+    case 'public-key-fetch-failed':
+      return 'Не удалось получить push-ключ с сервера.'
+    case 'server-disabled':
+      return 'Push на сервере отключен или не настроен.'
+    case 'invalid-subscription':
+      return 'Браузер вернул некорректную push-подписку.'
+    case 'subscribe-request-failed':
+      return 'Сервер не принял push-подписку.'
+    default:
+      return 'Не удалось подключить push из-за непредвиденной ошибки.'
+  }
+}
+
+export async function syncBrowserPushSubscription(token: string): Promise<PushSyncResult> {
   if (!isPushSupportedInBrowser()) {
-    return { success: false as const, reason: 'unsupported' as const }
+    return { success: false, reason: 'unsupported' }
   }
 
   if (Notification.permission !== 'granted') {
-    return { success: false as const, reason: 'permission-not-granted' as const }
+    return { success: false, reason: 'permission-not-granted' }
   }
 
   try {
@@ -102,12 +145,12 @@ export async function syncBrowserPushSubscription(token: string) {
       })
 
       if (!publicKeyResponse.ok) {
-        return { success: false as const, reason: 'public-key-fetch-failed' as const }
+        return { success: false, reason: 'public-key-fetch-failed' }
       }
 
       const publicKeyPayload = (await publicKeyResponse.json()) as PushPublicKeyResponse
       if (!publicKeyPayload.enabled || !publicKeyPayload.publicKey) {
-        return { success: false as const, reason: 'server-disabled' as const }
+        return { success: false, reason: 'server-disabled' }
       }
 
       subscription = await registration.pushManager.subscribe({
@@ -118,7 +161,7 @@ export async function syncBrowserPushSubscription(token: string) {
 
     const payload = subscriptionToPayload(subscription)
     if (!payload) {
-      return { success: false as const, reason: 'invalid-subscription' as const }
+      return { success: false, reason: 'invalid-subscription' }
     }
 
     const subscribeResponse = await fetch(`${API_URL}/push/subscribe`, {
@@ -131,12 +174,12 @@ export async function syncBrowserPushSubscription(token: string) {
     })
 
     if (!subscribeResponse.ok) {
-      return { success: false as const, reason: 'subscribe-request-failed' as const }
+      return { success: false, reason: 'subscribe-request-failed' }
     }
 
-    return { success: true as const }
+    return { success: true }
   } catch {
-    return { success: false as const, reason: 'unexpected-error' as const }
+    return { success: false, reason: 'unexpected-error' }
   }
 }
 

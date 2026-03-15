@@ -362,6 +362,7 @@
   .chatList {
     display: flex;
     flex-direction: column;
+    padding-top: 10px;
 
     .pinnedLabel {
       padding-top: 12px;
