@@ -36,6 +36,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly GLOBAL_ROOM =
     process.env.GLOBAL_ROOM_ID ?? '00000000-0000-0000-0000-000000000001';
 
+  private readonly SHARE_WITH_JESUS_ROOM_PREFIX = 'share-with-jesus:';
+
   private static readonly DISCONNECT_GRACE_MS = 3000;
 
   constructor(
@@ -66,6 +68,41 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
       value,
     );
+  }
+
+  private getShareWithJesusRoomTitle(userId: string) {
+    return `${this.SHARE_WITH_JESUS_ROOM_PREFIX}${userId}`;
+  }
+
+  private async ensureShareWithJesusRoomForUser(userId: string) {
+    const roomTitle = this.getShareWithJesusRoomTitle(userId);
+
+    const room = await this.prisma.room.upsert({
+      where: {
+        title: roomTitle,
+      },
+      update: {},
+      create: {
+        title: roomTitle,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    await this.prisma.roomMember.upsert({
+      where: {
+        roomId_userId: {
+          roomId: room.id,
+          userId,
+        },
+      },
+      update: {},
+      create: {
+        roomId: room.id,
+        userId,
+      },
+    });
   }
 
   private normalizeToken(tokenCandidate: unknown) {
@@ -599,6 +636,80 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('deleteMessage')
+  async handleDeleteMessage(
+    @MessageBody() body: { messageId: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('deleteMessageResult', {
+        ok: false,
+        messageId: '',
+        error: 'Не авторизован',
+      });
+      return;
+    }
+
+    const messageId = body?.messageId?.trim();
+    if (!messageId) {
+      client.emit('deleteMessageResult', {
+        ok: false,
+        messageId: '',
+        error: 'messageId обязателен',
+      });
+      return;
+    }
+
+    try {
+      const result = await this.messagesService.deleteOwnGlobalMessage(
+        messageId,
+        user.id,
+        this.GLOBAL_ROOM,
+      );
+
+      if (!result.ok) {
+        const errorMessage =
+          result.reason === 'not-found'
+            ? 'Сообщение не найдено'
+            : result.reason === 'not-owner'
+              ? 'Можно удалять только свои сообщения'
+              : 'Удаление доступно только в общем чате';
+
+        client.emit('deleteMessageResult', {
+          ok: false,
+          messageId,
+          error: errorMessage,
+        });
+        return;
+      }
+
+      this.server.to(result.roomId).emit('messageDeleted', {
+        messageId: result.messageId,
+        roomId: result.roomId,
+      });
+
+      client.emit('deleteMessageResult', {
+        ok: true,
+        messageId: result.messageId,
+        roomId: result.roomId,
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error('[WS] deleteMessage failed:', {
+        messageId,
+        userId: user.id,
+        reason,
+      });
+
+      client.emit('deleteMessageResult', {
+        ok: false,
+        messageId,
+        error: 'Ошибка удаления сообщения',
+      });
+    }
+  }
+
   // ================= ACCESS CHECK =================
   private async checkRoomAccess(userId: string, roomId: string) {
     // К общему чату доступ есть у всех
@@ -626,6 +737,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private async getMyRoomsForUser(userId: string) {
     try {
+      await this.ensureShareWithJesusRoomForUser(userId);
+
       const hasValidGlobalRoomId = this.isUuid(this.GLOBAL_ROOM);
 
       const where = hasValidGlobalRoomId
