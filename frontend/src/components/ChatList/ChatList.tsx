@@ -202,6 +202,8 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [] }: ChatListProps) =
               {(() => {
                 const avatarColor = getAvatarColor(chat.id)
                 const unreadCount = typeof chat.unread === "number" ? chat.unread : chat.unread ? 1 : 0
+                console.log(unreadCount);
+                
 
                 const content = (
                   <div className={styles.chatItemContent}>
