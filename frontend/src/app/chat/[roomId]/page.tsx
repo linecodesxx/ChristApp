@@ -188,9 +188,7 @@ function shouldShowBrowserNotification(isOwnMessage: boolean) {
 }
 
 function normalizeRoomHistory(history: IncomingSocketMessage[] | undefined, currentUsername?: string) {
-  const normalizedHistory = (history ?? []).map((messageItem) =>
-    normalizeIncomingMessage(messageItem, currentUsername),
-  )
+  const normalizedHistory = (history ?? []).map((messageItem) => normalizeIncomingMessage(messageItem, currentUsername))
 
   const nextMessageIds = new Set<string>()
   const uniqueHistory: Message[] = []
@@ -700,12 +698,18 @@ export default function ChatPageDetails() {
     }
 
     if (directChatTargetUser) {
-      return isDirectTargetOnline
-        ? `${directChatTargetUser.username} онлайн`
-        : `${directChatTargetUser.username} не в сети`
+      return (
+        <>
+          {directChatTargetUser.username}{" "}
+          <span style={{ color: isDirectTargetOnline ? "#3CB371" : "#cb3a3a", paddingLeft: "5px" }}>
+            {" "}
+            {isDirectTargetOnline ? "онлайн" : "не в сети"}
+          </span>
+        </>
+      )
     }
 
-    return "Личный чат"
+    return ""
   })()
 
   const handleReplyMessage = (message: Message) => {
@@ -721,33 +725,36 @@ export default function ChatPageDetails() {
     setReplyToMessage(message)
   }
 
-  const handleDeleteOwnMessage = useCallback((message: Message) => {
-    if (roomId !== GLOBAL_ROOM_ID) {
-      return
-    }
+  const handleDeleteOwnMessage = useCallback(
+    (message: Message) => {
+      if (roomId !== GLOBAL_ROOM_ID) {
+        return
+      }
 
-    const socket = socketRef.current
-    if (!socket || !socket.connected) {
-      window.alert("Нет соединения с сервером. Попробуйте позже.")
-      return
-    }
+      const socket = socketRef.current
+      if (!socket || !socket.connected) {
+        window.alert("Нет соединения с сервером. Попробуйте позже.")
+        return
+      }
 
-    const isOwnMessage =
-      message.sender === "me" ||
-      (Boolean(user?.username) && message.username === user?.username) ||
-      message.username === "Ты"
+      const isOwnMessage =
+        message.sender === "me" ||
+        (Boolean(user?.username) && message.username === user?.username) ||
+        message.username === "Ты"
 
-    if (!isOwnMessage) {
-      return
-    }
+      if (!isOwnMessage) {
+        return
+      }
 
-    const confirmed = window.confirm("Удалить это сообщение из общего чата?")
-    if (!confirmed) {
-      return
-    }
+      const confirmed = window.confirm("Удалить это сообщение из общего чата?")
+      if (!confirmed) {
+        return
+      }
 
-    socket.emit("deleteMessage", { messageId: message.id })
-  }, [roomId, user])
+      socket.emit("deleteMessage", { messageId: message.id })
+    },
+    [roomId, user],
+  )
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     if (!socketRef.current || !roomId || !text.trim()) return false

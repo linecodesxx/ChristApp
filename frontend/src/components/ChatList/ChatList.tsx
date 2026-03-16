@@ -5,25 +5,16 @@ import Image from "next/image"
 import Link from "next/link"
 import styles from "@/components/ChatList/ChatList.module.scss"
 import { getInitials } from "@/lib/utils"
-
-const AVATAR_COLORS = ["#8B9E7E", "#7EA18F", "#9A8BB5", "#7C97C4", "#B08A7E", "#7FA8A8", "#9B8F77", "#8C8FAE"]
-
-function getAvatarColor(seed: string) {
-  let hash = 0
-  for (let index = 0; index < seed.length; index += 1) {
-    hash = (hash << 5) - hash + seed.charCodeAt(index)
-    hash |= 0
-  }
-
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length]
-}
+import { getAvatarColor } from "@/lib/avatarColor"
 
 export type ChatListItem = {
   id: string
   title: string
   preview?: string
   timeLabel?: string
-  avatarInitials: string
+  avatarInitials?: string
+  avatarImage?: string
+  avatarClass?: string
   unread?: boolean | number
   href?: string
   isOnline?: boolean
@@ -206,9 +197,19 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [] }: ChatListProps) =
                 const content = (
                   <div className={styles.chatItemContent}>
                     <div className={styles.avatarWrapper}>
-                      <div className={styles.avatarInitials} style={{ backgroundColor: avatarColor }}>
-                        {chat.avatarInitials}
-                      </div>
+                      {chat.avatarImage ? (
+                        <Image
+                          src={chat.avatarImage}
+                          alt={chat.title}
+                          width={40}
+                          height={40}
+                          className={chat.avatarClass ? `${styles.avatarImage} ${chat.avatarClass}` : styles.avatarImage}
+                        />
+                      ) : (
+                        <div className={styles.avatarInitials} style={{ backgroundColor: avatarColor }}>
+                          {chat.avatarInitials}
+                        </div>
+                      )}
                       {chat.isOnline ? <span className={styles.avatarOnlineDot} /> : null}
                     </div>
                     <div className={styles.chatInfo}>

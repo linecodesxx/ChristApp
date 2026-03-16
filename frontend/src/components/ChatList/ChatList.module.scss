@@ -402,7 +402,6 @@
         padding: 11px 17px;
         max-width: 100%;
         border-radius: 16px;
-        // border: 1px solid #f5f0ea;
         background: var(--surface-elevated);
         box-shadow:
           0 1px 2px 0 rgba(0, 0, 0, 0.05),
@@ -418,6 +417,14 @@
           width: 40px;
           height: 40px;
           flex-shrink: 0;
+          border-radius: 50%;
+          object-fit: cover;
+
+          img {
+            border-radius: 50%;
+            object-fit: cover;
+            background: white;
+          }
         }
 
         .avatarInitials {

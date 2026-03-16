@@ -1,13 +1,13 @@
 .nav {
-  height: calc(80px + env(safe-area-inset-bottom));
+  height: calc(100% - 80px);
   padding-bottom: env(safe-area-inset-bottom);
   display: flex;
   justify-content: space-around;
   align-items: center;
+  padding: 10px 0;
   gap: 12px;
   border-top: 1px solid var(--line-soft);
   color: var(--foreground);
-  // background: var(--surface);
   border-radius: 30px;
   box-shadow:
     0 4px 8px 0 rgba(0, 0, 0, 0.1),
