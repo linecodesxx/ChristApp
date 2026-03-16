@@ -8,10 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { fetchUnreadSummary, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
-import {
-  normalizeNotificationBody,
-  showChatNotification,
-} from "@/lib/notifications"
+import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
 
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
@@ -43,11 +40,11 @@ function createShareWithJesusChatItem(roomId: string, previous?: ChatListItem): 
   return {
     id: SHARE_WITH_JESUS_CHAT_ID,
     title: SHARE_WITH_JESUS_CHAT_TITLE,
-    avatarInitials: getInitials(SHARE_WITH_JESUS_CHAT_TITLE),
+    avatarImage: "/jesusAvatar.svg",
+    avatarClass: "jesusAvatar",
     href: `/chat/${roomId}`,
     preview: previous?.preview ?? "",
     timeLabel: previous?.timeLabel ?? "",
-    unread: previous?.unread ?? 0,
   }
 }
 
@@ -265,11 +262,14 @@ export default function ChatPage() {
     })
   }, [])
 
-  const syncOnlinePresence = useCallback((nextOnlineIds: Set<string>) => {
-    onlineUserIdsRef.current = nextOnlineIds
-    setOnlineUserIds((prev) => (areSetsEqual(prev, nextOnlineIds) ? prev : nextOnlineIds))
-    applyOnlinePresenceToRooms(nextOnlineIds)
-  }, [applyOnlinePresenceToRooms])
+  const syncOnlinePresence = useCallback(
+    (nextOnlineIds: Set<string>) => {
+      onlineUserIdsRef.current = nextOnlineIds
+      setOnlineUserIds((prev) => (areSetsEqual(prev, nextOnlineIds) ? prev : nextOnlineIds))
+      applyOnlinePresenceToRooms(nextOnlineIds)
+    },
+    [applyOnlinePresenceToRooms],
+  )
 
   const applyUnreadSummary = useCallback(
     (summary: UnreadSummaryResponse) => {
@@ -346,9 +346,10 @@ export default function ChatPage() {
           return leftRoom.title.localeCompare(rightRoom.title, "ru", { sensitivity: "base" })
         })
 
-        const orderedRooms = globalRoom
-          ? [globalRoom, ...(shareWithJesusRoom ? [shareWithJesusRoom] : []), ...sortedDirectRooms]
-          : [...(shareWithJesusRoom ? [shareWithJesusRoom] : []), ...sortedDirectRooms]
+        // Ставим "Поделись с Иисусом" первым, затем общий чат, затем остальные
+        const orderedRooms = shareWithJesusRoom
+          ? [shareWithJesusRoom, ...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
+          : [...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
         const hasOrderChanges = orderedRooms.some((room, index) => room.id !== prev[index]?.id)
 
         return hasUpdates || hasOrderChanges ? orderedRooms : prev
@@ -600,8 +601,8 @@ export default function ChatPage() {
       directUserIdToRoomIdRef.current = nextUserToRoom
 
       setRooms([
-        globalRoom,
         ...(shareWithJesusRoom ? [shareWithJesusRoom] : []),
+        globalRoom,
         ...Array.from(directChatsByUserId.values()),
       ])
       void refreshUnreadSummary()
@@ -688,9 +689,7 @@ export default function ChatPage() {
       }
 
       const previewContent =
-        mappedId === GLOBAL_ROOM_ID && msg.username
-          ? `${msg.username}: ${normalizedContent}`
-          : normalizedContent
+        mappedId === GLOBAL_ROOM_ID && msg.username ? `${msg.username}: ${normalizedContent}` : normalizedContent
 
       setRooms((prev) =>
         (() => {
@@ -701,7 +700,8 @@ export default function ChatPage() {
                 ? prependShareWithJesusRoomIfMissing(prev, directRoomId)
                 : prependDirectRoomIfMissing(prev, {
                     userId: mappedId,
-                    title: usersRef.current.find((existingUser) => existingUser.id === mappedId)?.username ?? "Личный чат",
+                    title:
+                      usersRef.current.find((existingUser) => existingUser.id === mappedId)?.username ?? "Личный чат",
                     isOnline: onlineUserIdsRef.current.has(mappedId),
                   })
               : prev
@@ -789,41 +789,44 @@ export default function ChatPage() {
     }
   }, [refreshUnreadSummary, router, socket, syncOnlinePresence, user?.id, user?.username])
 
-  const handleCreateChat = useCallback((targetUserId: string) => {
-    if (!user) return
+  const handleCreateChat = useCallback(
+    (targetUserId: string) => {
+      if (!user) return
 
-    const targetUser = usersById.get(targetUserId)
-    if (!targetUser) {
-      window.alert("Пользователь не найден")
-      return
-    }
+      const targetUser = usersById.get(targetUserId)
+      if (!targetUser) {
+        window.alert("Пользователь не найден")
+        return
+      }
 
-    if (targetUser.id === user.id) {
-      window.alert("Нельзя создать чат с собой")
-      return
-    }
+      if (targetUser.id === user.id) {
+        window.alert("Нельзя создать чат с собой")
+        return
+      }
 
-    const existingDirectRoomId = directUserIdToRoomIdRef.current.get(targetUser.id)
-    if (existingDirectRoomId) {
-      router.push(`/chat/${targetUser.id}`)
-      return
-    }
+      const existingDirectRoomId = directUserIdToRoomIdRef.current.get(targetUser.id)
+      if (existingDirectRoomId) {
+        router.push(`/chat/${targetUser.id}`)
+        return
+      }
 
-    if (!socket || !socket.connected) {
-      window.alert("Сокет не подключен. Попробуй через пару секунд")
-      return
-    }
+      if (!socket || !socket.connected) {
+        window.alert("Сокет не подключен. Попробуй через пару секунд")
+        return
+      }
 
-    setRooms((prev) =>
-      prependDirectRoomIfMissing(prev, {
-        userId: targetUser.id,
-        title: targetUser.username,
-        isOnline: onlineUserIdsRef.current.has(targetUser.id),
-      }),
-    )
+      setRooms((prev) =>
+        prependDirectRoomIfMissing(prev, {
+          userId: targetUser.id,
+          title: targetUser.username,
+          isOnline: onlineUserIdsRef.current.has(targetUser.id),
+        }),
+      )
 
-    socket.emit("openDirectRoom", { targetUserId: targetUser.id })
-  }, [router, socket, user, usersById])
+      socket.emit("openDirectRoom", { targetUserId: targetUser.id })
+    },
+    [router, socket, user, usersById],
+  )
 
   const chatItems =
     rooms.length > 0
