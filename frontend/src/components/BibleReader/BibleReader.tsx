@@ -189,7 +189,20 @@ export default function BibleReader() {
   }
 
   if (!currentBook) {
-    return <div>Loading...</div>
+    // Скелетон для загрузки Библии
+    return (
+      <section className={styles.bibleReader}>
+        <div className={styles.headerBar}>
+          <div className={styles.skeletonTitle} />
+          <div className={styles.skeletonSelect} />
+        </div>
+        <section className={styles.versesSection}>
+          {Array.from({ length: 15 }).map((_, i) => (
+            <div key={i} className={styles.skeletonVerse} />
+          ))}
+        </section>
+      </section>
+    )
   }
 
   return (

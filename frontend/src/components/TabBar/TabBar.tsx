@@ -31,7 +31,6 @@ export default function TabBar() {
     const unreadSummary = await fetchUnreadSummary(token)
     setUnreadCount(Number(unreadSummary?.totalUnread ?? 0))
   }, [])
-  console.log(`Unread count: ${unreadCount}`)
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
