@@ -73,7 +73,7 @@ model RoomReadState {
   roomId     String   @db.Uuid
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
-  lastReadAt DateTime @default(now())
+  lastReadAt DateTime @default(dbgenerated("to_timestamp(0)"))
   updatedAt  DateTime @updatedAt
 
   @@id([roomId, userId])
