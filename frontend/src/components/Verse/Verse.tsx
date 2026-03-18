@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, memo } from "react"
 import styles from "./Verse.module.scss"
 import { saveVerse } from "@/lib/versesApi"
 import Image from "next/image"
@@ -27,7 +27,7 @@ type VerseProps = {
   showInlineActions?: boolean
 }
 
-export default function Verse({
+function Verse({
   verse,
   text,
   bookName,
@@ -41,16 +41,22 @@ export default function Verse({
   showInlineActions,
 }: VerseProps) {
   const [isClicked, setIsClicked] = useState(false)
+  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  
+  const isSelected = typeof selected === "boolean" ? selected : isClicked
+  const verseKey = `${bookName ?? ""}|${chapter ?? 0}|${verse}|${text}`
+  
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
+  
   const [isCopied, setIsCopied] = useState(false)
   const [isActionsVisible, setIsActionsVisible] = useState(false)
-  const [selectedColor, setSelectedColor] = useState<string | null>(null)
+  
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const verseReference = `${bookName ? `${bookName} ` : ""}${chapter ? `${chapter}:` : ""}${verse}`
   const verseLine = `${verseReference} - ${text}`
-  const verseKey = `${bookName ?? ""}|${chapter ?? 0}|${verse}|${text}`
-  const isSelected = typeof selected === "boolean" ? selected : isClicked
+  
+  
 
   void onBookClick
   void onChapterClick
@@ -285,3 +291,7 @@ export default function Verse({
     </div>
   )
 }
+
+export default memo(Verse, (prev, next) => {
+  return prev.selected === next.selected && prev.text === next.text
+})
