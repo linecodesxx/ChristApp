@@ -8,12 +8,20 @@
         align-items: center;
         gap: 16px;
         margin-bottom: 16px;
+        
+        > * {
+                min-width: 0; // 🔥 КРИТИЧНО для обрезки текста
+                flex: 1;      // кнопки будут одинаковые
+            }
 
         .clickable {
             cursor: pointer;
             border: 1px solid var(--login-card-border);
             padding: 8px 10px;
             border-radius: 64px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
 
         select {
@@ -26,6 +34,9 @@
             font-size: 20px;
             cursor: pointer;
             outline: none;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
         }
     }
 
@@ -191,11 +202,11 @@
     }
 
     .floatingNavLeft {
-        left: 5px;
+        left: 100px;
     }
 
     .floatingNavRight {
-        right: 5px;
+        right: 100px;
     }
 
     .versesSection {

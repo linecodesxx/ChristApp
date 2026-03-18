@@ -1,30 +1,50 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Verse from "@/components/Verse/Verse"
-import { fetchChapters, fetchBooks, fetchFullChapter, fetchTranslations } from "@/lib/bibleApi"
+import {
+  fetchChapters,
+  fetchBooks,
+  fetchFullChapter,
+  fetchTranslations,
+} from "@/lib/bibleApi"
 import styles from "./BibleReader.module.scss"
 import Image from "next/image"
+import { useQuery } from "@tanstack/react-query"
 
 type VerseType = {
-  verseId: number
+  pk: number
+  verse: number
   text: string
 }
 
+type TranslationType = {
+  short_name: string
+  full_name: string
+  updated: number
+  language: string
+}
+
+type BookType = {
+  id: string
+  name: string
+  chapters: number
+}
+
 type ModalStep = "testament" | "books" | "chapters"
+
 const SHOW_VERSE_ACTIONS = true
 const LAST_READ_STORAGE_KEY = "lastRead"
 const SESSION_HIGHLIGHTS_KEY = "bible-reader-highlights"
 
 export default function BibleReader() {
-  const [books, setBooks] = useState<string[]>([])
+  const [books, setBooks] = useState<BookType[]>([])
   const [chapters, setChapters] = useState<number[]>([])
-  const [translations, setTranslations] = useState<string[]>([])
+  const [translations, setTranslations] = useState<TranslationType[]>([])
   const [translation, setTranslation] = useState("NRT")
 
-  const [currentBook, setCurrentBook] = useState<string | null>(null)
+  const [currentBook, setCurrentBook] = useState<BookType | null>(null)
   const [currentChapter, setCurrentChapter] = useState(1)
-  const [verses, setVerses] = useState<VerseType[]>([])
 
   const [highlights, setHighlights] = useState<Set<string>>(new Set())
   const [isHighlightsHydrated, setIsHighlightsHydrated] = useState(false)
@@ -36,45 +56,28 @@ export default function BibleReader() {
   const touchStartX = useRef(0)
 
   // ===== LOAD CHAPTER =====
-  const loadChapter = useCallback(async (book: string | null, chapter: number) => {
-    if (!book) {
-      console.error("Book is undefined")
-      return
-    }
+  const loadChapter = useCallback((book: BookType, chapter: number) => {
+    setCurrentBook(book)
+    setCurrentChapter(chapter)
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  
+    localStorage.setItem(
+      LAST_READ_STORAGE_KEY,
+      JSON.stringify({ bookId: book.id, chapter }),
+    )
+  }, [])
 
-    try {
-      const versesData = await fetchFullChapter(book, chapter, translation)
-
-      setVerses(versesData)
-      setCurrentBook(book)
-      setCurrentChapter(chapter)
-
-      localStorage.setItem(LAST_READ_STORAGE_KEY, JSON.stringify({ book, chapter }))
-
-      window.scrollTo({ top: 0, behavior: "smooth" })
-    } catch (err) {
-      console.error("Failed to load chapter", err)
-    }
-  }, [translation])
-
+  
+  
+  // ===== HIGHLIGHTS =====
   useEffect(() => {
     if (typeof window === "undefined") return
-
     try {
-      const rawValue = window.sessionStorage.getItem(SESSION_HIGHLIGHTS_KEY)
-      if (!rawValue) {
-        setHighlights(new Set())
-        return
-      }
-
-      const parsed = JSON.parse(rawValue)
-      if (!Array.isArray(parsed)) {
-        setHighlights(new Set())
-        return
-      }
-
-      const nextHighlights = new Set(parsed.filter((item): item is string => typeof item === "string"))
-      setHighlights(nextHighlights)
+      const raw = window.sessionStorage.getItem(SESSION_HIGHLIGHTS_KEY)
+      if (!raw) return setHighlights(new Set())
+      const parsed = JSON.parse(raw)
+      if (!Array.isArray(parsed)) return setHighlights(new Set())
+      setHighlights(new Set(parsed.filter((x: any) => typeof x === "string")))
     } catch {
       setHighlights(new Set())
     } finally {
@@ -84,71 +87,62 @@ export default function BibleReader() {
 
   useEffect(() => {
     if (!isHighlightsHydrated || typeof window === "undefined") return
-
     try {
-      const serializedHighlights = JSON.stringify(Array.from(highlights))
-      window.sessionStorage.setItem(SESSION_HIGHLIGHTS_KEY, serializedHighlights)
-    } catch {
-      // no-op: sessionStorage may be unavailable
-    }
+      window.sessionStorage.setItem(
+        SESSION_HIGHLIGHTS_KEY,
+        JSON.stringify(Array.from(highlights)),
+      )
+    } catch {}
   }, [highlights, isHighlightsHydrated])
 
   // ===== INIT =====
   useEffect(() => {
     async function init() {
-      const [translationsData, booksData] = await Promise.all([fetchTranslations(), fetchBooks(translation)])
-
+      const [translationsData, booksData] = await Promise.all([
+        fetchTranslations(),
+        fetchBooks(translation),
+      ])
       setTranslations(translationsData)
       setBooks(booksData)
 
-      if (!booksData || booksData.length === 0) {
-        console.error("Books list is empty")
-        return
-      }
+      if (!booksData.length) return
 
       let bookToLoad = booksData[0]
       let chapterToLoad = 1
 
+      // Пытаемся восстановить последний прочитанный
       try {
-        const rawLastRead = window.localStorage.getItem(LAST_READ_STORAGE_KEY)
-        if (rawLastRead) {
-          const parsedLastRead = JSON.parse(rawLastRead) as { book?: string; chapter?: number }
-          if (parsedLastRead.book && booksData.includes(parsedLastRead.book)) {
-            bookToLoad = parsedLastRead.book
-          }
+        const raw = window.localStorage.getItem(LAST_READ_STORAGE_KEY)
+        if (raw) {
+          const parsed = JSON.parse(raw) as { bookId?: string; chapter?: number }
+          const found = booksData.find((b) => b.id === parsed.bookId)
+          if (found) bookToLoad = found
+          if (parsed.chapter) chapterToLoad = parsed.chapter
         }
-      } catch {
-        // no-op: localStorage may be unavailable
-      }
+      } catch {}
 
-      const selectedBookChapters = await fetchChapters(bookToLoad, translation)
+      const bookChapters = await fetchChapters(bookToLoad.id, translation)
+      if (!bookChapters.includes(chapterToLoad)) chapterToLoad = 1
+      setChapters(bookChapters)
 
-      try {
-        const rawLastRead = window.localStorage.getItem(LAST_READ_STORAGE_KEY)
-        if (rawLastRead) {
-          const parsedLastRead = JSON.parse(rawLastRead) as { book?: string; chapter?: number }
-          if (
-            parsedLastRead.book === bookToLoad
-            && typeof parsedLastRead.chapter === "number"
-            && selectedBookChapters.includes(parsedLastRead.chapter)
-          ) {
-            chapterToLoad = parsedLastRead.chapter
-          }
-        }
-      } catch {
-        // no-op: localStorage may be unavailable
-      }
-
-      setChapters(selectedBookChapters)
-      await loadChapter(bookToLoad, chapterToLoad)
+      loadChapter(bookToLoad, chapterToLoad)
     }
-
     init()
   }, [translation, loadChapter])
 
   // ===== TESTAMENT FILTER =====
-  const oldTestamentBooks = books.slice(27)
-  const newTestamentBooks = books.slice(0, 27)
+  const oldTestamentBooks = books.filter((b) => {
+    // ID первых 39 книг – Ветхий Завет (GEN…MAL)
+    const oldIds = [
+      "GEN", "EXO", "LEV", "NUM", "DEU", "JOS", "JDG", "RUT", "1SA", "2SA",
+      "1KI", "2KI", "1CH", "2CH", "EZR", "NEH", "EST", "JOB", "PSA", "PRO",
+      "ECC", "SNG", "ISA", "JER", "LAM", "EZK", "DAN", "HOS", "JOL", "AMO",
+      "OBA", "JON", "MIC", "NAM", "HAB", "ZEP", "HAG", "ZEC", "MAL",
+    ]
+    return oldIds.includes(b.id)
+  })
+
+  const newTestamentBooks = books.filter((b) => !oldTestamentBooks.includes(b))
   const testamentBooks = selectedTestament === "old" ? oldTestamentBooks : newTestamentBooks
 
   // ===== NAVIGATION =====
@@ -156,53 +150,73 @@ export default function BibleReader() {
     if (!currentBook) return
     loadChapter(currentBook, currentChapter + 1)
   }
-
   const goPrev = () => {
     if (!currentBook || currentChapter <= 1) return
     loadChapter(currentBook, currentChapter - 1)
   }
 
-  const getHighlightKey = (book: string, chapter: number, verse: number) => `${book}|${chapter}|${verse}`
-
-  // ===== HIGHLIGHT =====
-  const handleVerseClick = (v: number) => {
+  const getHighlightKey = (bookId: string, chapter: number, verse: number) =>
+    `${bookId}|${chapter}|${verse}`
+  
+  
+  const handleVerseClick = useCallback( (verse: number) => {
     if (!currentBook) return
-    const highlightKey = getHighlightKey(currentBook, currentChapter, v)
-
+    
+    const key = getHighlightKey(currentBook.id, currentChapter, verse)
+    
     setHighlights((prev) => {
       const next = new Set(prev)
-      if (next.has(highlightKey)) next.delete(highlightKey)
-      else next.add(highlightKey)
+      
+      next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
-  }
+  },
+    [currentBook, currentChapter]
+  )
 
-  // ===== TOUCH =====
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX
-  }
-
+  const handleTouchStart = (e: React.TouchEvent) => (touchStartX.current = e.touches[0].clientX)
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diff = e.changedTouches[0].clientX - touchStartX.current
     if (diff > 70) goPrev()
     if (diff < -70) goNext()
   }
 
-  if (!currentBook) {
-    return <div>Loading...</div>
-  }
+  
 
+  const { data: verses, isLoading } = useQuery({
+    queryKey: ['chapter', translation, currentBook?.id, currentChapter],
+    queryFn: () => {
+      if (!currentBook) return Promise.resolve([] as VerseType[])
+      return fetchFullChapter(currentBook.id, currentChapter, translation)
+    },
+    staleTime: 1000 * 60 * 60, // 1 час
+  })
+  
+  
+  const memomizedVerses = useMemo(() => {
+    if (!currentBook || !verses) return []
+    
+    return verses.map((v) => ({
+        ...v,
+        selected: highlights.has(getHighlightKey(currentBook.id, currentChapter, v.verse)),
+      }))
+    }, [verses, highlights, currentBook, currentChapter])
+  
+  if (!currentBook || isLoading) return <div>Loading...</div>
+  
   return (
     <section className={styles.bibleReader} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {/* HEADER */}
       <div className={styles.headerBar}>
         <h2 className={styles.clickable} onClick={() => setIsSelectorOpen(true)}>
-          {currentBook} {currentChapter}
+          {currentBook.name} {currentChapter}
         </h2>
 
         <select value={translation} onChange={(e) => setTranslation(e.target.value)}>
           {translations.map((t) => (
-            <option key={t}>{t}</option>
+            <option key={t.short_name} value={t.short_name}>
+              {t.short_name} ({t.language})
+            </option>
           ))}
         </select>
       </div>
@@ -222,7 +236,6 @@ export default function BibleReader() {
               >
                 ← Назад
               </button>
-
               <button className={styles.closeModalButton} onClick={() => setIsSelectorOpen(false)}>
                 ✕
               </button>
@@ -243,7 +256,7 @@ export default function BibleReader() {
                   </button>
 
                   <button
-                    className={`${styles.testamentButton} ${selectedTestament === "old" ? styles.active : ""}`}
+                    className={`${styles.testamentButton} ${selectedTestament === "new" ? styles.active : ""}`}
                     onClick={() => {
                       setSelectedTestament("new")
                       setModalStep("books")
@@ -259,23 +272,18 @@ export default function BibleReader() {
               <div className={styles.modalBody}>
                 <h3>{selectedTestament === "old" ? "Ветхий Завет" : "Новый Завет"}</h3>
                 <div className={styles.booksList}>
-                  {testamentBooks.map((book) => (
+                  {testamentBooks.map((b) => (
                     <button
-                      className={`${styles.bookButton} ${currentBook === book ? styles.active : ""}`}
-                      key={book}
+                      className={`${styles.bookButton} ${currentBook.id === b.id ? styles.active : ""}`}
+                      key={b.id}
                       onClick={async () => {
-                        setCurrentBook(book)
-                        try {
-                          const selectedBookChapters = await fetchChapters(book, translation)
-                          setChapters(selectedBookChapters)
-                        } catch (err) {
-                          console.error("Failed to fetch chapters", err)
-                          setChapters([])
-                        }
+                        setCurrentBook(b)
+                        const bookChapters = await fetchChapters(b.id, translation)
+                        setChapters(bookChapters)
                         setModalStep("chapters")
                       }}
                     >
-                      {book}
+                      {b.name}
                     </button>
                   ))}
                 </div>
@@ -284,20 +292,20 @@ export default function BibleReader() {
 
             {modalStep === "chapters" && (
               <div className={styles.modalBody}>
-                <h3>{currentBook}</h3>
+                <h3>{currentBook.name}</h3>
                 <div className={styles.chaptersList}>
-                  {chapters.map((chap) => (
+                  {chapters.map((c) => (
                     <button
                       type="button"
-                      className={`${styles.chapterButton} ${currentChapter === chap ? styles.active : ""}`}
-                      key={chap}
+                      className={`${styles.chapterButton} ${currentChapter === c ? styles.active : ""}`}
+                      key={c}
                       onClick={() => {
-                        loadChapter(currentBook, chap)
+                        loadChapter(currentBook, c)
                         setIsSelectorOpen(false)
                         setModalStep("testament")
                       }}
                     >
-                      {chap}
+                      {c}
                     </button>
                   ))}
                 </div>
@@ -313,7 +321,6 @@ export default function BibleReader() {
           <Image src="/icon-arrow-left.svg" alt="Previous Chapter" width={24} height={24} />
         </button>
       </div>
-
       <div className={styles.floatingNavRight}>
         <button aria-label="next chapter" onClick={goNext} className={styles.navButton}>
           <Image src="/icon-arrow-right.svg" alt="Next Chapter" width={24} height={24} />
@@ -322,20 +329,21 @@ export default function BibleReader() {
 
       {/* VERSES */}
       <section className={styles.versesSection}>
-        {verses.map((v) => (
-          <Verse
-            key={v.verseId}
-            verse={v.verseId}
-            text={v.text}
-            selected={highlights.has(getHighlightKey(currentBook, currentChapter, v.verseId))}
-            onVerseClick={handleVerseClick}
-            bookName={currentBook}
-            chapter={currentChapter}
-            translation={translation}
-            id={`verse-${v.verseId}`}
-            showInlineActions={SHOW_VERSE_ACTIONS}
-          />
-        ))}
+        {memomizedVerses.map((v) => (
+            <Verse
+              key={v.pk}
+              verse={v.verse}
+              text={v.text}
+              selected={v.selected}
+              onVerseClick={handleVerseClick}
+              bookName={currentBook!.name}
+              chapter={currentChapter}
+              translation={translation}
+              id={`verse-${v.verse}`}
+              showInlineActions={SHOW_VERSE_ACTIONS}
+            />
+          ))}
+
       </section>
     </section>
   )
