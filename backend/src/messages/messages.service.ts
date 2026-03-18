@@ -129,6 +129,7 @@ export class MessagesService {
   }
 
   async markRoomAsRead(roomId: string, userId: string, lastReadAt = new Date()) {
+    const initialLastReadAt = new Date('1970-01-01T00:00:00Z');
     await this.prisma.roomReadState.upsert({
       where: {
         roomId_userId: {
@@ -142,7 +143,7 @@ export class MessagesService {
       create: {
         roomId,
         userId,
-        lastReadAt,
+        lastReadAt: initialLastReadAt,
       },
     });
   }
