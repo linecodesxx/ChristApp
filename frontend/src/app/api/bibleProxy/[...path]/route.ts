@@ -7,7 +7,16 @@ export async function GET(req: NextRequest) {
     const pathParam = req.nextUrl.pathname.replace("/api/bibleProxy", "");
     const apiUrl = `${process.env.NEXT_PUBLIC_BIBLE_API_URL}${pathParam}${url.search}`;
 
-    const apiRes = await fetch(apiUrl);
+    const apiRes = await fetch(apiUrl, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        Accept: "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        Referer: "https://christ-app-nine.vercel.app",
+        Origin: "https://christ-app-nine.vercel.app",
+      },
+    });
 
     const text = await apiRes.text();
     console.log("RESPONSE:", text.slice(0, 300));
