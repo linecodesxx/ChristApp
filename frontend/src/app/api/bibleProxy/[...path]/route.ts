@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
     const apiRes = await fetch(apiUrl);
 
     const text = await apiRes.text();
+    console.log("RESPONSE:", text.slice(0, 300));
 
     if (!apiRes.ok) {
       console.error("UPSTREAM ERROR:", apiRes.status, text);
@@ -20,7 +21,7 @@ export async function GET(req: NextRequest) {
           status: apiRes.status,
           raw: text.slice(0, 300),
         },
-        { status: apiRes.status }
+        { status: apiRes.status },
       );
     }
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
           error: "Invalid JSON from API",
           raw: text.slice(0, 300),
         },
-        { status: 500 }
+        { status: 500 },
       );
     }
 
@@ -48,7 +49,7 @@ export async function GET(req: NextRequest) {
   } catch (err) {
     return NextResponse.json(
       { error: "Proxy failed", details: (err as any).message },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
