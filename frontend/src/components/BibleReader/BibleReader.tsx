@@ -195,14 +195,35 @@ export default function BibleReader() {
     selectedTestament === "old" ? oldTestamentBooks : newTestamentBooks;
 
   // ===== NAVIGATION =====
-  const goNext = () => {
+  const isFirstChapter = currentBook ? currentChapter === 1 && oldTestamentBooks.indexOf(currentBook) === 0 : false;
+  const isLastChapter = currentBook ? currentChapter === currentBook.chapters : false;
+  const isLastBook = currentBook ? newTestamentBooks.indexOf(currentBook) !== -1 && currentBook.id === newTestamentBooks[newTestamentBooks.length - 1].id : false;
+
+  const goNext = useCallback(() => {
     if (!currentBook) return;
-    loadChapter(currentBook, currentChapter + 1);
-  };
-  const goPrev = () => {
-    if (!currentBook || currentChapter <= 1) return;
-    loadChapter(currentBook, currentChapter - 1);
-  };
+    if (currentChapter < currentBook.chapters) {
+      loadChapter(currentBook, currentChapter + 1);
+    } else {
+      const currentBookIndex = books.findIndex((b) => b.id === currentBook.id);
+      const nextBook = books[currentBookIndex + 1];
+      if (nextBook) {
+        loadChapter(nextBook, 1);
+      }
+    }
+  }, [currentBook, currentChapter, books, loadChapter]);
+
+  const goPrev = useCallback(() => {
+    if (!currentBook) return;
+    if (currentChapter > 1) {
+      loadChapter(currentBook, currentChapter - 1);
+    } else {
+      const currentBookIndex = books.findIndex((b) => b.id === currentBook.id);
+      const prevBook = books[currentBookIndex - 1];
+      if (prevBook) {
+        loadChapter(prevBook, prevBook.chapters);
+      }
+    }
+  }, [currentBook, books, loadChapter]);
 
   const getHighlightKey = (bookId: string, chapter: number, verse: number) =>
     `${bookId}|${chapter}|${verse}`;
@@ -401,6 +422,7 @@ export default function BibleReader() {
           aria-label="previous chapter"
           onClick={goPrev}
           className={styles.navButton}
+          disabled={isFirstChapter}
         >
           <Image
             src="/icon-arrow-left.svg"
@@ -415,6 +437,7 @@ export default function BibleReader() {
           aria-label="next chapter"
           onClick={goNext}
           className={styles.navButton}
+          disabled={isLastBook && isLastChapter}
         >
           <Image
             src="/icon-arrow-right.svg"
