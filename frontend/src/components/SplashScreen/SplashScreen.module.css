@@ -9,6 +9,7 @@
   gap: 1.5rem;
   padding: 24px;
   background: #05070a;
+  
   transition: opacity 0.45s ease, visibility 0.45s ease;
 }
 

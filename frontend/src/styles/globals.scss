@@ -55,6 +55,8 @@
 
 html {
   scroll-behavior: smooth;
+  height: 100%;
+  height: -webkit-fill-available;
 }
 
 html,
@@ -83,6 +85,8 @@ body {
   font-family: "Inter", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+  min-height: -webkit-fill-available;
   padding: 20px 16px;
   transition: background-color 0.35s ease, color 0.35s ease;
 }
