@@ -1,11 +1,55 @@
-@keyframes message-skeleton-shimmer {
-  0% {
-    transform: translateX(-100%);
-  }
+.shareJesusParchment {
+  position: relative;
+  margin: 0 4px 16px;
+  padding: 20px 22px 22px;
+  border-radius: 14px;
+  background:
+    linear-gradient(145deg, rgba(92, 58, 18, 0.12) 0%, rgba(139, 90, 43, 0.18) 50%, rgba(61, 40, 12, 0.15) 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(101, 67, 33, 0.06) 2px,
+      rgba(101, 67, 33, 0.06) 3px
+    ),
+    linear-gradient(180deg, #f4e8d5 0%, #e8d4b8 45%, #dcc9a8 100%);
+  border: 1px solid rgba(139, 90, 43, 0.45);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 8px 24px rgba(45, 28, 8, 0.18);
+}
 
-  100% {
-    transform: translateX(100%);
-  }
+.shareJesusParchmentEdge {
+  position: absolute;
+  inset: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(160, 110, 50, 0.25);
+  pointer-events: none;
+}
+
+.shareJesusParchmentText {
+  position: relative;
+  margin: 0;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: clamp(16px, 3.8vw, 18px);
+  line-height: 1.55;
+  text-align: center;
+  letter-spacing: 0.02em;
+  background: linear-gradient(
+    110deg,
+    #b8860b 0%,
+    #daa520 22%,
+    #ffd700 45%,
+    #ffec8b 55%,
+    #daa520 78%,
+    #b8860b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 0 24px rgba(218, 165, 32, 0.35);
+  filter: drop-shadow(0 1px 0 rgba(80, 50, 10, 0.2));
 }
 
 .chat {
@@ -57,11 +101,28 @@
         border: 2px solid var(--accent);
         background: var(--accent-soft);
         color: #2e2c2c;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1;
+
+        &.avatarWithPhoto,
+        &.avatarJesus {
+          padding: 0;
+          overflow: hidden;
+        }
+      }
+
+      .avatarPhoto {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 50%;
       }
 
       .wrapContent {
         display: flex;
         flex-direction: column;
+        gap: 2px;
 
         .chatName {
           color: var(--foreground);
@@ -70,18 +131,55 @@
           font-style: normal;
           font-weight: 700;
           line-height: 20px;
+          transition: color 0.25s ease;
         }
 
         .status {
           display: flex;
           min-width: 65px;
           flex-shrink: 0;
-          color: rgb(26, 159, 115);
+          color: var(--text-muted);
           font-family: "Inter", sans-serif;
           font-size: 10px;
           font-style: normal;
           font-weight: 600;
           line-height: 16px;
+          letter-spacing: 0.02em;
+          transition: color 0.25s ease;
+        }
+      }
+
+      &.peerOnline {
+        .avatar {
+          border-color: #2bbf7a;
+          background: color-mix(in srgb, #2bbf7a 22%, var(--accent-soft));
+          color: #0a4a30;
+        }
+
+        .wrapContent .chatName,
+        .wrapContent .status {
+          color: #159d62;
+        }
+      }
+
+      &.peerOffline {
+        .avatar {
+          border-color: #e04555;
+          background: color-mix(in srgb, #e04555 18%, var(--surface-elevated));
+          color: #6b1520;
+        }
+
+        .wrapContent .chatName,
+        .wrapContent .status {
+          color: #c92a3a;
+        }
+      }
+
+      &.peerNeutral {
+        .avatar {
+          border-color: var(--accent);
+          background: var(--accent-soft);
+          color: #2e2c2c;
         }
       }
     }
@@ -105,42 +203,23 @@
     box-shadow: 0 8px 18px -22px rgba(38, 28, 16, 0.5);
   }
 
+  .sendNotice {
+    margin: 0;
+    padding: 0 4px;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--text-muted);
+    text-align: center;
+  }
+
   .messagesSkeleton {
     flex: 1 1 auto;
     min-height: 0;
     padding: 6px 2px 12px;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
+    align-items: center;
+    justify-content: center;
     overflow: hidden;
-  }
-
-  .skeletonBubble {
-    position: relative;
-    height: 50px;
-    max-width: 92%;
-    border-radius: 16px 16px 16px 4px;
-    // border: 1px solid color-mix(in srgb, var(--line-soft) 82%, var(--accent) 18%);
-    // background: color-mix(in srgb, var(--surface-elevated) 92%, var(--accent-soft) 8%);
-    background: var(--accent-soft);
-    overflow: hidden;
-
-    &::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
-      animation: message-skeleton-shimmer 1.2s ease-in-out infinite;
-    }
-
-    &:nth-child(3n) {
-      height: 54px;
-    }
-  }
-
-  .skeletonBubbleOwn {
-    align-self: flex-end;
-    border-radius: 16px 16px 4px 16px;
   }
 }
 
@@ -166,11 +245,45 @@ html[data-theme="dark"] .chat {
         .chatName {
           color: var(--foreground);
         }
+
+        .status {
+          color: var(--text-muted);
+        }
       }
 
       .avatar {
         background: var(--accent-soft);
         color: color-mix(in srgb, var(--background) 82%, #000 18%);
+      }
+
+      &.peerOnline {
+        .avatar {
+          border-color: #3bdc8f;
+          background: color-mix(in srgb, #3bdc8f 16%, var(--accent-soft));
+          color: #b8f5d6;
+        }
+
+        .wrapContent .chatName,
+        .wrapContent .status {
+          color: #4ae49a;
+        }
+      }
+
+      &.peerOffline {
+        .avatar {
+          border-color: #ff6b7a;
+          background: color-mix(in srgb, #ff6b7a 14%, var(--surface-elevated));
+          color: #ffd0d4;
+        }
+
+        .wrapContent .chatName,
+        .wrapContent .status {
+          color: #ff7a88;
+        }
+      }
+
+      &.peerNeutral .wrapContent .chatName {
+        color: var(--foreground);
       }
     }
   }
@@ -180,14 +293,5 @@ html[data-theme="dark"] .chat {
     background: color-mix(in srgb, var(--surface-elevated) 88%, #111 12%);
     color: color-mix(in srgb, var(--foreground) 78%, var(--text-muted) 22%);
     box-shadow: 0 12px 24px -26px rgba(196, 162, 101, 0.55);
-  }
-
-  .skeletonBubble {
-    border-color: color-mix(in srgb, var(--accent) 24%, var(--line-soft));
-    background: color-mix(in srgb, var(--surface-elevated) 85%, #111 15%);
-
-    &::after {
-      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), transparent);
-    }
   }
 }

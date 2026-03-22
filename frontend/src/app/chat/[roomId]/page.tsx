@@ -1,13 +1,15 @@
 "use client"
 
 import ChatWindow from "@/components/ChatWindow/ChatWindow"
+import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import styles from "./chatRoom.module.scss"
 import MessageInput from "@/components/MessageInput/MessageInput"
-import type { Message, MessageReply } from "@/types/message"
+import { isMessageFromCurrentUser, type Message, type MessageReply } from "@/types/message"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { io, type Socket } from "socket.io-client"
 import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
+import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
@@ -20,28 +22,26 @@ const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
 const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:"
 const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом"
+const SHARE_WITH_JESUS_SLUG = "share-with-jesus"
+const SHARE_JESUS_PARCHMENT_TEXT =
+  "Дитя Моё, здесь ты можешь поделиться со Мной всем, что лежит на сердце — каждой мыслью, радостью и тревогой. Я слушаю тебя."
 const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
 const MAX_REPLY_PREVIEW_LENGTH = 180
-const MESSAGE_SKELETON_ITEMS = [
-  { width: "68%", own: false },
-  { width: "54%", own: true },
-  { width: "74%", own: false },
-  { width: "62%", own: true },
-  { width: "58%", own: false },
-  { width: "70%", own: false },
-]
-
 type IncomingSocketMessage = {
   id?: string | number
   roomId?: string
   content?: string
   createdAt?: string | Date
   username?: string
+  handle?: string
+  senderId?: string
   sender?: {
+    id?: string
     username?: string
+    nickname?: string
   }
 }
 
@@ -207,17 +207,31 @@ function normalizeRoomHistory(history: IncomingSocketMessage[] | undefined, curr
   }
 }
 
-function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined, currentUsername?: string): Message {
-  const username = raw?.username ?? raw?.sender?.username ?? "Unknown"
+function normalizeIncomingMessage(
+  raw: IncomingSocketMessage | null | undefined,
+  currentUsername?: string,
+): Message {
+  const senderId = raw?.senderId ?? raw?.sender?.id
+  const handle = raw?.handle ?? raw?.sender?.username
+  const displayName =
+    raw?.username ?? raw?.sender?.nickname ?? raw?.sender?.username ?? "Unknown"
   const rawContent = String(raw?.content ?? "")
   const { content, replyTo } = parseMessageWithReply(rawContent)
+
+  const legacyMe =
+    Boolean(currentUsername) &&
+    !senderId &&
+    !handle &&
+    (displayName === currentUsername || raw?.sender?.username === currentUsername)
 
   return {
     id: String(raw?.id ?? Date.now()),
     content,
     createdAt: String(raw?.createdAt ?? new Date().toISOString()),
-    username,
-    sender: username === currentUsername ? "me" : undefined,
+    username: displayName,
+    handle,
+    senderId,
+    sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
   }
 }
@@ -226,7 +240,7 @@ function getReadableRoomTitle(
   roomId?: string,
   rawTitle?: string,
   currentUserId?: string,
-  users?: Array<{ id: string; username: string }>,
+  users?: Array<{ id: string; username: string; nickname?: string }>,
 ) {
   if (roomId === GLOBAL_ROOM_ID) return "Общий чат для всех"
 
@@ -240,7 +254,7 @@ function getReadableRoomTitle(
     const directIds = rawTitle.split(":").slice(1)
     const otherUserId = directIds.find((id) => id !== currentUserId)
     const otherUser = users?.find((existingUser) => existingUser.id === otherUserId)
-    return otherUser ? `Чат с ${otherUser.username}` : "Личный чат"
+    return otherUser ? `Чат с ${otherUser.nickname ?? otherUser.username}` : "Личный чат"
   }
 
   return rawTitle
@@ -256,41 +270,77 @@ export default function ChatPageDetails() {
   const availableRoomIdsRef = useRef<Set<string>>(new Set())
   const openingDirectRoomRef = useRef<Set<string>>(new Set())
   const messageIdsRef = useRef<Set<string>>(new Set())
+  /** true после joinRoom до прихода roomHistory (в т.ч. при skipLoadingSpinner). */
+  const awaitingRoomHistoryRef = useRef(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [roomTitle, setRoomTitle] = useState<string>("")
   const [roomRawTitle, setRoomRawTitle] = useState<string>("")
   const [isSocketConnected, setIsSocketConnected] = useState(false)
   const [isHistoryLoading, setIsHistoryLoading] = useState(true)
-  const [connectionError, setConnectionError] = useState<string | null>(null)
+  /** Только фатальные случаи (нет токена). Обрывы сокета не показываем вместо чата. */
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [sendNotice, setSendNotice] = useState<string | null>(null)
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null)
   const [onlineCount, setOnlineCount] = useState(0)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(() => new Map())
+  const userIdRef = useRef<string | undefined>(undefined)
+  const typingEmitRef = useRef(false)
 
   const params = useParams<{ roomId: string }>()
   const router = useRouter()
   const routeRoomId = params?.roomId
-  const roomId = routeRoomId === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : routeRoomId
+  const roomId =
+    routeRoomId === GLOBAL_ROOM_SLUG
+      ? GLOBAL_ROOM_ID
+      : routeRoomId === SHARE_WITH_JESUS_SLUG
+        ? SHARE_WITH_JESUS_SLUG
+        : routeRoomId
+
+  const [resolvedShareJesusRoomId, setResolvedShareJesusRoomId] = useState<string | null>(null)
+  const routeRoomIdRef = useRef(routeRoomId)
+  routeRoomIdRef.current = routeRoomId
+
+  const effectiveSocketRoomId = useMemo(() => {
+    if (!routeRoomId) return null
+    if (routeRoomId === GLOBAL_ROOM_SLUG) return GLOBAL_ROOM_ID
+    if (routeRoomId === SHARE_WITH_JESUS_SLUG) return resolvedShareJesusRoomId
+    return routeRoomId
+  }, [routeRoomId, resolvedShareJesusRoomId])
 
   const markRoomAsRead = useCallback(() => {
-    if (!roomId) return
+    const target = effectiveSocketRoomId
+    if (!target) return
 
     const socket = socketRef.current
     if (!socket || !socket.connected) return
 
-    if (document.visibilityState !== "visible" || !document.hasFocus()) {
+    if (document.visibilityState !== "visible") {
       return
     }
 
-    socket.emit("markRoomRead", { roomId })
+    socket.emit("markRoomRead", { roomId: target })
     dispatchChatUnreadChangedEvent()
-  }, [roomId])
+  }, [effectiveSocketRoomId])
 
-  const joinRoom = useCallback((socket: Socket, targetRoomId: string) => {
+  const handleTypingActivity = useCallback((active: boolean) => {
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) return
+    if (typingEmitRef.current === active) return
+    typingEmitRef.current = active
+    socket.emit("roomTyping", { roomId: joinedId, isTyping: active })
+  }, [])
+
+  const joinRoom = useCallback((socket: Socket, targetRoomId: string, opts?: { skipLoadingSpinner?: boolean }) => {
     if (joinedRoomRef.current === targetRoomId) {
       return
     }
 
-    setIsHistoryLoading(true)
+    if (!opts?.skipLoadingSpinner) {
+      setIsHistoryLoading(true)
+    }
+    awaitingRoomHistoryRef.current = true
     socket.emit("joinRoom", { roomId: targetRoomId, limit: HISTORY_PAGE_SIZE, skip: 0 })
     joinedRoomRef.current = targetRoomId
   }, [])
@@ -299,6 +349,11 @@ export default function ChatPageDetails() {
     const joinedRoomId = joinedRoomRef.current
     if (!joinedRoomId) {
       return
+    }
+
+    if (typingEmitRef.current) {
+      typingEmitRef.current = false
+      socket.emit("roomTyping", { roomId: joinedRoomId, isTyping: false })
     }
 
     socket.emit("leaveRoom", joinedRoomId)
@@ -310,13 +365,34 @@ export default function ChatPageDetails() {
   }, [users])
 
   useEffect(() => {
+    userIdRef.current = user?.id
+  }, [user?.id])
+
+  useEffect(() => {
     setMessages([])
     messageIdsRef.current = new Set()
+    awaitingRoomHistoryRef.current = false
     setReplyToMessage(null)
-    setRoomTitle("")
-    setRoomRawTitle("")
-    setIsHistoryLoading(true)
-  }, [roomId])
+    setResolvedShareJesusRoomId(null)
+    if (routeRoomId === SHARE_WITH_JESUS_SLUG && user) {
+      setRoomTitle(SHARE_WITH_JESUS_CHAT_TITLE)
+      setRoomRawTitle(`${SHARE_WITH_JESUS_ROOM_PREFIX}${user.id}`)
+      setIsHistoryLoading(false)
+    } else {
+      setRoomTitle("")
+      setRoomRawTitle("")
+      setIsHistoryLoading(true)
+    }
+  }, [roomId, routeRoomId, user])
+
+  useEffect(() => {
+    setTypingUsers(new Map())
+    typingEmitRef.current = false
+  }, [roomId, routeRoomId, effectiveSocketRoomId])
+
+  useEffect(() => {
+    currentRoomRef.current = effectiveSocketRoomId ?? undefined
+  }, [effectiveSocketRoomId])
 
   useEffect(() => {
     if (loading || !user || !roomId) return
@@ -336,7 +412,7 @@ export default function ChatPageDetails() {
 
     const token = getAuthToken()
     if (!token) {
-      setConnectionError("Нет токена авторизации")
+      setAuthError("Нет токена авторизации")
       setIsHistoryLoading(false)
       return
     }
@@ -344,17 +420,23 @@ export default function ChatPageDetails() {
     const socket = io(WS_URL, {
       auth: { token },
       transports: ["websocket"],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 400,
+      reconnectionDelayMax: 4000,
+      randomizationFactor: 0.35,
     })
 
     socketRef.current = socket
 
     const onConnect = () => {
       setIsSocketConnected(true)
-      setConnectionError(null)
+      setAuthError(null)
+      setSendNotice(null)
 
-      const activeRoomId = currentRoomRef.current
-      if (activeRoomId === GLOBAL_ROOM_ID) {
-        joinRoom(socket, activeRoomId)
+      const rr = routeRoomIdRef.current
+      if (rr === GLOBAL_ROOM_SLUG) {
+        joinRoom(socket, GLOBAL_ROOM_ID)
       }
 
       socket.emit("getMyRooms")
@@ -363,24 +445,24 @@ export default function ChatPageDetails() {
 
     const onDisconnect = () => {
       setIsSocketConnected(false)
-      setConnectionError("Нет соединения с сервером. Сообщения временно недоступны.")
-      setIsHistoryLoading(false)
+      setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
       setOnlineCount(0)
       setOnlineUserIds(new Set())
+      setTypingUsers(new Map())
+      typingEmitRef.current = false
       joinedRoomRef.current = undefined
     }
     socket.on("disconnect", onDisconnect)
 
     const onSocketError = () => {
-      setConnectionError("Нет соединения с сервером. Проверьте интернет и попробуйте снова.")
-      setIsHistoryLoading(false)
+      setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
     }
     socket.on("connect_error", onSocketError)
     socket.on("error", onSocketError)
 
     const onNewMessage = (msg: IncomingSocketMessage) => {
-      const activeRoomId = currentRoomRef.current
-      if (activeRoomId && msg.roomId && msg.roomId !== activeRoomId) {
+      const joinedId = joinedRoomRef.current
+      if (joinedId && msg.roomId && msg.roomId !== joinedId) {
         return
       }
 
@@ -395,17 +477,17 @@ export default function ChatPageDetails() {
 
       messageIdsRef.current.add(normalized.id)
 
-      if (activeRoomId && normalized.content?.trim()) {
-        persistLastSentPreview(activeRoomId, normalized.content.trim())
+      if (joinedId && normalized.content?.trim()) {
+        persistLastSentPreview(joinedId, normalized.content.trim())
       }
 
-      const isOwnMessage = normalized.sender === "me" || normalized.username === user?.username
+      const isOwnMessage = isMessageFromCurrentUser(normalized, user)
       const shouldShowNotification = shouldShowBrowserNotification(isOwnMessage)
 
-      if (shouldShowNotification && activeRoomId) {
-        const targetUrl = activeRoomId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${activeRoomId}`
+      if (shouldShowNotification && joinedId) {
+        const targetUrl = joinedId === GLOBAL_ROOM_ID ? `/chat/${GLOBAL_ROOM_SLUG}` : `/chat/${joinedId}`
         const notificationTitle =
-          activeRoomId === GLOBAL_ROOM_ID
+          joinedId === GLOBAL_ROOM_ID
             ? `Новое сообщение в общем чате от ${normalized.username}`
             : `Новое сообщение от ${normalized.username}`
 
@@ -413,9 +495,17 @@ export default function ChatPageDetails() {
           title: notificationTitle,
           body: normalized.content,
           targetUrl,
-          tag: `room-${activeRoomId}`,
+          tag: `room-${joinedId}`,
         })
       }
+
+      setTypingUsers((prev) => {
+        const next = new Map(prev)
+        if (normalized.senderId) {
+          next.delete(normalized.senderId)
+        }
+        return next
+      })
 
       setMessages((prev) => [...prev, normalized])
       dispatchChatUnreadChangedEvent()
@@ -425,9 +515,9 @@ export default function ChatPageDetails() {
     const onMessageDeleted = (payload: MessageDeletedSocketEvent) => {
       const deletedMessageId = payload?.messageId
       const deletedRoomId = payload?.roomId
-      const activeRoomId = currentRoomRef.current
+      const joinedId = joinedRoomRef.current
 
-      if (!deletedMessageId || !deletedRoomId || !activeRoomId || deletedRoomId !== activeRoomId) {
+      if (!deletedMessageId || !deletedRoomId || !joinedId || deletedRoomId !== joinedId) {
         return
       }
 
@@ -461,18 +551,19 @@ export default function ChatPageDetails() {
     socket.on("deleteMessageResult", onDeleteMessageResult)
 
     const onRoomHistory = ({ roomId: historyRoomId, messages: history }: RoomHistoryPayload) => {
-      const activeRoomId = currentRoomRef.current
-      if (!activeRoomId || historyRoomId !== activeRoomId) {
+      if (historyRoomId !== joinedRoomRef.current) {
         return
       }
+
+      awaitingRoomHistoryRef.current = false
 
       const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(history, user?.username)
 
       messageIdsRef.current = nextMessageIds
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
-      if (activeRoomId && lastMessage?.content?.trim()) {
-        persistLastSentPreview(activeRoomId, lastMessage.content.trim())
+      if (historyRoomId && lastMessage?.content?.trim()) {
+        persistLastSentPreview(historyRoomId, lastMessage.content.trim())
       }
 
       setMessages(uniqueHistory)
@@ -483,27 +574,52 @@ export default function ChatPageDetails() {
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
       availableRoomIdsRef.current = new Set(rooms.map((room) => room.id))
 
-      const activeRoomId = currentRoomRef.current
-      const currentRoom = rooms.find((room) => room.id === activeRoomId)
+      const rr = routeRoomIdRef.current
+      const uid = user?.id
 
-      if (!currentRoom && activeRoomId) {
-        const isGlobal = activeRoomId === GLOBAL_ROOM_ID
-        const isSelfRoute = activeRoomId === user?.id
-        const alreadyOpening = openingDirectRoomRef.current.has(activeRoomId)
+      const shareRoom =
+        uid ? rooms.find((room) => room.title === `${SHARE_WITH_JESUS_ROOM_PREFIX}${uid}`) : undefined
 
-        if (!isGlobal && !isSelfRoute && !alreadyOpening) {
-          openingDirectRoomRef.current.add(activeRoomId)
-          socket.emit("openDirectRoom", { targetUserId: activeRoomId })
+      if (shareRoom && (rr === SHARE_WITH_JESUS_SLUG || rr === shareRoom.id)) {
+        setResolvedShareJesusRoomId(shareRoom.id)
+        setRoomRawTitle(shareRoom.title)
+        setRoomTitle(SHARE_WITH_JESUS_CHAT_TITLE)
+      }
+
+      let roomForRoute: MyRoomItem | undefined
+      if (rr === GLOBAL_ROOM_SLUG || rr === GLOBAL_ROOM_ID) {
+        roomForRoute = rooms.find((room) => room.id === GLOBAL_ROOM_ID)
+      } else if (rr === SHARE_WITH_JESUS_SLUG) {
+        roomForRoute = shareRoom
+      } else if (rr) {
+        roomForRoute = rooms.find((room) => room.id === rr)
+      }
+
+      if (roomForRoute?.title && rr !== SHARE_WITH_JESUS_SLUG && rr !== shareRoom?.id) {
+        setRoomRawTitle(roomForRoute.title)
+        setRoomTitle(getReadableRoomTitle(roomForRoute.id, roomForRoute.title, uid, usersRef.current))
+      }
+
+      const routeCandidate = rr
+      if (!roomForRoute && routeCandidate) {
+        const isGlobal = routeCandidate === GLOBAL_ROOM_ID || routeCandidate === GLOBAL_ROOM_SLUG
+        const isSelfRoute = routeCandidate === uid
+        const isShareSlug = routeCandidate === SHARE_WITH_JESUS_SLUG
+        const alreadyOpening = openingDirectRoomRef.current.has(routeCandidate)
+
+        if (!isGlobal && !isSelfRoute && !isShareSlug && !alreadyOpening) {
+          openingDirectRoomRef.current.add(routeCandidate)
+          socket.emit("openDirectRoom", { targetUserId: routeCandidate })
         }
       }
 
-      if (currentRoom?.title) {
-        setRoomRawTitle(currentRoom.title)
-        setRoomTitle(getReadableRoomTitle(activeRoomId, currentRoom.title, user?.id, usersRef.current))
-      }
-
-      if (currentRoom && activeRoomId) {
-        joinRoom(socket, activeRoomId)
+      if (roomForRoute) {
+        const isShareTitle = Boolean(roomForRoute.title?.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX))
+        if (rr === SHARE_WITH_JESUS_SLUG && isShareTitle) {
+          joinRoom(socket, roomForRoute.id, { skipLoadingSpinner: true })
+        } else if (rr !== SHARE_WITH_JESUS_SLUG) {
+          joinRoom(socket, roomForRoute.id, isShareTitle ? { skipLoadingSpinner: true } : undefined)
+        }
       }
     }
     socket.on("myRooms", onMyRooms)
@@ -566,6 +682,30 @@ export default function ChatPageDetails() {
     }
     socket.on("userPresenceChanged", onUserPresenceChanged)
 
+    const onUserTyping = (payload: {
+      roomId?: string
+      userId?: string
+      username?: string
+      isTyping?: boolean
+    }) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload.roomId !== joinedId) return
+      if (!payload.userId || payload.userId === userIdRef.current) return
+
+      setTypingUsers((prev) => {
+        const next = new Map(prev)
+        const uid = payload.userId
+        if (!uid) return prev
+        if (payload.isTyping && payload.username) {
+          next.set(uid, payload.username)
+        } else {
+          next.delete(uid)
+        }
+        return next
+      })
+    }
+    socket.on("userTyping", onUserTyping)
+
     const onInvitedToRoom = () => {
       socket.emit("getMyRooms")
     }
@@ -586,58 +726,56 @@ export default function ChatPageDetails() {
       socket.off("onlineCount", onOnlineCount)
       socket.off("onlineUsers", onOnlineUsers)
       socket.off("userPresenceChanged", onUserPresenceChanged)
+      socket.off("userTyping", onUserTyping)
       leaveCurrentRoom(socket)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, router, user?.id, user?.username])
+  }, [joinRoom, leaveCurrentRoom, loading, router, user])
 
-  // Синхронизируем socket-room при смене URL комнаты.
+  const prevRouteForSocketRef = useRef<string | undefined>(undefined)
+
+  // Синхронизируем socket-room при смене URL (используем routeRoomId: slug «share-with-jesus», global, uuid).
   useEffect(() => {
-    if (loading || !roomId) return
-
-    const prevRoomId = currentRoomRef.current
-    currentRoomRef.current = roomId
+    if (loading || !routeRoomId) return
 
     const socket = socketRef.current
-    if (!socket) return
+    if (!socket?.connected) return
 
-    if (!socket.connected) return
+    const prev = prevRouteForSocketRef.current
+    prevRouteForSocketRef.current = routeRoomId
 
-    if (prevRoomId && prevRoomId !== roomId && joinedRoomRef.current === prevRoomId) {
+    if (prev && prev !== routeRoomId && joinedRoomRef.current) {
       leaveCurrentRoom(socket)
     }
 
-    if (roomId === GLOBAL_ROOM_ID) {
-      joinRoom(socket, roomId)
+    if (routeRoomId === GLOBAL_ROOM_SLUG) {
+      joinRoom(socket, GLOBAL_ROOM_ID)
       return
     }
 
-    if (availableRoomIdsRef.current.has(roomId)) {
-      joinRoom(socket, roomId)
-      return
-    }
-
-    if (!availableRoomIdsRef.current.has(roomId)) {
+    if (routeRoomId === SHARE_WITH_JESUS_SLUG) {
       socket.emit("getMyRooms")
+      return
     }
 
-    return () => {
-      if (joinedRoomRef.current === roomId) {
-        leaveCurrentRoom(socket)
-      }
+    if (availableRoomIdsRef.current.has(routeRoomId)) {
+      joinRoom(socket, routeRoomId)
+      return
     }
-  }, [joinRoom, leaveCurrentRoom, roomId, loading])
+
+    socket.emit("getMyRooms")
+  }, [routeRoomId, loading, joinRoom, leaveCurrentRoom])
 
   useEffect(() => {
-    if (isHistoryLoading || connectionError) {
+    if (isHistoryLoading || authError) {
       return
     }
 
     // Как только история загрузилась или прилетело новое сообщение,
     // и пользователь реально смотрит комнату, помечаем ее прочитанной.
     markRoomAsRead()
-  }, [messages.length, isHistoryLoading, connectionError, markRoomAsRead])
+  }, [messages.length, isHistoryLoading, authError, markRoomAsRead])
 
   useEffect(() => {
     const handleFocus = () => {
@@ -659,6 +797,16 @@ export default function ChatPageDetails() {
     }
   }, [markRoomAsRead])
 
+  const isShareWithJesusView =
+    routeRoomId === SHARE_WITH_JESUS_SLUG || roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
+
+  const shareJesusParchmentBanner = isShareWithJesusView ? (
+    <div className={styles.shareJesusParchment}>
+      <span className={styles.shareJesusParchmentEdge} aria-hidden />
+      <p className={styles.shareJesusParchmentText}>{SHARE_JESUS_PARCHMENT_TEXT}</p>
+    </div>
+  ) : null
+
   const resolvedTitle = roomTitle || getReadableRoomTitle(roomId, undefined, user?.id, users)
   const routeUser = useMemo(() => users.find((existingUser) => existingUser.id === roomId), [users, roomId])
   const directRoomUserIdFromTitle = useMemo(() => {
@@ -677,48 +825,52 @@ export default function ChatPageDetails() {
     () => users.find((existingUser) => existingUser.id === directChatTargetUserId),
     [users, directChatTargetUserId],
   )
+  const headerAvatarSrc = useMemo(() => {
+    if (isShareWithJesusView) {
+      return "/jesus-say.svg"
+    }
+    if (roomId === GLOBAL_ROOM_ID) {
+      return "/ava-chat.jpeg"
+    }
+    return resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)
+  }, [directChatTargetUser?.avatarUrl, isShareWithJesusView, roomId])
+
+  const headerAvatarClassName =
+    headerAvatarSrc != null && headerAvatarSrc !== ""
+      ? isShareWithJesusView
+        ? `${styles.avatar} ${styles.avatarJesus}`
+        : `${styles.avatar} ${styles.avatarWithPhoto}`
+      : styles.avatar
+
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
 
-  const roomStatusLabel = (() => {
-    if (!isSocketConnected || connectionError) {
-      return "Нет соединения"
-    }
+  const statusLine =
+    isHistoryLoading
+      ? "Загрузка сообщений..."
+      : !isSocketConnected
+        ? "Подключение..."
+        : roomId === GLOBAL_ROOM_ID
+          ? `${globalOnlineCount} пользователей онлайн`
+          : routeRoomId === SHARE_WITH_JESUS_SLUG || roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
+            ? "Личное место для заметок"
+            : directChatTargetUser
+              ? isDirectTargetOnline
+                ? "онлайн"
+                : "не в сети"
+              : ""
 
-    if (isHistoryLoading) {
-      return "Загрузка сообщений..."
-    }
+  const headerPresenceClass =
+    directChatTargetUser != null
+      ? isDirectTargetOnline
+        ? styles.peerOnline
+        : styles.peerOffline
+      : styles.peerNeutral
 
-    if (roomId === GLOBAL_ROOM_ID) {
-      return `${globalOnlineCount} пользователей онлайн`
-    }
-
-    if (roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)) {
-      return "Личное место для заметок"
-    }
-
-    if (directChatTargetUser) {
-      return (
-        <>
-          {directChatTargetUser.username}{" "}
-          <span style={{ color: isDirectTargetOnline ? "#3CB371" : "#cb3a3a", paddingLeft: "5px" }}>
-            {" "}
-            {isDirectTargetOnline ? "онлайн" : "не в сети"}
-          </span>
-        </>
-      )
-    }
-
-    return ""
-  })()
+  const typingUsernames = useMemo(() => Array.from(typingUsers.values()), [typingUsers])
 
   const handleReplyMessage = (message: Message) => {
-    const isOwnMessage =
-      message.sender === "me" ||
-      (Boolean(user?.username) && message.username === user?.username) ||
-      message.username === "Ты"
-
-    if (isOwnMessage) {
+    if (isMessageFromCurrentUser(message, user)) {
       return
     }
 
@@ -737,12 +889,7 @@ export default function ChatPageDetails() {
         return
       }
 
-      const isOwnMessage =
-        message.sender === "me" ||
-        (Boolean(user?.username) && message.username === user?.username) ||
-        message.username === "Ты"
-
-      if (!isOwnMessage) {
+      if (!isMessageFromCurrentUser(message, user)) {
         return
       }
 
@@ -756,26 +903,48 @@ export default function ChatPageDetails() {
     [roomId, user],
   )
 
+  const handleOpenDmFromAvatar = useCallback(
+    (message: Message) => {
+      if (!message.senderId || message.senderId === user?.id) {
+        return
+      }
+
+      const socket = socketRef.current
+      if (socket?.connected) {
+        socket.emit("openDirectRoom", { targetUserId: message.senderId })
+      }
+      router.push(`/chat/${message.senderId}`)
+    },
+    [router, user?.id],
+  )
+
   async function handleSend(text: string, replyTarget?: Message | null) {
-    if (!socketRef.current || !roomId || !text.trim()) return false
+    const targetRoomId = effectiveSocketRoomId
+    if (!socketRef.current || !targetRoomId || !text.trim()) return false
 
     if (!socketRef.current.connected) {
-      setConnectionError("Нет соединения с сервером. Сообщение не отправлено.")
+      setSendNotice("Сообщение не отправлено — ждём подключения к серверу.")
       return false
     }
 
-    if (roomId === user?.id) return false
+    if (routeRoomId === user?.id) return false
 
-    if (!availableRoomIdsRef.current.has(roomId) && roomId !== GLOBAL_ROOM_ID) {
-      if (!openingDirectRoomRef.current.has(roomId)) {
-        openingDirectRoomRef.current.add(roomId)
-        socketRef.current.emit("openDirectRoom", { targetUserId: roomId })
+    if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+      socketRef.current.emit("getMyRooms")
+      return false
+    }
+
+    if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+      if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+        openingDirectRoomRef.current.add(routeRoomId)
+        socketRef.current.emit("openDirectRoom", { targetUserId: routeRoomId })
       }
       return false
     }
 
     const normalizedText = text.trim()
-    persistLastSentPreview(roomId, normalizedText, directChatTargetUserId)
+    setSendNotice(null)
+    persistLastSentPreview(targetRoomId, normalizedText, directChatTargetUserId)
 
     const serializedContent = serializeMessageWithReply(
       normalizedText,
@@ -788,48 +957,75 @@ export default function ChatPageDetails() {
         : null,
     )
 
-    socketRef.current.emit("sendMessage", { roomId, content: serializedContent })
+    socketRef.current.emit("sendMessage", { roomId: targetRoomId, content: serializedContent })
     return true
   }
 
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
-        <div className={styles.headerContent}>
+        <div className={`${styles.headerContent} ${headerPresenceClass}`}>
           <Link href="/chat">
             <Image className={styles.backIcon} src="/back-icon.svg" alt="Back" width={24} height={24} />
           </Link>
-          <div className={styles.avatar}>{getInitials(resolvedTitle)}</div>
+          <div className={headerAvatarClassName}>
+            {headerAvatarSrc ? (
+              <Image
+                src={headerAvatarSrc}
+                alt=""
+                width={40}
+                height={40}
+                className={styles.avatarPhoto}
+                unoptimized
+              />
+            ) : (
+              getInitials(resolvedTitle)
+            )}
+          </div>
           <div className={styles.wrapContent}>
             <h2 className={styles.chatName}>{resolvedTitle}</h2>
-            <span className={styles.status}>{roomStatusLabel}</span>
+            {statusLine ? <span className={styles.status}>{statusLine}</span> : null}
           </div>
         </div>
       </div>
 
-      {connectionError ? (
-        <p className={styles.stateMessage}>{connectionError}</p>
+      {authError ? (
+        <p className={styles.stateMessage}>{authError}</p>
       ) : isHistoryLoading ? (
-        <div className={styles.messagesSkeleton} aria-label="Загрузка истории сообщений" role="status">
-          {MESSAGE_SKELETON_ITEMS.map((item, index) => (
-            <div
-              key={`skeleton-${index}`}
-              className={`${styles.skeletonBubble} ${item.own ? styles.skeletonBubbleOwn : ""}`}
-              style={{ width: item.width }}
-            />
-          ))}
+        <div className={styles.messagesSkeleton}>
+          <CrossLoader label="Загрузка сообщений" variant="inline" />
         </div>
       ) : (
         <ChatWindow
           messages={messages}
           currentUsername={user?.username}
+          currentUser={user}
+          withSenderAvatars={roomId === GLOBAL_ROOM_ID}
+          resolveAvatarUrl={(senderId) =>
+            resolvePublicAvatarUrl(users.find((existingUser) => existingUser.id === senderId)?.avatarUrl)
+          }
+          onAvatarClick={handleOpenDmFromAvatar}
           onReplyMessage={handleReplyMessage}
           onDeleteMessage={handleDeleteOwnMessage}
           canDeleteOwnMessages={roomId === GLOBAL_ROOM_ID}
+          topBanner={shareJesusParchmentBanner}
+          typingUsernames={typingUsernames}
         />
       )}
 
-      <MessageInput onSend={handleSend} replyToMessage={replyToMessage} onCancelReply={() => setReplyToMessage(null)} />
+      <MessageInput
+        onSend={handleSend}
+        replyToMessage={replyToMessage}
+        onCancelReply={() => setReplyToMessage(null)}
+        disabled={routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId}
+        placeholder={
+          routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId
+            ? "Подключаем комнату…"
+            : "Напиши сообщение…"
+        }
+        onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
+      />
+      {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
     </section>
   )
 }

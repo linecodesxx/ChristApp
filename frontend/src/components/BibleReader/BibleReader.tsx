@@ -11,6 +11,7 @@ import {
 import styles from "./BibleReader.module.scss";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
+import CrossLoader from "@/components/CrossLoader/CrossLoader";
 
 type VerseType = {
   pk: number;
@@ -38,6 +39,9 @@ const LAST_READ_STORAGE_KEY = "lastRead";
 const SESSION_HIGHLIGHTS_KEY = "bible-reader-highlights";
 
 export default function BibleReader() {
+  /** Только после mount — без запросов к API на сервере при SSR, чтобы не было рассинхрона гидрации. */
+  const [isMounted, setIsMounted] = useState(false);
+
   const [books, setBooks] = useState<BookType[]>([]);
   const [chapters, setChapters] = useState<number[]>([]);
   const [translations, setTranslations] = useState<TranslationType[]>([]);
@@ -95,8 +99,14 @@ export default function BibleReader() {
     } catch {}
   }, [highlights, isHighlightsHydrated]);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // ===== INIT =====
   useEffect(() => {
+    if (!isMounted) return;
+
     async function init() {
       const [translationsData, booksData] = await Promise.all([
         fetchTranslations(),
@@ -130,8 +140,8 @@ export default function BibleReader() {
 
       loadChapter(bookToLoad, chapterToLoad);
     }
-    init();
-  }, [translation, loadChapter]);
+    void init();
+  }, [translation, loadChapter, isMounted]);
 
   // ===== TESTAMENT FILTER =====
   const oldTestamentBooks = books.filter((b) => {
@@ -227,6 +237,7 @@ export default function BibleReader() {
       if (!currentBook) return Promise.resolve([] as VerseType[]);
       return fetchFullChapter(currentBook.id, currentChapter, translation);
     },
+    enabled: isMounted && Boolean(currentBook),
     staleTime: 1000 * 60 * 60, // 1 час
   });
 
@@ -241,7 +252,13 @@ export default function BibleReader() {
     }));
   }, [verses, highlights, currentBook, currentChapter]);
 
-  if (!currentBook || isLoading) return <div>Loading...</div>;
+  if (!isMounted || !currentBook || isLoading) {
+    return (
+      <div className={styles.loadingState}>
+        <CrossLoader label="Загрузка главы" variant="inline" />
+      </div>
+    );
+  }
 
   return (
     <section

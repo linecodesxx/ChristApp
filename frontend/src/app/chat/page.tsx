@@ -9,19 +9,24 @@ import { getAuthToken } from "@/lib/auth"
 import { fetchUnreadSummary, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
+import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 
 const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
 const GLOBAL_ROOM_SLUG = "global"
 const GLOBAL_CHAT_TITLE = "Общий чат для всех"
+const GLOBAL_CHAT_AVATAR_SRC = "/ava-chat.jpeg"
 const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:"
 const SHARE_WITH_JESUS_CHAT_ID = "__share_with_jesus__"
 const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом"
+/** Стабильный URL без ожидания UUID с сервера */
+export const SHARE_WITH_JESUS_SLUG = "share-with-jesus"
 
 function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
   return {
     id: GLOBAL_ROOM_ID,
     title: GLOBAL_CHAT_TITLE,
     avatarInitials: getInitials(GLOBAL_CHAT_TITLE),
+    avatarImage: GLOBAL_CHAT_AVATAR_SRC,
     href: `/chat/${GLOBAL_ROOM_SLUG}`,
     preview: "",
     timeLabel: "",
@@ -40,9 +45,9 @@ function createShareWithJesusChatItem(roomId: string, previous?: ChatListItem): 
   return {
     id: SHARE_WITH_JESUS_CHAT_ID,
     title: SHARE_WITH_JESUS_CHAT_TITLE,
-    avatarImage: "/jesusAvatar.svg",
+    avatarImage: "/jesus-say.svg",
     avatarClass: "jesusAvatar",
-    href: `/chat/${roomId}`,
+    href: `/chat/${SHARE_WITH_JESUS_SLUG}`,
     preview: previous?.preview ?? "",
     timeLabel: previous?.timeLabel ?? "",
   }
@@ -57,6 +62,8 @@ type DirectRoomItemInput = {
   title: string
   isOnline: boolean
   previous?: ChatListItem
+  lastActivityAt?: string
+  avatarUrl?: string | null
 }
 
 function getGlobalRoomFromPrevious(rooms: ChatListItem[]) {
@@ -69,17 +76,51 @@ function getGlobalRoomFromPrevious(rooms: ChatListItem[]) {
   })
 }
 
-function createDirectRoomItem({ userId, title, isOnline, previous }: DirectRoomItemInput): ChatListItem {
+function createDirectRoomItem({
+  userId,
+  title,
+  isOnline,
+  previous,
+  lastActivityAt,
+  avatarUrl,
+}: DirectRoomItemInput): ChatListItem {
+  let avatarImage: string | undefined
+  if (avatarUrl !== undefined) {
+    avatarImage = resolvePublicAvatarUrl(avatarUrl)
+  } else if (previous?.id === userId && previous.avatarImage) {
+    avatarImage = previous.avatarImage
+  }
+
   return {
     id: userId,
     title,
     avatarInitials: getInitials(title),
+    ...(avatarImage ? { avatarImage } : {}),
     href: `/chat/${userId}`,
     preview: previous?.preview ?? "",
     timeLabel: previous?.timeLabel ?? "",
+    lastActivityAt: lastActivityAt ?? previous?.lastActivityAt,
     unread: previous?.unread ?? 0,
     isOnline,
   }
+}
+
+/** Порядок: «Поделись с Иисусом» → общий чат → личные (по lastActivityAt, новые сверху). */
+function orderChatListRows(rooms: ChatListItem[]): ChatListItem[] {
+  const shareWithJesusRoom = rooms.find((room) => room.id === SHARE_WITH_JESUS_CHAT_ID)
+  const globalRoom = rooms.find((room) => room.id === GLOBAL_ROOM_ID)
+  const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID)
+
+  const sortedDirectRooms = [...directRooms].sort((leftRoom, rightRoom) => {
+    const leftTs = leftRoom.lastActivityAt ? new Date(leftRoom.lastActivityAt).getTime() : 0
+    const rightTs = rightRoom.lastActivityAt ? new Date(rightRoom.lastActivityAt).getTime() : 0
+    if (leftTs !== rightTs) {
+      return rightTs - leftTs
+    }
+    return leftRoom.title.localeCompare(rightRoom.title, "ru", { sensitivity: "base" })
+  })
+
+  return [...(shareWithJesusRoom ? [shareWithJesusRoom] : []), ...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
 }
 
 function prependDirectRoomIfMissing(rooms: ChatListItem[], input: DirectRoomItemInput) {
@@ -91,9 +132,14 @@ function prependDirectRoomIfMissing(rooms: ChatListItem[], input: DirectRoomItem
   const shareWithJesusRoom = getShareWithJesusRoomFromPrevious(rooms)
   const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID)
 
+  const newDirect = createDirectRoomItem({
+    ...input,
+    lastActivityAt: input.lastActivityAt ?? new Date().toISOString(),
+  })
+
   return shareWithJesusRoom
-    ? [globalRoom, shareWithJesusRoom, createDirectRoomItem(input), ...directRooms]
-    : [globalRoom, createDirectRoomItem(input), ...directRooms]
+    ? orderChatListRows([shareWithJesusRoom, globalRoom, newDirect, ...directRooms])
+    : orderChatListRows([globalRoom, newDirect, ...directRooms])
 }
 
 function prependShareWithJesusRoomIfMissing(rooms: ChatListItem[], roomId?: string) {
@@ -104,7 +150,7 @@ function prependShareWithJesusRoomIfMissing(rooms: ChatListItem[], roomId?: stri
   const globalRoom = getGlobalRoomFromPrevious(rooms)
   const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID)
 
-  return [globalRoom, createShareWithJesusChatItem(roomId), ...directRooms]
+  return orderChatListRows([createShareWithJesusChatItem(roomId), globalRoom, ...directRooms])
 }
 
 type ChatListRuntimeCache = {
@@ -127,6 +173,7 @@ function getDirectTargetUserId(title: string, currentUserId?: string) {
 type RoomSocketItem = {
   id: string
   title: string
+  createdAt?: string
 }
 
 type NewMessageSocketEvent = {
@@ -134,6 +181,8 @@ type NewMessageSocketEvent = {
   content: string
   createdAt: string
   username?: string
+  handle?: string
+  senderId?: string
 }
 
 type DirectRoomOpenedSocketEvent = {
@@ -230,12 +279,18 @@ export default function ChatPage() {
   const activeRoomIdRef = useRef<string | null>(null)
   const roomIdToDirectUserIdRef = useRef<Map<string, string>>(new Map())
   const directUserIdToRoomIdRef = useRef<Map<string, string>>(new Map())
+  const lastDirectMapSizeRef = useRef(-1)
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
   const router = useRouter()
 
   const activeRoomIdPath = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
-  const activeRoomId = activeRoomIdPath === GLOBAL_ROOM_SLUG ? GLOBAL_ROOM_ID : activeRoomIdPath
+  const activeRoomId =
+    activeRoomIdPath === GLOBAL_ROOM_SLUG
+      ? GLOBAL_ROOM_ID
+      : activeRoomIdPath === SHARE_WITH_JESUS_SLUG
+        ? SHARE_WITH_JESUS_CHAT_ID
+        : activeRoomIdPath
 
   const applyOnlinePresenceToRooms = useCallback((nextOnlineIds: Set<string>) => {
     setRooms((prev) => {
@@ -294,12 +349,14 @@ export default function ChatPage() {
           const nextTimeLabel = summaryRoom?.lastMessage
             ? formatChatTimeLabel(summaryRoom.lastMessage.createdAt)
             : (room.timeLabel ?? "")
+          const nextLastActivityAt = summaryRoom?.lastMessage?.createdAt ?? room.lastActivityAt
           const currentUnread = typeof room.unread === "number" ? room.unread : room.unread ? 1 : 0
 
           if (
             currentUnread === nextUnread &&
             (room.preview ?? "") === nextPreview &&
-            (room.timeLabel ?? "") === nextTimeLabel
+            (room.timeLabel ?? "") === nextTimeLabel &&
+            (room.lastActivityAt ?? "") === (nextLastActivityAt ?? "")
           ) {
             return room
           }
@@ -310,46 +367,11 @@ export default function ChatPage() {
             unread: nextUnread,
             preview: nextPreview,
             timeLabel: nextTimeLabel,
+            lastActivityAt: nextLastActivityAt,
           }
         })
 
-        const globalRoom = nextRooms.find((room) => room.id === GLOBAL_ROOM_ID)
-        const shareWithJesusRoom = nextRooms.find((room) => room.id === SHARE_WITH_JESUS_CHAT_ID)
-        const directRooms = nextRooms.filter(
-          (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID,
-        )
-        const sortedDirectRooms = [...directRooms].sort((leftRoom, rightRoom) => {
-          const leftSourceRoomId = directUserIdToRoomIdRef.current.get(leftRoom.id)
-          const rightSourceRoomId = directUserIdToRoomIdRef.current.get(rightRoom.id)
-
-          const leftCreatedAt = leftSourceRoomId
-            ? summaryByRoomId.get(leftSourceRoomId)?.lastMessage?.createdAt
-            : undefined
-          const rightCreatedAt = rightSourceRoomId
-            ? summaryByRoomId.get(rightSourceRoomId)?.lastMessage?.createdAt
-            : undefined
-
-          const leftTs = leftCreatedAt ? new Date(leftCreatedAt).getTime() : 0
-          const rightTs = rightCreatedAt ? new Date(rightCreatedAt).getTime() : 0
-
-          if (leftTs !== rightTs) {
-            return rightTs - leftTs
-          }
-
-          const leftUnread = typeof leftRoom.unread === "number" ? leftRoom.unread : leftRoom.unread ? 1 : 0
-          const rightUnread = typeof rightRoom.unread === "number" ? rightRoom.unread : rightRoom.unread ? 1 : 0
-
-          if (leftUnread !== rightUnread) {
-            return rightUnread - leftUnread
-          }
-
-          return leftRoom.title.localeCompare(rightRoom.title, "ru", { sensitivity: "base" })
-        })
-
-        // Ставим "Поделись с Иисусом" первым, затем общий чат, затем остальные
-        const orderedRooms = shareWithJesusRoom
-          ? [shareWithJesusRoom, ...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
-          : [...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
+        const orderedRooms = orderChatListRows(nextRooms)
         const hasOrderChanges = orderedRooms.some((room, index) => room.id !== prev[index]?.id)
 
         return hasUpdates || hasOrderChanges ? orderedRooms : prev
@@ -383,10 +405,12 @@ export default function ChatPage() {
       .filter((existingUser) => existingUser.id !== user?.id)
       .map((existingUser) => ({
         id: existingUser.id,
-        username: existingUser.username,
+        username: existingUser.nickname ?? existingUser.username,
+        handle: existingUser.username,
         email: existingUser.email,
         isOnline: onlineUserIds.has(existingUser.id),
         hasDirectChat: directChatUserIds.has(existingUser.id),
+        avatarUrl: existingUser.avatarUrl,
       }))
       .sort((leftUser, rightUser) => {
         if (leftUser.hasDirectChat !== rightUser.hasDirectChat) {
@@ -397,7 +421,7 @@ export default function ChatPage() {
           return leftUser.isOnline ? -1 : 1
         }
 
-        return leftUser.username.localeCompare(rightUser.username, "ru", { sensitivity: "base" })
+        return leftUser.handle.localeCompare(rightUser.handle, "ru", { sensitivity: "base" })
       })
   }, [onlineUserIds, rooms, user?.id, users])
 
@@ -458,6 +482,19 @@ export default function ChatPage() {
     void refreshUnreadSummary()
   }, [refreshUnreadSummary, user?.id])
 
+  /** Повторный запрос сводки после появления маппинга userId ↔ roomId (устраняет гонку с первым fetch). */
+  useEffect(() => {
+    const size = directUserIdToRoomIdRef.current.size
+    if (size === lastDirectMapSizeRef.current) {
+      return
+    }
+    lastDirectMapSizeRef.current = size
+    if (size === 0) {
+      return
+    }
+    void refreshUnreadSummary()
+  }, [rooms, refreshUnreadSummary])
+
   useEffect(() => {
     const onFocus = () => {
       void refreshUnreadSummary()
@@ -496,15 +533,24 @@ export default function ChatPage() {
         }
 
         const matchedUser = usersMap.get(room.id)
-        if (!matchedUser || matchedUser.username === room.title) {
+        if (!matchedUser) {
+          return room
+        }
+
+        const nextAvatar = resolvePublicAvatarUrl(matchedUser.avatarUrl)
+        const displayTitle = matchedUser.nickname ?? matchedUser.username
+        const titleSame = displayTitle === room.title
+        const avatarSame = (nextAvatar ?? "") === (room.avatarImage ?? "")
+        if (titleSame && avatarSame) {
           return room
         }
 
         hasUpdates = true
         return {
           ...room,
-          title: matchedUser.username,
-          avatarInitials: getInitials(matchedUser.username),
+          title: displayTitle,
+          avatarInitials: getInitials(displayTitle),
+          avatarImage: nextAvatar,
         }
       })
 
@@ -579,7 +625,7 @@ export default function ChatPage() {
 
           const targetUser = usersById.get(targetUserId)
           const previous = previousById.get(targetUserId)
-          const directTitle = targetUser?.username ?? "Личный чат"
+          const directTitle = targetUser?.nickname ?? targetUser?.username ?? "Личный чат"
 
           nextRoomToUser.set(room.id, targetUserId)
           nextUserToRoom.set(targetUserId, room.id)
@@ -592,6 +638,8 @@ export default function ChatPage() {
                 title: directTitle,
                 previous,
                 isOnline: onlineUserIdsRef.current.has(targetUserId),
+                lastActivityAt: room.createdAt,
+                avatarUrl: targetUser?.avatarUrl,
               }),
             )
           }
@@ -600,11 +648,13 @@ export default function ChatPage() {
       roomIdToDirectUserIdRef.current = nextRoomToUser
       directUserIdToRoomIdRef.current = nextUserToRoom
 
-      setRooms([
-        ...(shareWithJesusRoom ? [shareWithJesusRoom] : []),
-        globalRoom,
-        ...Array.from(directChatsByUserId.values()),
-      ])
+      setRooms(
+        orderChatListRows([
+          ...(shareWithJesusRoom ? [shareWithJesusRoom] : []),
+          globalRoom,
+          ...Array.from(directChatsByUserId.values()),
+        ]),
+      )
       void refreshUnreadSummary()
     }
     socket.on("myRooms", onMyRooms)
@@ -622,7 +672,7 @@ export default function ChatPage() {
         const globalRoom = getGlobalRoomFromPrevious(prev)
         const shareWithJesusRoom = getShareWithJesusRoomFromPrevious(prev)
 
-        return shareWithJesusRoom ? [globalRoom, shareWithJesusRoom] : [globalRoom]
+        return shareWithJesusRoom ? [shareWithJesusRoom, globalRoom] : [globalRoom]
       })
     }
     socket.on("connect_error", onConnectError)
@@ -662,7 +712,11 @@ export default function ChatPage() {
         return
       }
 
-      const isOwnMessage = Boolean(msg.username && msg.username === user?.username)
+      const isOwnMessage = Boolean(
+        (msg.senderId && user?.id && msg.senderId === user.id) ||
+          (msg.handle && user?.username && msg.handle === user.username) ||
+          (msg.username && user?.username && msg.username === user.username),
+      )
 
       const directRoomId = directUserId ? directUserIdToRoomIdRef.current.get(directUserId) : undefined
       const isActiveRoom =
@@ -701,12 +755,17 @@ export default function ChatPage() {
                 : prependDirectRoomIfMissing(prev, {
                     userId: mappedId,
                     title:
-                      usersRef.current.find((existingUser) => existingUser.id === mappedId)?.username ?? "Личный чат",
+                      (() => {
+                        const u = usersRef.current.find((existingUser) => existingUser.id === mappedId)
+                        return u?.nickname ?? u?.username ?? "Личный чат"
+                      })(),
                     isOnline: onlineUserIdsRef.current.has(mappedId),
+                    lastActivityAt: msg.createdAt,
+                    avatarUrl: usersRef.current.find((existingUser) => existingUser.id === mappedId)?.avatarUrl,
                   })
               : prev
 
-          return baseRooms.map((room) => {
+          const mapped = baseRooms.map((room) => {
             if (room.id !== mappedId) return room
             const currentUnread = typeof room.unread === "number" ? room.unread : room.unread ? 1 : 0
             const nextUnread = isActiveRoom ? 0 : isOwnMessage ? currentUnread : currentUnread + 1
@@ -716,8 +775,11 @@ export default function ChatPage() {
               preview: previewContent,
               timeLabel: formatChatTimeLabel(msg.createdAt),
               unread: nextUnread,
+              lastActivityAt: msg.createdAt,
             }
           })
+
+          return orderChatListRows(mapped)
         })(),
       )
     }
@@ -740,6 +802,33 @@ export default function ChatPage() {
     }
     socket.on("roomCreated", onRoomCreated)
 
+    type RemoveSelfFromRoomResult = {
+      ok: boolean
+      roomId?: string
+      error?: string
+    }
+
+    const onRemoveSelfFromRoomResult = (payload: RemoveSelfFromRoomResult) => {
+      if (!payload?.ok) {
+        window.alert(typeof payload?.error === "string" ? payload.error : "Не удалось удалить чат")
+        return
+      }
+
+      const removedRoomId = payload.roomId
+      if (!removedRoomId) {
+        void refreshUnreadSummary()
+        return
+      }
+
+      const listIdForRoom = roomIdToDirectUserIdRef.current.get(removedRoomId)
+      if (listIdForRoom && activeRoomIdRef.current === listIdForRoom) {
+        router.push("/chat")
+      }
+
+      void refreshUnreadSummary()
+    }
+    socket.on("removeSelfFromRoomResult", onRemoveSelfFromRoomResult)
+
     const onDirectRoomOpened = (payload: DirectRoomOpenedSocketEvent) => {
       if (payload?.roomId && payload?.targetUserId) {
         roomIdToDirectUserIdRef.current.set(payload.roomId, payload.targetUserId)
@@ -749,13 +838,14 @@ export default function ChatPage() {
       const targetUserId = payload?.targetUserId
       if (targetUserId) {
         const targetUser = usersRef.current.find((existingUser) => existingUser.id === targetUserId)
-        const directTitle = targetUser?.username ?? "Личный чат"
+        const directTitle = targetUser?.nickname ?? targetUser?.username ?? "Личный чат"
 
         setRooms((prev) =>
           prependDirectRoomIfMissing(prev, {
             userId: targetUserId,
             title: directTitle,
             isOnline: onlineUserIdsRef.current.has(targetUserId),
+            avatarUrl: targetUser?.avatarUrl,
           }),
         )
       }
@@ -786,6 +876,7 @@ export default function ChatPage() {
       socket.off("userInvitedToRoom", onUserInvitedToRoom)
       socket.off("roomCreated", onRoomCreated)
       socket.off("directRoomOpened", onDirectRoomOpened)
+      socket.off("removeSelfFromRoomResult", onRemoveSelfFromRoomResult)
     }
   }, [refreshUnreadSummary, router, socket, syncOnlinePresence, user?.id, user?.username])
 
@@ -818,8 +909,9 @@ export default function ChatPage() {
       setRooms((prev) =>
         prependDirectRoomIfMissing(prev, {
           userId: targetUser.id,
-          title: targetUser.username,
+          title: targetUser.nickname ?? targetUser.username,
           isOnline: onlineUserIdsRef.current.has(targetUser.id),
+          avatarUrl: targetUser.avatarUrl,
         }),
       )
 
@@ -828,14 +920,50 @@ export default function ChatPage() {
     [router, socket, user, usersById],
   )
 
-  const chatItems =
-    rooms.length > 0
-      ? rooms
-      : [
-          createGlobalChatItem({
-            preview: "Нет подключений к чату",
-          }),
-        ]
+  const handleDeleteChat = useCallback(
+    (listItemId: string) => {
+      const serverRoomId = directUserIdToRoomIdRef.current.get(listItemId)
+      if (!serverRoomId) {
+        window.alert("Не удалось определить комнату. Попробуй обновить список.")
+        socket?.emit("getMyRooms")
+        return
+      }
 
-  return <ChatList items={chatItems} onCreateChat={handleCreateChat} chatCandidates={chatCreateCandidates} />
+      if (!socket?.connected) {
+        window.alert("Сокет не подключен. Попробуй через пару секунд.")
+        return
+      }
+
+      socket.emit("removeSelfFromRoom", { roomId: serverRoomId })
+    },
+    [socket],
+  )
+
+  const chatItems = useMemo(() => {
+    const base =
+      rooms.length > 0
+        ? rooms
+        : [
+            createGlobalChatItem({
+              preview: "Нет подключений к чату",
+            }),
+          ]
+
+    return base.map((room) => ({
+      ...room,
+      deletable:
+        room.id !== GLOBAL_ROOM_ID &&
+        room.id !== SHARE_WITH_JESUS_CHAT_ID &&
+        Boolean(room.href),
+    }))
+  }, [rooms])
+
+  return (
+    <ChatList
+      items={chatItems}
+      onCreateChat={handleCreateChat}
+      chatCandidates={chatCreateCandidates}
+      onDeleteChat={handleDeleteChat}
+    />
+  )
 }

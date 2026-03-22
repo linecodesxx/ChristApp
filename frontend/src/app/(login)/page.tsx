@@ -5,6 +5,7 @@ import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation"
+import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import styles from "@/app/(login)/login.module.scss"
 
 export default function LoginPage() {
@@ -47,7 +48,7 @@ export default function LoginPage() {
     return (
       <main className={styles.main}>
         <section className={styles.card}>
-          <p className={styles.loadingText}>Loading...</p>
+          <CrossLoader className={styles.loaderInCard} label="Загрузка" variant="inline" />
         </section>
       </main>
     )

@@ -10,8 +10,10 @@ type User = {
   id: string
   email: string
   username: string
+  nickname?: string
   createdAt: string
   isActive: boolean
+  avatarUrl?: string | null
 }
 
 type UseAuthOptions = {
@@ -109,6 +111,23 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, [API_URL, fetchUsers, redirectIfUnauthenticated, router])
 
+  const refreshSession = useCallback(async () => {
+    const token = getAuthToken()
+    if (!token || !API_URL) return
+
+    try {
+      const res = await fetch(`${API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setUser(data)
+      await fetchUsers()
+    } catch {
+      // ignore
+    }
+  }, [API_URL, fetchUsers])
+
   useEffect(() => {
     checkAuth()
   }, [checkAuth])
@@ -149,7 +168,11 @@ export function useAuth(options?: UseAuthOptions) {
         email,
         username: typeof data?.user?.username === "string" ? data.user.username : undefined,
       })
-      setUser(data.user)
+      if (data.user) {
+        setUser(data.user)
+      } else {
+        await refreshSession()
+      }
       await fetchUsers()
 
       return true
@@ -182,5 +205,6 @@ export function useAuth(options?: UseAuthOptions) {
     login,
     logout,
     refreshUsers: fetchUsers,
+    refreshSession,
   }
 }

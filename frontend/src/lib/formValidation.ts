@@ -1,5 +1,6 @@
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/
+/** Латиница, цифры, подчёркивание; 3–20 — совпадает с backend. */
+export const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/
 
 const PASSWORD_MIN_LENGTH = 6
 const PASSWORD_MAX_LENGTH = 72

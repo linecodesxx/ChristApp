@@ -5,7 +5,10 @@ export async function GET(req: NextRequest) {
     const url = new URL(req.url);
 
     const pathParam = req.nextUrl.pathname.replace("/api/bibleProxy", "");
-    const apiUrl = `${process.env.NEXT_PUBLIC_BIBLE_API_URL}${pathParam}${url.search}`;
+    const upstreamBase = (
+      process.env.NEXT_PUBLIC_BIBLE_API_URL || "https://api.prayerpulse.io"
+    ).replace(/\/$/, "");
+    const apiUrl = `${upstreamBase}${pathParam}${url.search}`;
 
     const apiRes = await fetch(apiUrl, {
       headers: {
@@ -19,7 +22,6 @@ export async function GET(req: NextRequest) {
     });
 
     const text = await apiRes.text();
-    console.log("RESPONSE:", text.slice(0, 300));
 
     if (!apiRes.ok) {
       console.error("UPSTREAM ERROR:", apiRes.status, text);

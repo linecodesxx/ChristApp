@@ -53,27 +53,28 @@
   --login-error-text: #943535;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 html,
 body {
   max-width: 100vw;
   overflow-x: hidden;
 }
 
+/* Убираем системное синее выделение тапа; фокус клавиатуры — через :focus-visible у компонентов */
 *,
 *::before,
 *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
 *::-webkit-scrollbar {
   display: none;
-}
-
-* {
-  margin: 0;
-  padding: 0;
 }
 
 body {

@@ -7,7 +7,8 @@ import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
 import PushAutoSync from "@/components/PushAutoSync/PushAutoSync"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
-import Providers from '@/providers/providers';
+import Providers from "@/providers/providers"
+import SplashScreen from "@/components/SplashScreen/SplashScreen"
 
 import type { Metadata, Viewport } from "next"
 
@@ -35,6 +36,7 @@ export default function RootLayout({
   return (
     <html lang="ru" data-theme="dark">
       <body className={`${inter.variable} ${geistMono.variable}`}>
+        <SplashScreen />
         <Providers>
         <PwaRegistration />
         <PushAutoSync />

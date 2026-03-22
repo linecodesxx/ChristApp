@@ -1,3 +1,40 @@
+.row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  max-width: 100%;
+}
+
+.avatarBtn {
+  flex-shrink: 0;
+  margin-top: 2px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.avatarImg {
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .bubble {
   display: flex;
   max-width: 290px;

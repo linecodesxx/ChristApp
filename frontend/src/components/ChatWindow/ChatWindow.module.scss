@@ -1,3 +1,8 @@
+.topBanner {
+  flex-shrink: 0;
+  width: 100%;
+}
+
 .chatWindow {
   display: flex;
   flex-direction: column;
@@ -28,4 +33,77 @@ html[data-theme="dark"] .chatWindow {
 
 .empty {
   opacity: 0.8;
+}
+
+.typingLane {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  max-width: 92%;
+  margin: 4px 0 2px;
+  padding: 10px 14px 10px 16px;
+  border-radius: 16px 16px 16px 6px;
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 22%);
+  box-shadow: 0 6px 18px -14px color-mix(in srgb, var(--accent) 40%, transparent);
+  animation: typingLaneIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.typingLaneText {
+  font-family: "Inter", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: color-mix(in srgb, var(--foreground) 88%, var(--accent) 12%);
+}
+
+.typingDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding-left: 2px;
+}
+
+.typingDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent) 70%, var(--foreground));
+  opacity: 0.35;
+  animation: typingDotPulse 1.05s ease-in-out infinite;
+
+  &:nth-child(2) {
+    animation-delay: 0.18s;
+  }
+
+  &:nth-child(3) {
+    animation-delay: 0.36s;
+  }
+}
+
+@keyframes typingLaneIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes typingDotPulse {
+  0%,
+  60%,
+  100% {
+    opacity: 0.28;
+    transform: translateY(0) scale(1);
+  }
+
+  30% {
+    opacity: 1;
+    transform: translateY(-4px) scale(1.12);
+  }
 }
