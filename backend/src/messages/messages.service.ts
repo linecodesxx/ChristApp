@@ -1,5 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { resolveGlobalRoomId } from 'src/config/global-room';
 
 type UnreadRoomSummaryRow = {
   roomId: string;
@@ -36,8 +38,8 @@ export type DeleteOwnGlobalMessageResult =
 
 @Injectable()
 export class MessagesService {
-  private readonly GLOBAL_ROOM =
-    process.env.GLOBAL_ROOM_ID ?? '00000000-0000-0000-0000-000000000001';
+  private readonly logger = new Logger(MessagesService.name);
+  private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private readonly REPLY_META_PREFIX = '[[reply:';
   private readonly REPLY_META_SUFFIX = ']]';
@@ -70,14 +72,20 @@ export class MessagesService {
     });
   }
 
+  /**
+   * Последние `limit` сообщений комнаты (хронологически: старые → новые).
+   * Раньше использовался order asc + take — отдавались самые старые N сообщений,
+   * из‑за чего при большой истории новые пропадали после перезагрузки.
+   */
   async getRoomMessages(roomId: string, limit = 50, skip = 0) {
-    return this.prisma.message.findMany({
+    const rows = await this.prisma.message.findMany({
       where: { roomId },
       include: { sender: true },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
       take: limit,
       skip,
     });
+    return rows.reverse();
   }
 
   async getAll(limit = 50, skip = 0) {
@@ -87,6 +95,11 @@ export class MessagesService {
       take: limit,
       skip,
     });
+  }
+
+  /** Сообщения только общей комнаты (без личных и прочих комнат). */
+  async getGlobalRoomMessages(limit = 50, skip = 0) {
+    return this.getRoomMessages(this.GLOBAL_ROOM, limit, skip);
   }
 
   async deleteOwnGlobalMessage(
@@ -129,7 +142,6 @@ export class MessagesService {
   }
 
   async markRoomAsRead(roomId: string, userId: string, lastReadAt = new Date()) {
-    const initialLastReadAt = new Date('1970-01-01T00:00:00Z');
     await this.prisma.roomReadState.upsert({
       where: {
         roomId_userId: {
@@ -143,7 +155,7 @@ export class MessagesService {
       create: {
         roomId,
         userId,
-        lastReadAt: initialLastReadAt,
+        lastReadAt,
       },
     });
   }
@@ -151,24 +163,37 @@ export class MessagesService {
   async getUnreadSummary(userId: string): Promise<UnreadSummaryResult> {
     // Один запрос сразу по всем доступным комнатам:
     // unread + последнее сообщение по каждой комнате.
+    try {
+      return await this.fetchUnreadSummaryRows(userId);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`getUnreadSummary failed for userId=${userId}: ${message}`, err);
+      throw err;
+    }
+  }
+
+  private async fetchUnreadSummaryRows(userId: string): Promise<UnreadSummaryResult> {
+    const memberRows = await this.prisma.roomMember.findMany({
+      where: { userId },
+      select: { roomId: true },
+    });
+
+    const roomIds = Array.from(
+      new Set<string>([this.GLOBAL_ROOM, ...memberRows.map((row) => row.roomId)]),
+    );
+
     const rows = await this.prisma.$queryRaw<UnreadRoomSummaryRow[]>`
       WITH accessible_rooms AS (
         SELECT r.id AS "roomId"
         FROM "Room" r
-        WHERE r.id = ${this.GLOBAL_ROOM}
-           OR EXISTS (
-             SELECT 1
-             FROM "RoomMember" rm
-             WHERE rm."roomId" = r.id
-               AND rm."userId" = ${userId}
-           )
+        WHERE r.id IN (${Prisma.join(roomIds)})
       ),
       unread_counts AS (
         SELECT
           m."roomId" AS "roomId",
-          COUNT(*)::int AS "unreadCount"
+          COUNT(*)::int AS unread_n
         FROM "Message" m
-        JOIN accessible_rooms ar
+        INNER JOIN accessible_rooms ar
           ON ar."roomId" = m."roomId"
         LEFT JOIN "RoomReadState" rrs
           ON rrs."roomId" = m."roomId"
@@ -186,15 +211,15 @@ export class MessagesService {
           m."senderId" AS "messageSenderId",
           u.username AS "messageSenderUsername"
         FROM "Message" m
-        JOIN accessible_rooms ar
+        INNER JOIN accessible_rooms ar
           ON ar."roomId" = m."roomId"
-        JOIN "User" u
+        INNER JOIN "User" u
           ON u.id = m."senderId"
         ORDER BY m."roomId", m."createdAt" DESC
       )
       SELECT
         ar."roomId" AS "roomId",
-        COALESCE(uc."unreadCount", 0)::int AS "unreadCount",
+        COALESCE(uc.unread_n, 0)::int AS "unreadCount",
         lm."messageId" AS "messageId",
         lm."messageContent" AS "messageContent",
         lm."messageCreatedAt" AS "messageCreatedAt",
@@ -210,7 +235,7 @@ export class MessagesService {
 
     const rooms = rows
       .map((row) => ({
-        roomId: row.roomId,
+        roomId: String(row.roomId),
         unread: Number(row.unreadCount) || 0,
         lastMessage: this.toLastMessageSummary(row),
       }))

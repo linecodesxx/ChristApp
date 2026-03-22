@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { resolveGlobalRoomId } from 'src/config/global-room';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 
 const REPLY_META_PREFIX = '[[reply:';
@@ -27,8 +28,7 @@ type PushSubscriptionRecord = {
 export class PushService {
   private readonly logger = new Logger(PushService.name);
 
-  private readonly GLOBAL_ROOM =
-    process.env.GLOBAL_ROOM_ID ?? '00000000-0000-0000-0000-000000000001';
+  private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private readonly isConfigured: boolean;
   private readonly publicKey: string | null;

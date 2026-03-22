@@ -270,6 +270,14 @@
   margin-bottom: 10px;
 }
 
+.loadingState {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: min(60dvh, 420px);
+  padding: 24px 16px;
+}
+
 @keyframes skeleton-loading {
   0% {
     background-position: 200% 0;

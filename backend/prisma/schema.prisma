@@ -4,14 +4,17 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
   id          String       @id @default(uuid())
   email       String       @unique
+  /** Уникальный @username (латиница, нижний регистр). */
   username    String       @unique
+  /** Отображаемый ник (изначально совпадает с username). */
+  nickname    String
   password    String
+  avatarUrl   String?
   messages    Message[]
   memberships RoomMember[]
   roomReadStates RoomReadState[]

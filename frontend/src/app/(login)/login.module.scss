@@ -46,8 +46,9 @@
   color: var(--login-muted);
 }
 
-.loadingText {
-  color: var(--login-loading);
+.loaderInCard {
+  width: 100%;
+  min-height: 160px;
 }
 
 .errorWrap {

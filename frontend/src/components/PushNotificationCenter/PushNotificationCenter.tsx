@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
 import { getAuthToken } from "@/lib/auth"
 import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
@@ -11,6 +11,7 @@ import {
   isPushSupportedInBrowser,
   syncBrowserPushSubscription,
 } from "@/lib/push"
+import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import styles from "./PushNotificationCenter.module.scss"
 
 const REFRESH_INTERVAL_MS = 45_000
@@ -26,19 +27,23 @@ function getPermissionState(): PermissionState {
 }
 
 function formatUnreadMessage(count: number) {
+  if (count === 0) {
+    return "У вас нет непрочитанных сообщений."
+  }
+
   const absCount = Math.abs(count)
   const mod10 = absCount % 10
   const mod100 = absCount % 100
 
   if (mod10 === 1 && mod100 !== 11) {
-    return `У тебя ${count} непрочитанное сообщение.`
+    return `У вас ${count} непрочитанное сообщение.`
   }
 
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
-    return `У тебя ${count} непрочитанных сообщения.`
+    return `У вас ${count} непрочитанных сообщения.`
   }
 
-  return `У тебя ${count} непрочитанных сообщений.`
+  return `У вас ${count} непрочитанных сообщений.`
 }
 
 export default function PushNotificationCenter() {
@@ -51,28 +56,36 @@ export default function PushNotificationCenter() {
   const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  const refreshSeqRef = useRef(0)
+
   const isPublicRoute = pathname === "/" || pathname === "/register" || pathname === "/offline"
   const isProfileRoute = pathname === "/profile" || pathname.startsWith("/profile/")
 
   const refreshState = useCallback(
     async (options?: { syncSubscription?: boolean }) => {
+      const seq = ++refreshSeqRef.current
+
       if (!token) {
         setIsPushConfigured(false)
         setHasServerSubscription(false)
         setUnreadTotal(0)
         setSyncErrorMessage(null)
         setPermissionState(getPermissionState())
+        if (seq !== refreshSeqRef.current) return
         setIsLoading(false)
         return
       }
 
       const nextPermission = getPermissionState()
+      if (seq !== refreshSeqRef.current) return
       setPermissionState(nextPermission)
 
       const [pushStatus, unreadSummary] = await Promise.all([
         fetchPushStatus(token),
         fetchUnreadSummary(token),
       ])
+
+      if (seq !== refreshSeqRef.current) return
 
       setIsPushConfigured(Boolean(pushStatus?.enabled))
       setHasServerSubscription(Boolean(pushStatus?.hasSubscription))
@@ -86,9 +99,11 @@ export default function PushNotificationCenter() {
       // в фоне зарегистрировать (или обновить) подписку браузера.
       if (options?.syncSubscription && nextPermission === "granted" && pushStatus?.enabled) {
         const syncResult = await syncBrowserPushSubscription(token)
+        if (seq !== refreshSeqRef.current) return
         setSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
 
         const refreshedStatus = await fetchPushStatus(token)
+        if (seq !== refreshSeqRef.current) return
         if (refreshedStatus) {
           setIsPushConfigured(Boolean(refreshedStatus.enabled))
           setHasServerSubscription(Boolean(refreshedStatus.hasSubscription))
@@ -98,6 +113,7 @@ export default function PushNotificationCenter() {
         }
       }
 
+      if (seq !== refreshSeqRef.current) return
       setIsLoading(false)
     },
     [token],
@@ -108,7 +124,10 @@ export default function PushNotificationCenter() {
       return
     }
 
-    const syncToken = () => setToken(getAuthToken())
+    const syncToken = () => {
+      const newToken = getAuthToken()
+      setToken((prev) => (prev !== newToken ? newToken : prev))
+    }
 
     window.addEventListener("focus", syncToken)
     window.addEventListener("storage", syncToken)
@@ -216,8 +235,28 @@ export default function PushNotificationCenter() {
     return null
   }
 
+  if (isLoading) {
+    return (
+      <section
+        className={styles.banner}
+        aria-live="polite"
+        role="status"
+        aria-busy={true}
+      >
+        <div className={styles.pushLoaderWrap}>
+          <CrossLoader label="Проверка уведомлений" variant="inline" />
+        </div>
+      </section>
+    )
+  }
+
   return (
-    <section className={styles.banner} aria-live="polite" role="status">
+    <section
+      className={styles.banner}
+      aria-live="polite"
+      role="status"
+      aria-busy={false}
+    >
       <div className={styles.headerRow}>
         <p className={styles.title}>Push-уведомления</p>
         <span className={styles.badge}>{deliveryStatusLabel}</span>
@@ -248,8 +287,6 @@ export default function PushNotificationCenter() {
       {!isPushConfigured ? (
         <p className={styles.hint}>Серверный push пока не настроен: добавь VAPID-ключи в backend.</p>
       ) : null}
-
-      {isLoading ? <p className={styles.hint}>Проверяю состояние уведомлений...</p> : null}
     </section>
   )
 }

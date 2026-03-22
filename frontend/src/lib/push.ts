@@ -1,4 +1,5 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+/** Без завершающего `/`, иначе получится `//push/...` и часть прокси отдаёт 404/500. */
+const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/+$/, '')
 
 export type PushServerStatus = {
   enabled: boolean

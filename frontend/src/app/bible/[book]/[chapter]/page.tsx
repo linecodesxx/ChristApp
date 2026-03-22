@@ -7,6 +7,7 @@ import Verse from '@/components/Verse/Verse';
 import BookDropdown from '@/components/BookDropdown/BookDropdown';
 import ChapterList from '@/components/ChapterList/ChapterList';
 import styles from '../page.module.scss';
+import CrossLoader from '@/components/CrossLoader/CrossLoader';
 
 type Props = {
   params: Promise<{ book: string; chapter: string }>;
@@ -54,7 +55,13 @@ export default function ChapterPage({ params }: Props) {
     }
   };
 
-  if (!bible || !selectedBook || !selectedChapter) return <div>Загрузка...</div>;
+  if (!bible || !selectedBook || !selectedChapter) {
+    return (
+      <main className={`${styles.main} container`}>
+        <CrossLoader label="Загрузка" variant="fullscreen" />
+      </main>
+    );
+  }
 
   return (
     <main className={`${styles.main} container`}>

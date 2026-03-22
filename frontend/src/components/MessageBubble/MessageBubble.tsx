@@ -1,10 +1,18 @@
+"use client"
+
 import { useRef, type MouseEvent, type TouchEvent } from "react"
-import type { Message } from "@/types/message"
+import Image from "next/image"
+import { type Message, isMessageFromCurrentUser } from "@/types/message"
+import { useHydrated } from "@/hooks/useHydrated"
+import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 
 type MessageBubbleProps = {
   message: Message
   currentUsername?: string
+  currentUser?: { id: string; username: string; nickname?: string } | null
+  avatarSrc?: string
+  onAvatarClick?: (message: Message) => void
   onReply?: (message: Message) => void
   onDelete?: (message: Message) => void
   canDeleteOwnMessage?: boolean
@@ -16,22 +24,31 @@ const SWIPE_MAX_VERTICAL_DELTA = 42
 export default function MessageBubble({
   message,
   currentUsername,
+  currentUser,
+  avatarSrc,
+  onAvatarClick,
   onReply,
   onDelete,
   canDeleteOwnMessage = false,
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
+  const hydrated = useHydrated()
 
   const date = new Date(message.createdAt)
-  const formattedDate = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+  const formattedDate = hydrated
+    ? date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : "\u2007"
 
-  const isOwnMessage =
-    message.sender === "me" ||
-    (Boolean(currentUsername) && message.username === currentUsername) ||
-    message.username === "Ты"
+  const isOwnMessage = currentUser
+    ? isMessageFromCurrentUser(message, currentUser)
+    : message.sender === "me" ||
+      (Boolean(currentUsername) && message.username === currentUsername) ||
+      message.username === "Ты"
 
   const bubble = isOwnMessage ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
+
+  const showAvatar = Boolean(avatarSrc || (onAvatarClick && message.senderId && !isOwnMessage))
 
   const handleReplyIntent = () => {
     onReply?.(message)
@@ -76,8 +93,15 @@ export default function MessageBubble({
     onDelete?.(message)
   }
 
-  return (
-    <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+  const handleAvatarClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (!isOwnMessage && message.senderId) {
+      onAvatarClick?.(message)
+    }
+  }
+
+  const bubbleBody = (
+    <>
       {message.replyTo ? (
         <div className={styles.replyPreview}>
           <span className={styles.replyAuthor}>{message.replyTo.username}</span>
@@ -104,6 +128,40 @@ export default function MessageBubble({
 
         <span className={styles.date}>{formattedDate}</span>
       </div>
+    </>
+  )
+
+  if (isOwnMessage) {
+    return (
+      <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        {bubbleBody}
+      </article>
+    )
+  }
+
+  if (showAvatar) {
+    return (
+      <article className={styles.row} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+        <button
+          type="button"
+          className={styles.avatarBtn}
+          onClick={handleAvatarClick}
+          aria-label={`Написать ${message.handle ? `@${message.handle}` : message.username}`}
+        >
+          {avatarSrc ? (
+            <Image src={avatarSrc} alt="" width={36} height={36} className={styles.avatarImg} unoptimized />
+          ) : (
+            <span className={styles.avatarFallback}>{getInitials(message.username)}</span>
+          )}
+        </button>
+        <div className={bubble}>{bubbleBody}</div>
+      </article>
+    )
+  }
+
+  return (
+    <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      {bubbleBody}
     </article>
   )
 }

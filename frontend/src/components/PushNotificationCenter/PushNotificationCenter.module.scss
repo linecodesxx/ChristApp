@@ -71,6 +71,13 @@
   color: var(--text-muted);
 }
 
+.pushLoaderWrap {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+  min-height: 100px;
+}
+
 @media (max-width: 720px) {
   .banner {
     border-radius: 12px;

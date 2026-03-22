@@ -9,16 +9,39 @@ type MessageInputProps = {
   onSend: (text: string, replyToMessage?: Message | null) => Promise<boolean>
   replyToMessage?: Message | null
   onCancelReply?: () => void
+  disabled?: boolean
+  placeholder?: string
+  /** Сигнал для индикатора «печатает» (debounce внутри). */
+  onTypingActivity?: (isActivelyTyping: boolean) => void
 }
 
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_TEXTAREA_HEIGHT = 140
 
-export default function MessageInput({ onSend, replyToMessage, onCancelReply }: MessageInputProps) {
+export default function MessageInput({
+  onSend,
+  replyToMessage,
+  onCancelReply,
+  disabled = false,
+  placeholder = "Напиши сообщение...",
+  onTypingActivity,
+}: MessageInputProps) {
   const [value, setValue] = useState("")
   const [isSending, setIsSending] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const typingSentRef = useRef(false)
+  const onTypingActivityRef = useRef(onTypingActivity)
+  onTypingActivityRef.current = onTypingActivity
   const hasText = value.trim().length > 0
+
+  useEffect(() => {
+    return () => {
+      if (typingSentRef.current) {
+        typingSentRef.current = false
+        onTypingActivityRef.current?.(false)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -28,9 +51,35 @@ export default function MessageInput({ onSend, replyToMessage, onCancelReply }: 
     textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`
   }, [value])
 
+  useEffect(() => {
+    if (!onTypingActivity || disabled) {
+      return
+    }
+
+    if (!value.trim()) {
+      if (typingSentRef.current) {
+        typingSentRef.current = false
+        onTypingActivity(false)
+      }
+      return
+    }
+
+    if (!typingSentRef.current) {
+      typingSentRef.current = true
+      onTypingActivity(true)
+    }
+
+    const idleTimer = window.setTimeout(() => {
+      typingSentRef.current = false
+      onTypingActivity(false)
+    }, 2200)
+
+    return () => window.clearTimeout(idleTimer)
+  }, [value, onTypingActivity, disabled])
+
   const submit = async () => {
     const text = value.trim()
-    if (!text || isSending) return
+    if (!text || isSending || disabled) return
 
     setIsSending(true)
     try {
@@ -82,9 +131,10 @@ export default function MessageInput({ onSend, replyToMessage, onCancelReply }: 
           }}
           rows={1}
           maxLength={MAX_MESSAGE_LENGTH}
-          placeholder="Напиши сообщение..."
+          placeholder={placeholder}
           className={styles.input}
           aria-label="Сообщение"
+          disabled={disabled}
         />
 
         <button
@@ -92,7 +142,7 @@ export default function MessageInput({ onSend, replyToMessage, onCancelReply }: 
           className={styles.iconButton}
           aria-label="Отправить сообщение"
           onClick={() => void submit()}
-          disabled={!hasText || isSending}
+          disabled={disabled || !hasText || isSending}
         >
           <Image src="/icon-send.svg" className={styles.sendButton} alt="Send" width={18} height={18} />
         </button>
