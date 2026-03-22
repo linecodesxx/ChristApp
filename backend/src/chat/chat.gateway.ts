@@ -12,10 +12,12 @@ import { Server, Socket } from 'socket.io';
 import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
+import { resolveGlobalRoomId } from 'src/config/global-room';
 
 interface SocketUser {
   id: string;
   username: string;
+  nickname: string;
   email?: string;
 }
 
@@ -33,8 +35,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   // Общий чат — это просто комната
-  private readonly GLOBAL_ROOM =
-    process.env.GLOBAL_ROOM_ID ?? '00000000-0000-0000-0000-000000000001';
+  private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private readonly SHARE_WITH_JESUS_ROOM_PREFIX = 'share-with-jesus:';
 
@@ -253,7 +254,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(roomId).emit('userJoinedRoom', {
         roomId,
         userId: user.id,
-        username: user.username,
+        username: user.nickname || user.username,
       });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
@@ -287,6 +288,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.messagesService.markRoomAsRead(roomId, user.id, new Date());
   }
 
+  @SubscribeMessage('roomTyping')
+  async handleRoomTyping(
+    @MessageBody() body: { roomId: string; isTyping: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await this.checkRoomAccess(user.id, roomId);
+    if (!hasAccess) return;
+
+    client.to(roomId).emit('userTyping', {
+      roomId,
+      userId: user.id,
+      username: user.nickname || user.username,
+      handle: user.username,
+      isTyping: Boolean(body?.isTyping),
+    });
+  }
+
   // ================= LEAVE ROOM =================
   @SubscribeMessage('leaveRoom')
   async handleLeaveRoom(
@@ -302,9 +326,103 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.to(roomId).emit('userLeftRoom', {
         roomId,
         userId: user.id,
-        username: user.username,
+        username: user.nickname || user.username,
       });
     }
+  }
+
+  /** Убрать себя из комнаты (личные чаты и прочие, кроме общего и «Поделись с Иисусом»). */
+  @SubscribeMessage('removeSelfFromRoom')
+  async handleRemoveSelfFromRoom(
+    @MessageBody() body: { roomId: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'Не авторизован',
+      });
+      return;
+    }
+
+    const roomId =
+      typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'roomId обязателен',
+      });
+      return;
+    }
+
+    if (roomId === this.GLOBAL_ROOM) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'Общий чат нельзя удалить',
+      });
+      return;
+    }
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { id: true, title: true },
+    });
+
+    if (!room) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'Комната не найдена',
+      });
+      return;
+    }
+
+    if (room.title.startsWith(this.SHARE_WITH_JESUS_ROOM_PREFIX)) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'Этот чат нельзя удалить из списка',
+      });
+      return;
+    }
+
+    const member = await this.prisma.roomMember.findUnique({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!member) {
+      client.emit('removeSelfFromRoomResult', {
+        ok: false,
+        error: 'Нет доступа к чату',
+      });
+      return;
+    }
+
+    await this.prisma.roomMember.delete({
+      where: {
+        roomId_userId: {
+          roomId,
+          userId: user.id,
+        },
+      },
+    });
+
+    await this.prisma.roomReadState.deleteMany({
+      where: { roomId, userId: user.id },
+    });
+
+    await client.leave(roomId);
+
+    client.emit('removeSelfFromRoomResult', {
+      ok: true,
+      roomId,
+    });
+
+    await this.emitMyRooms(client, user.id);
   }
 
   // ================= CREATE PRIVATE ROOM =================
@@ -384,7 +502,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const targetUser = await this.prisma.user.findUnique({
       where: { id: targetUserId },
-      select: { id: true, username: true },
+      select: { id: true, username: true, nickname: true },
     });
 
     if (!targetUser) {
@@ -446,7 +564,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       roomId: room.id,
       title: room.title,
       targetUserId: targetUser.id,
-      targetUsername: targetUser.username,
+      targetUsername: targetUser.nickname || targetUser.username,
     });
 
     await this.emitMyRooms(client, user.id);
@@ -493,7 +611,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const invitedUser = await this.prisma.user.findUnique({
       where: { id: invitedUserId },
-      select: { id: true, username: true },
+      select: { id: true, username: true, nickname: true },
     });
 
     if (!invitedUser) {
@@ -528,15 +646,15 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(roomId).emit('userInvitedToRoom', {
       roomId,
       invitedUserId: invitedUser.id,
-      invitedUsername: invitedUser.username,
+      invitedUsername: invitedUser.nickname || invitedUser.username,
       invitedByUserId: inviter.id,
-      invitedByUsername: inviter.username,
+      invitedByUsername: inviter.nickname || inviter.username,
     });
 
     client.emit('roomUserInvited', {
       roomId,
       userId: invitedUser.id,
-      username: invitedUser.username,
+      username: invitedUser.nickname || invitedUser.username,
     });
 
     const sockets = await this.server.fetchSockets();
@@ -603,7 +721,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(roomId).emit('newMessage', {
         id: message.id,
         content: message.content,
-        username: message.sender.username,
+        username: message.sender.nickname || message.sender.username,
+        handle: message.sender.username,
+        senderId: message.senderId,
         createdAt: message.createdAt,
         roomId,
       });
@@ -613,7 +733,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         .sendChatMessagePush({
           roomId,
           senderId: user.id,
-          senderUsername: message.sender.username,
+          senderUsername: message.sender.nickname || message.sender.username,
           content: message.content,
           createdAt: message.createdAt,
         })

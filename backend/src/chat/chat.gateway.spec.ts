@@ -28,6 +28,7 @@ jest.mock(
 type SocketUser = {
   id: string;
   username: string;
+  nickname: string;
 };
 
 type MockClient = {
@@ -115,7 +116,7 @@ describe('ChatGateway', () => {
   });
 
   it('delivers latest room history to user on join', async () => {
-    const client = createClient({ id: 'u2', username: 'receiver' });
+    const client = createClient({ id: 'u2', username: 'receiver', nickname: 'receiver' });
     const history = [
       {
         id: 'm1',
@@ -150,14 +151,16 @@ describe('ChatGateway', () => {
   });
 
   it('sends message to room and triggers push for recipient', async () => {
-    const sender = { id: 'u1', username: 'sender' };
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
     const savedMessage = {
       id: 'm3',
       content: 'Свежое сообщение для получателя',
       createdAt: new Date('2026-03-13T10:02:00.000Z'),
+      senderId: 'u1',
       sender: {
         username: 'sender',
+        nickname: 'sender',
       },
     };
 
@@ -179,6 +182,8 @@ describe('ChatGateway', () => {
       id: 'm3',
       content: 'Свежое сообщение для получателя',
       username: 'sender',
+      handle: 'sender',
+      senderId: 'u1',
       createdAt: savedMessage.createdAt,
       roomId: 'room-1',
     });
@@ -193,7 +198,7 @@ describe('ChatGateway', () => {
   });
 
   it('does not send message when user has no room access', async () => {
-    const sender = { id: 'u1', username: 'sender' };
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
     prisma.roomMember.findUnique.mockResolvedValue(null);
@@ -209,7 +214,7 @@ describe('ChatGateway', () => {
   });
 
   it('deletes own message in global room and emits messageDeleted', async () => {
-    const sender = { id: 'u1', username: 'sender' };
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
     messagesService.deleteOwnGlobalMessage.mockResolvedValue({
@@ -239,7 +244,7 @@ describe('ChatGateway', () => {
   });
 
   it('rejects delete when message belongs to another user', async () => {
-    const sender = { id: 'u1', username: 'sender' };
+    const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
     messagesService.deleteOwnGlobalMessage.mockResolvedValue({

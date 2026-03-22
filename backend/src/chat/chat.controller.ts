@@ -9,11 +9,13 @@ export class ChatController {
 
   @Get('history')
   async getHistory() {
-    const messages = await this.messagesService.getAll();
+    const messages = await this.messagesService.getGlobalRoomMessages(200, 0);
     return messages.map((m) => ({
       id: m.id,
       content: m.content,
-      username: m.sender.username,
+      username: m.sender.nickname || m.sender.username,
+      handle: m.sender.username,
+      senderId: m.senderId,
       createdAt: m.createdAt,
     }));
   }

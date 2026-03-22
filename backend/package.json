@@ -6,6 +6,8 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
+    "db:migrate": "prisma migrate deploy",
+    "db:generate": "prisma generate",
     "build": "nest build",
     "push:keys": "web-push generate-vapid-keys",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -29,15 +31,15 @@
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/platform-socket.io": "^11.1.14",
     "@nestjs/websockets": "^11.1.14",
-    "@prisma/adapter-pg": "^7.4.0",
-    "@prisma/client": "^6.19.2",
+    "@prisma/adapter-pg": "^7.5.0",
+    "@prisma/client": "^7.5.0",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.18.0",
-    "prisma": "^6.19.2",
+    "prisma": "^7.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.3",
@@ -73,6 +75,9 @@
     "typescript-eslint": "^7.3.1"
   },
   "jest": {
+    "moduleNameMapper": {
+      "^src/(.*)$": "<rootDir>/$1"
+    },
     "moduleFileExtensions": [
       "js",
       "json",
