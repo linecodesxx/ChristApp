@@ -18,7 +18,8 @@
 
 .fullscreen {
   width: 100%;
-  min-height: calc(100svh - 80px - 40px - env(safe-area-inset-bottom));
+  min-height: calc(100svh - 40px - env(safe-area-inset-bottom, 0px));
+  min-height: calc(100dvh - 40px - env(safe-area-inset-bottom, 0px));
 }
 
 .inline {

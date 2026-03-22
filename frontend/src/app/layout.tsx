@@ -1,7 +1,7 @@
 import { globalSeo } from "@/seo/global.seo"
 import { inter, geistMono } from "@/styles/fonts"
-import styles from "./layout.module.scss"
 import "@/styles/globals.scss"
+import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain"
 import TabBar from "@/components/TabBar/TabBar"
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
@@ -42,7 +42,7 @@ export default function RootLayout({
         <PushAutoSync />
         <PresenceSocket>
           <ThemeToggle />
-          <main className={styles.main}>{children}</main>
+          <AdaptiveMain>{children}</AdaptiveMain>
           <TabBar />
           </PresenceSocket>
         </Providers>

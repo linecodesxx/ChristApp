@@ -9,15 +9,18 @@ import { getAuthToken } from "@/lib/auth"
 import { CHAT_UNREAD_CHANGED_EVENT } from "@/lib/chatUnreadEvents"
 import { fetchUnreadSummary } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
+import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 
 const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
 export default function TabBar() {
   const pathname = usePathname()
   const { socket } = usePresenceSocket()
+  const tabBarOverlay = useTabBarOverlayOptional()
   const [unreadCount, setUnreadCount] = useState(0)
   const hiddenRoutes = ["/", "/register"]
   const shouldHideTabBar = hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  const hideForChatComposer = tabBarOverlay?.chatComposerFocused ?? false
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
 
@@ -104,7 +107,7 @@ export default function TabBar() {
     }
   }, [refreshUnreadCount])
 
-  if (shouldHideTabBar) {
+  if (shouldHideTabBar || hideForChatComposer) {
     return null
   }
 

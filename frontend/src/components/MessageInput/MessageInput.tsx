@@ -1,5 +1,6 @@
 "use client"
 
+import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { useEffect, useRef, useState } from "react"
 import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
@@ -26,6 +27,9 @@ export default function MessageInput({
   placeholder = "Напиши сообщение...",
   onTypingActivity,
 }: MessageInputProps) {
+  const tabBarOverlay = useTabBarOverlayOptional()
+  const tabBarOverlayRef = useRef(tabBarOverlay)
+  tabBarOverlayRef.current = tabBarOverlay
   const [value, setValue] = useState("")
   const [isSending, setIsSending] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -40,6 +44,12 @@ export default function MessageInput({
         typingSentRef.current = false
         onTypingActivityRef.current?.(false)
       }
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      tabBarOverlayRef.current?.setChatComposerFocused(false)
     }
   }, [])
 
@@ -123,6 +133,8 @@ export default function MessageInput({
           ref={textareaRef}
           value={value}
           onChange={(event) => setValue(event.target.value)}
+          onFocus={() => tabBarOverlayRef.current?.setChatComposerFocused(true)}
+          onBlur={() => tabBarOverlayRef.current?.setChatComposerFocused(false)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
               event.preventDefault()

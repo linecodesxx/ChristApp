@@ -1,6 +1,47 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from "next"
+
+/** Разрешённые источники для next/image (аватары с бэкенда `/uploads/...`). */
+function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> {
+  const patterns: NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> = [
+    { protocol: "http", hostname: "localhost", port: "3001", pathname: "/uploads/**" },
+    { protocol: "http", hostname: "127.0.0.1", port: "3001", pathname: "/uploads/**" },
+  ]
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (!apiUrl) {
+    return patterns
+  }
+
+  try {
+    const parsed = new URL(apiUrl)
+    const protocol = parsed.protocol === "https:" ? "https" : "http"
+    const entry: (typeof patterns)[number] = {
+      protocol,
+      hostname: parsed.hostname,
+      pathname: "/uploads/**",
+    }
+    if (parsed.port) {
+      entry.port = parsed.port
+    }
+
+    const duplicate = patterns.some(
+      (existing) =>
+        existing.hostname === entry.hostname && (existing.port ?? "") === (entry.port ?? ""),
+    )
+    if (!duplicate) {
+      patterns.push(entry)
+    }
+  } catch {
+    // невалидный NEXT_PUBLIC_API_URL — остаются только localhost
+  }
+
+  return patterns
+}
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: uploadsRemotePatterns(),
+  },
   async headers() {
     return [
       {
