@@ -65,7 +65,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: calc(100svh - 60px - 80px);
+  min-height: 0;
 
   .header {
     width: 100%;
