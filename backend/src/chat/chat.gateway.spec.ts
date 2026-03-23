@@ -28,7 +28,7 @@ jest.mock(
 type SocketUser = {
   id: string;
   username: string;
-  nickname: string;
+  nickname: string | null;
 };
 
 type MockClient = {
@@ -116,7 +116,11 @@ describe('ChatGateway', () => {
   });
 
   it('delivers latest room history to user on join', async () => {
-    const client = createClient({ id: 'u2', username: 'receiver', nickname: 'receiver' });
+    const client = createClient({
+      id: 'u2',
+      username: 'receiver',
+      nickname: 'receiver',
+    });
     const history = [
       {
         id: 'm1',
@@ -133,7 +137,10 @@ describe('ChatGateway', () => {
     prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u2' });
     messagesService.getRoomMessages.mockResolvedValue(history);
 
-    await gateway.handleJoinRoom({ roomId: 'room-1', limit: 50, skip: 0 }, client as never);
+    await gateway.handleJoinRoom(
+      { roomId: 'room-1', limit: 50, skip: 0 },
+      client as never,
+    );
 
     const roomHistoryCall = client.emit.mock.calls.find(
       ([eventName]: [string]) => eventName === 'roomHistory',
@@ -223,7 +230,10 @@ describe('ChatGateway', () => {
       roomId: '00000000-0000-0000-0000-000000000001',
     });
 
-    await gateway.handleDeleteMessage({ messageId: 'm-global-1' }, client as never);
+    await gateway.handleDeleteMessage(
+      { messageId: 'm-global-1' },
+      client as never,
+    );
 
     expect(messagesService.deleteOwnGlobalMessage).toHaveBeenCalledWith(
       'm-global-1',
@@ -252,13 +262,19 @@ describe('ChatGateway', () => {
       reason: 'not-owner',
     });
 
-    await gateway.handleDeleteMessage({ messageId: 'm-foreign' }, client as never);
+    await gateway.handleDeleteMessage(
+      { messageId: 'm-foreign' },
+      client as never,
+    );
 
     expect(client.emit).toHaveBeenCalledWith('deleteMessageResult', {
       ok: false,
       messageId: 'm-foreign',
       error: 'Можно удалять только свои сообщения',
     });
-    expect(roomEmit).not.toHaveBeenCalledWith('messageDeleted', expect.anything());
+    expect(roomEmit).not.toHaveBeenCalledWith(
+      'messageDeleted',
+      expect.anything(),
+    );
   });
 });

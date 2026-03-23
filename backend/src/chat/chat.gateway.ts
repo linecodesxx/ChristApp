@@ -128,8 +128,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!user) return undefined;
 
-      client.data.user = user;
-      return user;
+      // Создаем объект, который соответствует интерфейсу SocketUser
+      const socketUser = {
+        ...user,
+        nickname: user.nickname ?? user.username, // Если ника нет, берем логин
+      };
+
+      client.data.user = socketUser;
+      return socketUser;
     } catch {
       return undefined;
     }
@@ -210,14 +216,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ================= JOIN ROOM =================
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
-    @MessageBody() body: { roomId: string; limit?: number; skip?: number } | string,
+    @MessageBody()
+    body: { roomId: string; limit?: number; skip?: number } | string,
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
 
     const roomId = typeof body === 'string' ? body : body?.roomId;
-    const limit = typeof body === 'string' ? 50 : Math.max(1, Math.min(body?.limit ?? 50, 200));
+    const limit =
+      typeof body === 'string'
+        ? 50
+        : Math.max(1, Math.min(body?.limit ?? 50, 200));
     const skip = typeof body === 'string' ? 0 : Math.max(0, body?.skip ?? 0);
 
     if (!roomId) {
@@ -258,7 +268,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
-      console.error('[WS] joinRoom failed:', { roomId, userId: user.id, reason });
+      console.error('[WS] joinRoom failed:', {
+        roomId,
+        userId: user.id,
+        reason,
+      });
       client.emit('error', 'Ошибка загрузки истории');
     }
   }
@@ -346,8 +360,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const roomId =
-      typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) {
       client.emit('removeSelfFromRoomResult', {
         ok: false,
@@ -715,7 +728,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       // Отправитель уже видит свое сообщение в активной комнате.
-      await this.messagesService.markRoomAsRead(roomId, user.id, message.createdAt);
+      await this.messagesService.markRoomAsRead(
+        roomId,
+        user.id,
+        message.createdAt,
+      );
 
       // Отправляем сообщение только участникам комнаты
       this.server.to(roomId).emit('newMessage', {

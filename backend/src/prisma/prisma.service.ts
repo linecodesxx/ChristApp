@@ -14,7 +14,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit {
 
     super({
       adapter,
-    });
+      // Добавь это временно, чтобы Render "проснулся"
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL,
+        },
+      },
+    } as any); // as any нужен, чтобы обойти капризы типов Prisma 7
   }
 
   async onModuleInit() {

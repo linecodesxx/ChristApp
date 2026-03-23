@@ -7,50 +7,50 @@ datasource db {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
-  /** Уникальный @username (латиница, нижний регистр). */
-  username    String       @unique
-  /** Отображаемый ник (изначально совпадает с username). */
-  nickname    String?
-  password    String
-  avatarUrl   String?
-  messages    Message[]
-  memberships RoomMember[]
-  roomReadStates RoomReadState[]
+  id                String             @id @default(uuid())
+  email             String             @unique
+  /// * Уникальный @username (латиница, нижний регистр).
+  username          String             @unique
+  password          String
+  createdAt         DateTime           @default(now())
+  isActive          Boolean            @default(true)
+  avatarUrl         String?
+  /// * Отображаемый ник (изначально совпадает с username).
+  nickname          String?
+  messages          Message[]
   pushSubscriptions PushSubscription[]
-  savedVerses SavedVerse[]
-  createdAt   DateTime     @default(now())
-  isActive    Boolean      @default(true)
+  memberships       RoomMember[]
+  roomReadStates    RoomReadState[]
+  savedVerses       SavedVerse[]
 }
 
 model Message {
   id        String   @id @default(uuid())
   content   String
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
   senderId  String
-  room      Room     @relation(fields: [roomId], references: [id])
-  roomId    String   @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
   createdAt DateTime @default(now())
+  roomId    String   @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
+  room      Room     @relation(fields: [roomId], references: [id])
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
 }
 
 model Room {
-  id        String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  title     String       @unique
-  messages  Message[]
-  members   RoomMember[]
+  id         String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  title      String          @unique
+  createdAt  DateTime        @default(now())
+  messages   Message[]
+  members    RoomMember[]
   readStates RoomReadState[]
-  createdAt DateTime     @default(now())
 }
 
 model RoomMember {
-  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   roomId   String   @db.Uuid
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId   String
   joinedAt DateTime @default(now())
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId])
   @@index([userId])
@@ -58,7 +58,6 @@ model RoomMember {
 
 model SavedVerse {
   id          String   @id @default(uuid())
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId      String
   book        String
   chapter     Int
@@ -66,35 +65,36 @@ model SavedVerse {
   text        String
   translation String
   savedAt     DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, book, chapter, verse, translation])
   @@index([userId, savedAt])
 }
 
 model RoomReadState {
-  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   roomId     String   @db.Uuid
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId     String
-  lastReadAt DateTime @default(dbgenerated("to_timestamp(0)"))
+  lastReadAt DateTime @default(dbgenerated("to_timestamp((0)::double precision)"))
   updatedAt  DateTime @updatedAt
+  room       Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([roomId, userId])
   @@index([userId, lastReadAt])
 }
 
 model PushSubscription {
-  id             String   @id @default(cuid())
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String    @id @default(cuid())
   userId         String
-  endpoint       String   @unique
+  endpoint       String    @unique
   p256dh         String
   auth           String
   expirationTime String?
   userAgent      String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
   lastUsedAt     DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([updatedAt])
