@@ -1,0 +1,163 @@
+.link {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 11px;
+  overflow: hidden;
+  transition:
+    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.28s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -18px rgba(26, 53, 82, 0.35);
+  }
+
+  :global(html[data-theme="dark"]) & {
+    &:hover {
+      box-shadow: 0 22px 44px -16px rgba(0, 0, 0, 0.65);
+    }
+  }
+
+  &:active {
+    transform: translateY(-1px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link {
+    transition: none;
+  }
+
+  .link:hover {
+    transform: none;
+  }
+}
+
+.cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 11px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* Размытый «фото»-слой + градиенты поверх */
+.cover::before {
+  content: "";
+  position: absolute;
+  inset: -40%;
+  z-index: 0;
+  filter: blur(14px);
+  opacity: 0.85;
+  transform: scale(1.05);
+}
+
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  padding: 0.5px;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(200, 190, 170, 0.25) 40%,
+    rgba(180, 185, 195, 0.2) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 9px 9px 10px;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(35, 32, 28, 0.12) 45%,
+    rgba(35, 32, 28, 0.55) 100%
+  );
+}
+
+.title {
+  margin: 0 0 5px;
+  font-family: var(--font-cormorant-garamond), "Cormorant Garamond", "Georgia", serif;
+  font-size: clamp(1.02rem, 3vw, 1.2rem);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: 0.01em;
+  color: #fdfcf8;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  overflow-wrap: anywhere;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.tagline {
+  margin: 0;
+  font-family: var(--font-cormorant-garamond), "Cormorant Garamond", "Georgia", serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: 0.02em;
+  color: rgba(253, 252, 248, 0.9);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  max-width: none;
+  overflow-wrap: anywhere;
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+/* --- Варианты обложек (мягкие градиенты + «туман») --- */
+
+.gratitude::before {
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(255, 235, 200, 0.9) 0%, transparent 55%),
+    radial-gradient(ellipse 70% 60% at 10% 80%, rgba(220, 190, 150, 0.75) 0%, transparent 50%),
+    linear-gradient(145deg, #e8d5c4 0%, #d4b896 40%, #c4a882 100%);
+}
+
+.love::before {
+  background:
+    radial-gradient(ellipse 65% 55% at 30% 25%, rgba(255, 210, 220, 0.85) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 45% at 90% 70%, rgba(200, 150, 170, 0.6) 0%, transparent 50%),
+    linear-gradient(155deg, #e8c4c8 0%, #c9a0a8 45%, #a87880 100%);
+}
+
+.prayer::before {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(180, 220, 255, 0.6) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 70% at 100% 100%, rgba(80, 110, 150, 0.45) 0%, transparent 55%),
+    linear-gradient(165deg, #8fa8c4 0%, #2a4a6e 55%, #1a3552 100%);
+}
+
+.insights::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(200, 210, 200, 0.6) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 85% 75%, rgba(140, 150, 170, 0.6) 0%, transparent 50%),
+    linear-gradient(155deg, #9ca89a 0%, #6b7a6a 40%, #4a5550 100%);
+}
+
+/* Тёплый «зал»: золотистый свет + глубокий винный — ассоциация со служением слова */
+.sermons::before {
+  background:
+    radial-gradient(ellipse 55% 45% at 75% 15%, rgba(255, 220, 160, 0.75) 0%, transparent 52%),
+    radial-gradient(ellipse 70% 55% at 15% 85%, rgba(120, 60, 75, 0.45) 0%, transparent 52%),
+    linear-gradient(155deg, #6b4c52 0%, #4a3540 38%, #2d2228 100%);
+}

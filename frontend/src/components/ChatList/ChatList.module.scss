@@ -396,8 +396,9 @@
       }
 
       .chatItemContent {
+        --chat-swipe-actions: 52px;
         display: flex;
-        align-items: center;
+        align-items: stretch;
         gap: 4px;
         width: 100%;
         max-width: 100%;
@@ -415,6 +416,35 @@
 
         &:hover {
           background-color: color-mix(in srgb, var(--surface-elevated) 70%, transparent);
+        }
+
+        .chatItemSwipeClip {
+          flex: 1;
+          min-width: 0;
+          overflow: hidden;
+
+          @media (hover: hover) and (pointer: fine) {
+            overflow: visible;
+          }
+        }
+
+        .chatItemSwipeTrack {
+          display: flex;
+          align-items: stretch;
+          width: 100%;
+
+          @media (hover: none), (pointer: coarse) {
+            width: calc(100% + var(--chat-swipe-actions));
+            transform: translateX(0);
+            transition: transform 0.22s ease;
+            will-change: transform;
+          }
+        }
+
+        .chatItemSwipeTrackOpen {
+          @media (hover: none), (pointer: coarse) {
+            transform: translateX(calc(-1 * var(--chat-swipe-actions)));
+          }
         }
 
         .chatItemMainLink {
@@ -509,6 +539,17 @@
             font-weight: 500;
             line-height: 21px;
           }
+
+          .chatPreviewDirect {
+            max-height: 70px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 3;
+            line-clamp: 3;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+          }
         }
 
         .chatTime {
@@ -539,9 +580,12 @@
         .chatItemMenuWrap {
           position: relative;
           z-index: 2;
-          flex-shrink: 0;
+          flex: 0 0 var(--chat-swipe-actions);
+          width: var(--chat-swipe-actions);
+          min-width: var(--chat-swipe-actions);
           display: flex;
           align-items: center;
+          justify-content: center;
           align-self: stretch;
           transition:
             opacity 0.22s ease,
@@ -549,12 +593,23 @@
             visibility 0.22s ease;
 
           @media (hover: hover) and (pointer: fine) {
+            flex: 0 0 auto;
+            width: auto;
+            min-width: 0;
+
             &:not([data-open]) {
               opacity: 0;
               visibility: hidden;
               transform: translateX(8px);
               pointer-events: none;
             }
+          }
+
+          @media (hover: none), (pointer: coarse) {
+            opacity: 1;
+            visibility: visible;
+            transform: none;
+            pointer-events: auto;
           }
         }
 

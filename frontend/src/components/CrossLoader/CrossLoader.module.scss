@@ -10,49 +10,6 @@
   border: 0;
 }
 
-.container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.fullscreen {
-  width: 100%;
-  min-height: calc(100svh - 40px - env(safe-area-inset-bottom, 0px));
-  min-height: calc(100dvh - 40px - env(safe-area-inset-bottom, 0px));
-}
-
-.inline {
-  padding: 1rem;
-}
-
-.cross {
-  display: block;
-  width: 100px;
-  height: 100px;
-}
-
-.path {
-  fill: none;
-  stroke: #d4af37;
-  stroke-width: 4;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  /* pathLength="100" на элементе: штрих и сдвиг в тех же единицах */
-  stroke-dasharray: 100;
-  stroke-dashoffset: 100;
-  animation: drawCross 3s ease-out forwards, pulseCross 2s ease-in-out infinite 3s;
-}
-
-/* pathLength задаёт пользовательскую длину контура для dash-расчётов */
-@media (prefers-reduced-motion: reduce) {
-  .path {
-    animation: none;
-    stroke-dashoffset: 0;
-    opacity: 1;
-  }
-}
-
 @keyframes drawCross {
   to {
     stroke-dashoffset: 0;
@@ -69,5 +26,48 @@
   50% {
     opacity: 0.6;
     stroke-width: 5;
+  }
+}
+
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  &.fullscreen {
+    width: 100%;
+    min-height: calc(100svh - 40px - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - 40px - env(safe-area-inset-bottom, 0px));
+  }
+
+  &.inline {
+    padding: 1rem;
+  }
+
+  .cross {
+    display: block;
+    width: 100px;
+    height: 100px;
+
+    .path {
+      fill: none;
+      stroke: #d4af37;
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 100;
+      stroke-dashoffset: 100;
+      animation:
+        drawCross 3s ease-out forwards,
+        pulseCross 2s ease-in-out infinite 3s;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .cross .path {
+      animation: none;
+      stroke-dashoffset: 0;
+      opacity: 1;
+    }
   }
 }

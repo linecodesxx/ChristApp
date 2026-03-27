@@ -1,55 +1,58 @@
 .shareJesusParchment {
   position: relative;
   margin: 0 4px 16px;
-  padding: 20px 22px 22px;
-  border-radius: 14px;
+  padding: 22px 24px 24px;
+  border-radius: 16px;
   background:
-    linear-gradient(145deg, rgba(92, 58, 18, 0.12) 0%, rgba(139, 90, 43, 0.18) 50%, rgba(61, 40, 12, 0.15) 100%),
+    linear-gradient(155deg, rgba(72, 48, 14, 0.92) 0%, rgba(48, 32, 10, 0.96) 45%, rgba(28, 18, 6, 0.98) 100%),
     repeating-linear-gradient(
       0deg,
       transparent,
       transparent 2px,
-      rgba(101, 67, 33, 0.06) 2px,
-      rgba(101, 67, 33, 0.06) 3px
-    ),
-    linear-gradient(180deg, #f4e8d5 0%, #e8d4b8 45%, #dcc9a8 100%);
-  border: 1px solid rgba(139, 90, 43, 0.45);
+      rgba(212, 175, 110, 0.07) 2px,
+      rgba(212, 175, 110, 0.07) 3px
+    );
+  border: 1px solid rgba(212, 175, 110, 0.42);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 8px 24px rgba(45, 28, 8, 0.18);
+    inset 0 1px 0 rgba(255, 248, 220, 0.12),
+    0 12px 36px rgba(12, 8, 4, 0.45),
+    0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .shareJesusParchmentEdge {
   position: absolute;
-  inset: 6px;
-  border-radius: 10px;
-  border: 1px solid rgba(160, 110, 50, 0.25);
+  inset: 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 175, 110, 0.22);
   pointer-events: none;
+}
+
+.shareJesusParchmentTitle {
+  position: relative;
+  margin: 0 0 10px;
+  font-family: "Georgia", "Times New Roman", serif;
+  font-size: clamp(15px, 3.4vw, 17px);
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e8c76b;
+  text-shadow:
+    0 1px 0 rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(232, 199, 107, 0.35);
 }
 
 .shareJesusParchmentText {
   position: relative;
   margin: 0;
   font-family: "Georgia", "Times New Roman", serif;
-  font-size: clamp(16px, 3.8vw, 18px);
-  line-height: 1.55;
+  font-size: clamp(15px, 3.6vw, 17px);
+  line-height: 1.6;
   text-align: center;
-  letter-spacing: 0.02em;
-  background: linear-gradient(
-    110deg,
-    #b8860b 0%,
-    #daa520 22%,
-    #ffd700 45%,
-    #ffec8b 55%,
-    #daa520 78%,
-    #b8860b 100%
-  );
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  text-shadow: 0 0 24px rgba(218, 165, 32, 0.35);
-  filter: drop-shadow(0 1px 0 rgba(80, 50, 10, 0.2));
+  letter-spacing: 0.01em;
+  color: #f5ead2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
 .chat {
@@ -150,26 +153,12 @@
       }
 
       &.peerOnline {
-        .avatar {
-          border-color: #2bbf7a;
-          background: color-mix(in srgb, #2bbf7a 22%, var(--accent-soft));
-          color: #0a4a30;
-        }
-
-        .wrapContent .chatName,
         .wrapContent .status {
           color: #159d62;
         }
       }
 
       &.peerOffline {
-        .avatar {
-          border-color: #e04555;
-          background: color-mix(in srgb, #e04555 18%, var(--surface-elevated));
-          color: #6b1520;
-        }
-
-        .wrapContent .chatName,
         .wrapContent .status {
           color: #c92a3a;
         }
@@ -180,6 +169,12 @@
           border-color: var(--accent);
           background: var(--accent-soft);
           color: #2e2c2c;
+        }
+      }
+
+      &.globalOnlineStatus {
+        .wrapContent .status {
+          color: #159d62;
         }
       }
     }
@@ -257,26 +252,12 @@ html[data-theme="dark"] .chat {
       }
 
       &.peerOnline {
-        .avatar {
-          border-color: #3bdc8f;
-          background: color-mix(in srgb, #3bdc8f 16%, var(--accent-soft));
-          color: #b8f5d6;
-        }
-
-        .wrapContent .chatName,
         .wrapContent .status {
           color: #4ae49a;
         }
       }
 
       &.peerOffline {
-        .avatar {
-          border-color: #ff6b7a;
-          background: color-mix(in srgb, #ff6b7a 14%, var(--surface-elevated));
-          color: #ffd0d4;
-        }
-
-        .wrapContent .chatName,
         .wrapContent .status {
           color: #ff7a88;
         }
@@ -284,6 +265,12 @@ html[data-theme="dark"] .chat {
 
       &.peerNeutral .wrapContent .chatName {
         color: var(--foreground);
+      }
+
+      &.globalOnlineStatus {
+        .wrapContent .status {
+          color: #4ae49a;
+        }
       }
     }
   }

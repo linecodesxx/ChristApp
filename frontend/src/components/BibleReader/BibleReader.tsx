@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Verse from "@/components/Verse/Verse";
+import ShareToChatModal from "@/components/Verse/ShareToChatModal";
 import {
   fetchChapters,
   fetchBooks,
@@ -12,6 +13,12 @@ import styles from "./BibleReader.module.scss";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import CrossLoader from "@/components/CrossLoader/CrossLoader";
+import { useAuth } from "@/hooks/useAuth";
+import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
+import { createShareTargetsFromRooms, type RoomSocketItem, type ShareTarget } from "@/lib/chatRooms";
+import { clearVerseSelectionClipboard, getSelectedVersesClipboardText } from "@/components/Verse/Verse";
+import { serializeVerseSharePayload } from "@/lib/verseShareMessage";
+import { VERSE_HIGHLIGHT_STORAGE_KEY, isValidHighlightHex } from "@/lib/verseHighlightStorage";
 
 type VerseType = {
   pk: number;
@@ -39,6 +46,8 @@ const LAST_READ_STORAGE_KEY = "lastRead";
 const SESSION_HIGHLIGHTS_KEY = "bible-reader-highlights";
 
 export default function BibleReader() {
+  const { user, users } = useAuth();
+  const { socket } = usePresenceSocket();
   /** Только после mount — без запросов к API на сервере при SSR, чтобы не было рассинхрона гидрации. */
   const [isMounted, setIsMounted] = useState(false);
 
@@ -54,6 +63,10 @@ export default function BibleReader() {
   const [isHighlightsHydrated, setIsHighlightsHydrated] = useState(false);
 
   const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [activeActionsVerseKey, setActiveActionsVerseKey] = useState<string | null>(null);
+  const [shareTargets, setShareTargets] = useState<ShareTarget[]>([]);
+  const [highlightStorageEpoch, setHighlightStorageEpoch] = useState(0);
   const [modalStep, setModalStep] = useState<ModalStep>("testament");
   const [selectedTestament, setSelectedTestament] = useState<"old" | "new">(
     "old",
@@ -244,6 +257,86 @@ export default function BibleReader() {
     [currentBook, currentChapter],
   );
 
+  const requestShareTargets = useCallback(() => {
+    if (!socket?.connected) {
+      return;
+    }
+    socket.emit("getMyRooms");
+  }, [socket]);
+
+  useEffect(() => {
+    if (!socket) {
+      setShareTargets([]);
+      return;
+    }
+
+    const onMyRooms = (payload: { rooms?: RoomSocketItem[] }) => {
+      const mapped = createShareTargetsFromRooms({
+        rooms: payload.rooms ?? [],
+        currentUserId: user?.id,
+        users: users.map((existingUser) => ({
+          id: existingUser.id,
+          username: existingUser.username,
+          nickname: existingUser.nickname,
+          avatarUrl: existingUser.avatarUrl,
+        })),
+      });
+      setShareTargets(mapped);
+    };
+
+    socket.on("myRooms", onMyRooms);
+    return () => {
+      socket.off("myRooms", onMyRooms);
+    };
+  }, [socket, user?.id, users]);
+
+  const handleOpenShare = useCallback(() => {
+    requestShareTargets();
+    setIsShareModalOpen(true);
+  }, [requestShareTargets]);
+
+  const handleShareToTarget = useCallback(
+    (target: ShareTarget): boolean => {
+      if (!socket?.connected || !currentBook) {
+        return false;
+      }
+
+      const lines = getSelectedVersesClipboardText().trim();
+      const selectedVerseNumbers = Array.from(highlights)
+        .map((key) => {
+          const [bookId, chapterValue, verseValue] = key.split("|");
+          if (bookId !== currentBook.id || Number(chapterValue) !== currentChapter) {
+            return null;
+          }
+          const parsed = Number(verseValue);
+          return Number.isFinite(parsed) ? parsed : null;
+        })
+        .filter((value): value is number => value !== null)
+        .sort((left, right) => left - right);
+
+      const fallbackVerse = (() => {
+        if (!activeActionsVerseKey) return 1;
+        const [, chapterValue, verseValue] = activeActionsVerseKey.split("|");
+        if (Number(chapterValue) !== currentChapter) return 1;
+        const parsed = Number(verseValue);
+        return Number.isFinite(parsed) ? parsed : 1;
+      })();
+
+      const verses = selectedVerseNumbers.length > 0 ? selectedVerseNumbers : [fallbackVerse];
+      const textToSend = lines || "Стих";
+      const content = serializeVerseSharePayload({
+        bookName: currentBook.name,
+        chapter: currentChapter,
+        verses,
+        text: textToSend,
+      });
+
+      socket.emit("sendMessage", { roomId: target.roomId, content });
+      return true;
+    },
+    [socket, currentBook, highlights, currentChapter, activeActionsVerseKey],
+  );
+
   const handleTouchStart = (e: React.TouchEvent) =>
     (touchStartX.current = e.touches[0].clientX);
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -272,6 +365,66 @@ export default function BibleReader() {
       ),
     }));
   }, [verses, highlights, currentBook, currentChapter]);
+
+  const applyHighlightColorToSelection = useCallback(
+    (color: string | null) => {
+      if (typeof window === "undefined" || !currentBook) {
+        return;
+      }
+
+      const rows = verses ?? [];
+      if (!rows.length) {
+        return;
+      }
+
+      const targetVerseNums = new Set<number>();
+      for (const k of highlights) {
+        const [bookId, ch, v] = k.split("|");
+        if (bookId !== currentBook.id || Number(ch) !== currentChapter) {
+          continue;
+        }
+        const n = Number(v);
+        if (Number.isFinite(n)) {
+          targetVerseNums.add(n);
+        }
+      }
+      if (targetVerseNums.size === 0 && activeActionsVerseKey) {
+        const parts = activeActionsVerseKey.split("|");
+        if (parts.length >= 3 && Number(parts[1]) === currentChapter) {
+          const n = Number(parts[2]);
+          if (Number.isFinite(n)) {
+            targetVerseNums.add(n);
+          }
+        }
+      }
+
+      try {
+        const rawValue = window.localStorage.getItem(VERSE_HIGHLIGHT_STORAGE_KEY);
+        const parsed = rawValue ? (JSON.parse(rawValue) as Record<string, string>) : {};
+
+        for (const row of rows as VerseType[]) {
+          if (!targetVerseNums.has(row.verse)) {
+            continue;
+          }
+          const storageKey = `${currentBook.name}|${currentChapter}|${row.verse}|${row.text}`;
+          if (color && isValidHighlightHex(color)) {
+            parsed[storageKey] = color;
+          } else {
+            delete parsed[storageKey];
+          }
+        }
+
+        window.localStorage.setItem(VERSE_HIGHLIGHT_STORAGE_KEY, JSON.stringify(parsed));
+        setHighlightStorageEpoch((e) => e + 1);
+        setHighlights(new Set());
+        setActiveActionsVerseKey(null);
+        clearVerseSelectionClipboard();
+      } catch {
+        // ignore localStorage errors
+      }
+    },
+    [activeActionsVerseKey, currentBook, currentChapter, verses, highlights],
+  );
 
   if (!isMounted || !currentBook || isLoading) {
     return (
@@ -462,9 +615,20 @@ export default function BibleReader() {
             translation={translation}
             id={`verse-${v.verse}`}
             showInlineActions={SHOW_VERSE_ACTIONS}
+            activeActionsVerseKey={activeActionsVerseKey}
+            onOpenActions={setActiveActionsVerseKey}
+            onShareClick={handleOpenShare}
+            highlightStorageEpoch={highlightStorageEpoch}
+            onApplyHighlightColorToSelection={applyHighlightColorToSelection}
           />
         ))}
       </section>
+      <ShareToChatModal
+        open={isShareModalOpen}
+        targets={shareTargets}
+        onClose={() => setIsShareModalOpen(false)}
+        onSelectTarget={handleShareToTarget}
+      />
     </section>
   );
 }

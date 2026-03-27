@@ -1,0 +1,128 @@
+$splash-gold: #d4af37;
+$splash-bg: #05070a;
+
+@keyframes splash-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes splash-cross-fade-in {
+  to {
+    opacity: 0.35;
+  }
+}
+
+@keyframes splash-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+
+  50% {
+    opacity: 0.85;
+  }
+}
+
+@keyframes splash-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+.splashWrapper {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+  padding: 24px;
+  background: $splash-bg;
+  transition:
+    opacity 0.45s ease,
+    visibility 0.45s ease;
+
+  &Exiting {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .logo {
+    margin-bottom: 0.5rem;
+    filter: drop-shadow(0 0 15px rgba(212, 175, 55, 0.3));
+
+    .pathDraw {
+      fill: none;
+      stroke: $splash-gold;
+      stroke-width: 1.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 400;
+      stroke-dashoffset: 400;
+      animation: splash-draw 3s ease-in-out forwards;
+
+      &Delayed {
+        animation-delay: 0.35s;
+      }
+    }
+
+    .cross {
+      fill: none;
+      stroke: $splash-gold;
+      stroke-width: 1.25;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0;
+      animation:
+        splash-cross-fade-in 0.6s ease-out 2.8s forwards,
+        splash-pulse 2s ease-in-out infinite 3.4s;
+    }
+  }
+
+  .quoteContainer {
+    min-height: 1.5rem;
+    max-width: min(90vw, 28rem);
+    font-family: "Times New Roman", "Georgia", serif;
+    font-style: italic;
+    color: $splash-gold;
+    font-size: clamp(0.95rem, 2.8vw, 1.1rem);
+    text-align: center;
+    line-height: 1.45;
+
+    .cursor {
+      display: inline-block;
+      width: 1px;
+      height: 1rem;
+      vertical-align: text-bottom;
+      background: $splash-gold;
+      margin-left: 4px;
+      animation: splash-blink 0.8s infinite;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    .logo {
+      .pathDraw,
+      .pathDrawDelayed {
+        animation: none;
+        stroke-dashoffset: 0;
+      }
+
+      .cross {
+        animation: none;
+        opacity: 0.6;
+      }
+    }
+
+    .quoteContainer .cursor {
+      animation: none;
+      opacity: 0.7;
+    }
+  }
+}

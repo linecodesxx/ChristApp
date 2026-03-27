@@ -13,6 +13,10 @@ import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
+import {
+  SHARE_WITH_JESUS_ROOM_PREFIX,
+  userMayAccessRoomByTitle,
+} from 'src/chat/room-access.util';
 
 interface SocketUser {
   id: string;
@@ -36,8 +40,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // Общий чат — это просто комната
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
-
-  private readonly SHARE_WITH_JESUS_ROOM_PREFIX = 'share-with-jesus:';
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
 
@@ -72,10 +74,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   private getShareWithJesusRoomTitle(userId: string) {
-    return `${this.SHARE_WITH_JESUS_ROOM_PREFIX}${userId}`;
+    return `${SHARE_WITH_JESUS_ROOM_PREFIX}${userId}`;
   }
 
-  private async ensureShareWithJesusRoomForUser(userId: string) {
+  private async ensureShareWithJesusRoomForUser(userId: string): Promise<string> {
     const roomTitle = this.getShareWithJesusRoomTitle(userId);
 
     const room = await this.prisma.room.upsert({
@@ -104,6 +106,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         userId,
       },
     });
+
+    return room.id;
   }
 
   private normalizeToken(tokenCandidate: unknown) {
@@ -183,6 +187,31 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.error('[WS] Post-connect initialization error:', reason);
       client.emit('error', 'Ошибка инициализации чата');
     }
+  }
+
+  // ================= RESOLVE SHARE WITH JESUS ROOM =================
+  /**
+   * Быстро резолвит комнату «Поделись с Иисусом» для текущего пользователя и гарантирует членство.
+   * Возвращает только roomId владельцу (поэтому другой пользователь не сможет получить чужой roomId через этот метод).
+   */
+  @SubscribeMessage('resolveShareWithJesusRoomId')
+  async handleResolveShareWithJesusRoomId(
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('shareWithJesusRoomIdResolved', { ok: false, roomId: '', error: 'Не авторизован' });
+      return;
+    }
+
+    const roomTitle = this.getShareWithJesusRoomTitle(user.id);
+    const roomId = await this.ensureShareWithJesusRoomForUser(user.id);
+
+    client.emit('shareWithJesusRoomIdResolved', {
+      ok: true,
+      roomId,
+      roomTitle,
+    });
   }
 
   // ================= DISCONNECT =================
@@ -390,7 +419,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    if (room.title.startsWith(this.SHARE_WITH_JESUS_ROOM_PREFIX)) {
+    if (room.title.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)) {
       client.emit('removeSelfFromRoomResult', {
         ok: false,
         error: 'Этот чат нельзя удалить из списка',
@@ -616,6 +645,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
+    const roomMeta = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+
+    if (!roomMeta) {
+      client.emit('error', 'Комната не найдена');
+      return;
+    }
+
+    if (roomMeta.title.startsWith('dm:')) {
+      client.emit('error', 'В личный чат нельзя приглашать других пользователей');
+      return;
+    }
+
+    if (roomMeta.title.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)) {
+      client.emit('error', 'В этот чат нельзя приглашать других пользователей');
+      return;
+    }
+
     const inviterHasAccess = await this.checkRoomAccess(inviter.id, roomId);
     if (!inviterHasAccess) {
       client.emit('error', 'Нет доступа к комнате');
@@ -799,11 +848,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const result = await this.messagesService.deleteOwnGlobalMessage(
-        messageId,
-        user.id,
-        this.GLOBAL_ROOM,
-      );
+      const result = await this.messagesService.deleteOwnMessage(messageId, user.id);
 
       if (!result.ok) {
         const errorMessage =
@@ -811,7 +856,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             ? 'Сообщение не найдено'
             : result.reason === 'not-owner'
               ? 'Можно удалять только свои сообщения'
-              : 'Удаление доступно только в общем чате';
+              : result.reason === 'no-access'
+                ? 'Нет доступа к этому чату'
+                : 'Не удалось удалить сообщение';
 
         client.emit('deleteMessageResult', {
           ok: false,
@@ -864,7 +911,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       },
     });
 
-    return Boolean(membership);
+    if (!membership) {
+      return false;
+    }
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+
+    if (!room) {
+      return false;
+    }
+
+    return userMayAccessRoomByTitle(userId, room.title);
   }
 
   private async emitMyRooms(client: SocketWithUser, userId: string) {
@@ -886,7 +946,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             members: { some: { userId } },
           };
 
-      return await this.prisma.room.findMany({
+      const rooms = await this.prisma.room.findMany({
         where,
         orderBy: { createdAt: 'asc' },
         select: {
@@ -895,6 +955,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           createdAt: true,
         },
       });
+
+      return rooms.filter(
+        (room) =>
+          room.id === this.GLOBAL_ROOM ||
+          userMayAccessRoomByTitle(userId, room.title),
+      );
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] emitMyRooms failed:', reason);

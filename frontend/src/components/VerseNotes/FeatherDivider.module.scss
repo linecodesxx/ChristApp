@@ -1,0 +1,46 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  margin: 20px 0;
+}
+
+.line {
+  flex: 1;
+  height: 0.5px;
+  max-width: none;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(74, 71, 67, 0.22) 20%,
+    rgba(120, 115, 105, 0.28) 50%,
+    rgba(74, 71, 67, 0.22) 80%,
+    transparent
+  );
+}
+
+.feather {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  opacity: 0.55;
+  color: var(--parchment-blue-soft, #2a4a6e);
+}
+
+:global(html[data-theme="dark"]) .line {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(200, 195, 185, 0.18) 22%,
+    rgba(160, 175, 200, 0.22) 50%,
+    rgba(200, 195, 185, 0.18) 78%,
+    transparent
+  );
+}
+
+:global(html[data-theme="dark"]) .feather {
+  opacity: 0.65;
+  color: var(--parchment-blue-soft, #7aa3cc);
+}

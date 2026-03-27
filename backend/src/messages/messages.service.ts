@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
+import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 
 type UnreadRoomSummaryRow = {
   roomId: string;
@@ -32,9 +33,12 @@ export type UnreadSummaryResult = {
   rooms: RoomUnreadSummary[];
 };
 
-export type DeleteOwnGlobalMessageResult =
+export type DeleteOwnMessageResult =
   | { ok: true; messageId: string; roomId: string }
-  | { ok: false; reason: 'not-found' | 'not-owner' | 'not-global-room' };
+  | { ok: false; reason: 'not-found' | 'not-owner' | 'no-access' };
+
+/** @deprecated используйте DeleteOwnMessageResult */
+export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
 @Injectable()
 export class MessagesService {
@@ -102,11 +106,10 @@ export class MessagesService {
     return this.getRoomMessages(this.GLOBAL_ROOM, limit, skip);
   }
 
-  async deleteOwnGlobalMessage(
-    messageId: string,
-    userId: string,
-    globalRoomId = this.GLOBAL_ROOM,
-  ): Promise<DeleteOwnGlobalMessageResult> {
+  /**
+   * Удаление своего сообщения: общий чат или любая комната, где пользователь — участник (личные чаты и т.д.).
+   */
+  async deleteOwnMessage(messageId: string, userId: string): Promise<DeleteOwnMessageResult> {
     const existingMessage = await this.prisma.message.findUnique({
       where: { id: messageId },
       select: {
@@ -120,12 +123,32 @@ export class MessagesService {
       return { ok: false, reason: 'not-found' };
     }
 
-    if (existingMessage.roomId !== globalRoomId) {
-      return { ok: false, reason: 'not-global-room' };
-    }
-
     if (existingMessage.senderId !== userId) {
       return { ok: false, reason: 'not-owner' };
+    }
+
+    const messageRoomId = existingMessage.roomId;
+
+    if (messageRoomId !== this.GLOBAL_ROOM) {
+      const member = await this.prisma.roomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: messageRoomId,
+            userId,
+          },
+        },
+      });
+      if (!member) {
+        return { ok: false, reason: 'no-access' };
+      }
+
+      const room = await this.prisma.room.findUnique({
+        where: { id: messageRoomId },
+        select: { title: true },
+      });
+      if (!room || !userMayAccessRoomByTitle(userId, room.title)) {
+        return { ok: false, reason: 'no-access' };
+      }
     }
 
     await this.prisma.message.delete({
@@ -139,6 +162,15 @@ export class MessagesService {
       messageId: existingMessage.id,
       roomId: existingMessage.roomId,
     };
+  }
+
+  /** @deprecated используйте deleteOwnMessage */
+  async deleteOwnGlobalMessage(
+    messageId: string,
+    userId: string,
+    _globalRoomId = this.GLOBAL_ROOM,
+  ): Promise<DeleteOwnMessageResult> {
+    return this.deleteOwnMessage(messageId, userId);
   }
 
   async markRoomAsRead(roomId: string, userId: string, lastReadAt = new Date()) {
@@ -182,11 +214,27 @@ export class MessagesService {
       new Set<string>([this.GLOBAL_ROOM, ...memberRows.map((row) => row.roomId)]),
     );
 
+    const roomsMeta = await this.prisma.room.findMany({
+      where: { id: { in: roomIds } },
+      select: { id: true, title: true },
+    });
+
+    const roomIdsForAccess = roomIds.filter((rid) => {
+      if (rid === this.GLOBAL_ROOM) {
+        return true;
+      }
+      const room = roomsMeta.find((r) => r.id === rid);
+      if (!room) {
+        return false;
+      }
+      return userMayAccessRoomByTitle(userId, room.title);
+    });
+
     const rows = await this.prisma.$queryRaw<UnreadRoomSummaryRow[]>`
       WITH accessible_rooms AS (
         SELECT r.id AS "roomId"
         FROM "Room" r
-        WHERE r.id IN (${Prisma.join(roomIds)})
+        WHERE r.id IN (${Prisma.join(roomIdsForAccess)})
       ),
       unread_counts AS (
         SELECT

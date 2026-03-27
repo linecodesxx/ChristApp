@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import styles from "@/components/ChatList/ChatList.module.scss"
+import { GLOBAL_ROOM_ID } from "@/lib/chatRooms"
 import { getAvatarColor } from "@/lib/avatarColor"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
@@ -49,8 +50,11 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [swipeOpenId, setSwipeOpenId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const swipeTouchRef = useRef<{ x: number; y: number; id: string } | null>(null)
+  const chatRowRefs = useRef<Map<string, HTMLDivElement>>(new Map())
 
   const normalizedSearch = searchValue.trim().toLowerCase()
 
@@ -142,6 +146,23 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
       window.removeEventListener("keydown", onKeyDown)
     }
   }, [openMenuId])
+
+  useEffect(() => {
+    if (!swipeOpenId) {
+      return
+    }
+
+    const onDocTouchStart = (event: TouchEvent) => {
+      const el = chatRowRefs.current.get(swipeOpenId)
+      const target = event.target as Node
+      if (el && !el.contains(target)) {
+        setSwipeOpenId(null)
+      }
+    }
+
+    document.addEventListener("touchstart", onDocTouchStart, true)
+    return () => document.removeEventListener("touchstart", onDocTouchStart, true)
+  }, [swipeOpenId])
 
   const closeUserPicker = () => {
     setIsUserPickerOpen(false)
@@ -269,6 +290,7 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
               {(() => {
                 const avatarColor = getAvatarColor(chat.id)
                 const unreadCount = typeof chat.unread === "number" ? chat.unread : chat.unread ? 1 : 0
+                const isCompactPreviewRow = chat.id !== GLOBAL_ROOM_ID
                 const showMenu = Boolean(chat.deletable && onDeleteChat)
                 const menuOpen = openMenuId === chat.id
 
@@ -281,6 +303,7 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
                           alt={chat.title}
                           width={40}
                           height={40}
+                          unoptimized={chat.avatarImage.startsWith("http")}
                           className={
                             chat.avatarClass ? `${styles.avatarImage} ${chat.avatarClass}` : styles.avatarImage
                           }
@@ -301,61 +324,138 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
                       </div>
 
                       <div className={styles.flex}>
-                        <p className={styles.chatPreview}>{chat.preview ?? ""}</p>
+                        <p
+                          className={
+                            isCompactPreviewRow
+                              ? `${styles.chatPreview} ${styles.chatPreviewDirect}`
+                              : styles.chatPreview
+                          }
+                        >
+                          {chat.preview ?? ""}
+                        </p>
                         {unreadCount > 0 ? <span className={styles.unreadBadge}>{unreadCount}</span> : null}
                       </div>
                     </div>
                   </>
                 )
 
+                const swipeOpen = swipeOpenId === chat.id
+
+                const linkOrStatic =
+                  chat.href != null && chat.href !== "" ? (
+                    <Link
+                      href={chat.href}
+                      className={styles.chatItemMainLink}
+                      onClick={(event) => {
+                        if (swipeOpen) {
+                          event.preventDefault()
+                          setSwipeOpenId(null)
+                        }
+                      }}
+                    >
+                      {mainInner}
+                    </Link>
+                  ) : (
+                    <div className={styles.chatItemMainLink}>{mainInner}</div>
+                  )
+
                 return (
-                  <div className={styles.chatItemWrapper}>
+                  <div
+                    className={styles.chatItemWrapper}
+                    ref={(node) => {
+                      if (node) {
+                        chatRowRefs.current.set(chat.id, node)
+                      } else {
+                        chatRowRefs.current.delete(chat.id)
+                      }
+                    }}
+                  >
                     <div className={styles.chatItemContent}>
-                      {chat.href != null && chat.href !== "" ? (
-                        <Link href={chat.href} className={styles.chatItemMainLink}>
-                          {mainInner}
-                        </Link>
-                      ) : (
-                        <div className={styles.chatItemMainLink}>{mainInner}</div>
-                      )}
-                      {showMenu ? (
-                        <div className={styles.chatItemMenuWrap} data-open={menuOpen ? "true" : undefined}>
-                          <button
-                            type="button"
-                            ref={menuOpen ? menuTriggerRef : undefined}
-                            className={styles.chatItemMenuButton}
-                            aria-label="Действия с чатом"
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            onClick={(event) => {
-                              event.preventDefault()
-                              event.stopPropagation()
-                              setOpenMenuId((current) => (current === chat.id ? null : chat.id))
-                            }}
-                          >
-                            ⋯
-                          </button>
-                          {menuOpen ? (
-                            <div ref={menuRef} className={styles.chatItemMenu} role="menu">
+                      <div className={styles.chatItemSwipeClip}>
+                        <div
+                          className={`${styles.chatItemSwipeTrack} ${swipeOpen ? styles.chatItemSwipeTrackOpen : ""}`}
+                          onTouchStart={
+                            showMenu
+                              ? (e) => {
+                                  swipeTouchRef.current = {
+                                    x: e.touches[0].clientX,
+                                    y: e.touches[0].clientY,
+                                    id: chat.id,
+                                  }
+                                }
+                              : undefined
+                          }
+                          onTouchEnd={
+                            showMenu
+                              ? (e) => {
+                                  const start = swipeTouchRef.current
+                                  swipeTouchRef.current = null
+                                  if (!start || start.id !== chat.id) {
+                                    return
+                                  }
+                                  const t = e.changedTouches[0]
+                                  const dx = t.clientX - start.x
+                                  const dy = t.clientY - start.y
+                                  if (Math.abs(dx) < 24 && Math.abs(dy) < 24) {
+                                    return
+                                  }
+                                  if (Math.abs(dx) <= Math.abs(dy)) {
+                                    return
+                                  }
+                                  if (dx < -40) {
+                                    setSwipeOpenId(chat.id)
+                                    setOpenMenuId(null)
+                                  } else if (dx > 36 && swipeOpenId === chat.id) {
+                                    setSwipeOpenId(null)
+                                  }
+                                }
+                              : undefined
+                          }
+                        >
+                          {linkOrStatic}
+                          {showMenu ? (
+                            <div className={styles.chatItemMenuWrap} data-open={menuOpen ? "true" : undefined}>
                               <button
                                 type="button"
-                                role="menuitem"
-                                className={styles.chatItemMenuItem}
+                                ref={menuOpen ? menuTriggerRef : undefined}
+                                className={styles.chatItemMenuButton}
+                                aria-label="Действия с чатом"
+                                aria-haspopup="menu"
+                                aria-expanded={menuOpen}
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
-                                  setOpenMenuId(null)
-                                  if (window.confirm("Удалить этот чат из списка? История у собеседника останется.")) {
-                                    onDeleteChat?.(chat.id)
-                                  }
+                                  setOpenMenuId((current) => (current === chat.id ? null : chat.id))
                                 }}
                               >
-                                Удалить чат
+                                ⋯
                               </button>
+                              {menuOpen ? (
+                                <div ref={menuRef} className={styles.chatItemMenu} role="menu">
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={styles.chatItemMenuItem}
+                                    onClick={(event) => {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      setOpenMenuId(null)
+                                      setSwipeOpenId(null)
+                                      if (
+                                        window.confirm("Удалить этот чат из списка? История у собеседника останется.")
+                                      ) {
+                                        onDeleteChat?.(chat.id)
+                                      }
+                                    }}
+                                  >
+                                    Удалить чат
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
                   </div>
                 )

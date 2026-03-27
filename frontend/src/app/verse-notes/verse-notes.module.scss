@@ -1,0 +1,309 @@
+/* Цифровой пергамент: слоновая кость, библейский синий / оливковый акцент, мягкий антрацит */
+
+.shell {
+  --parchment-ivory: #fdfcf0;
+  --parchment-ivory-deep: #f5f2e8;
+  --parchment-ink: #2e2c29;
+  --parchment-ink-soft: #4a4743;
+  --parchment-muted: #6b6760;
+  --parchment-blue: #1a3552;
+  --parchment-blue-soft: #2a4a6e;
+  --parchment-olive: #5a6345;
+  --parchment-olive-soft: #7a8565;
+  --parchment-glass: rgba(255, 252, 245, 0.42);
+  --parchment-glass-edge: rgba(255, 255, 255, 0.55);
+
+  --font-display: var(--font-parchment-display), "Georgia", "Times New Roman", serif;
+  --font-body: var(--font-inter, "Inter", system-ui, sans-serif);
+
+  min-height: 100%;
+  box-sizing: border-box;
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(42, 74, 110, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 90% 60% at 100% 100%, rgba(90, 99, 69, 0.07) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 50% at 0% 80%, rgba(26, 53, 82, 0.05) 0%, transparent 45%),
+    linear-gradient(180deg, var(--parchment-ivory) 0%, var(--parchment-ivory-deep) 100%);
+  color: var(--parchment-ink);
+}
+
+.page {
+  box-sizing: border-box;
+  max-width: min(52rem, 100%);
+  margin: 0 auto;
+  padding: clamp(28px, 6vw, 48px) clamp(18px, 4vw, 28px) clamp(100px, 18vh, 140px);
+  animation: parchmentPageIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes parchmentPageIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page {
+    animation: none;
+  }
+}
+
+.header {
+  margin-bottom: clamp(28px, 5vw, 40px);
+}
+
+.kicker {
+  margin: 0 0 10px;
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--parchment-blue-soft);
+  opacity: 0.85;
+}
+
+.title {
+  margin: 0 0 12px;
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 5vw, 2.25rem);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--parchment-blue);
+  font-feature-settings: "kern" 1, "liga" 1;
+}
+
+.subtitle {
+  margin: 0;
+  max-width: 42ch;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--parchment-ink-soft);
+}
+
+.breadcrumb {
+  margin-bottom: 20px;
+}
+
+.backLink {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--parchment-blue-soft);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 0.8;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+}
+
+.collectionHeader {
+  margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.collectionsGrid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+
+  @media (min-width: 520px) {
+    gap: 16px;
+  }
+
+  li {
+    display: flex;
+    min-width: 0;
+  }
+}
+
+.section {
+  margin-top: clamp(28px, 5vw, 40px);
+}
+
+.sectionTitle {
+  margin: 0 0 14px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--parchment-blue);
+}
+
+.notesList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.emptyNotes {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--parchment-muted);
+  font-style: italic;
+}
+
+/* Матовое стекло + градиентная «ободка» 0.5px */
+.glassPanel {
+  position: relative;
+  padding: clamp(20px, 4vw, 28px) clamp(20px, 4vw, 26px);
+  border-radius: 18px;
+  background: var(--parchment-glass);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  box-shadow:
+    0 1px 0 var(--parchment-glass-edge),
+    0 24px 48px -28px rgba(26, 53, 82, 0.12);
+  animation: glassIn 0.7s ease 0.12s both;
+}
+
+.glassPanel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 0.5px;
+  background: linear-gradient(
+    135deg,
+    rgba(200, 175, 120, 0.42) 0%,
+    rgba(180, 185, 195, 0.35) 45%,
+    rgba(160, 170, 155, 0.28) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+@keyframes glassIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glassPanel {
+    animation: none;
+  }
+}
+
+.lead {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.7;
+  letter-spacing: 0.01em;
+  color: var(--parchment-ink-soft);
+}
+
+.hintRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: clamp(32px, 6vw, 48px);
+  opacity: 0.55;
+  animation: hintFade 1s ease 0.5s both;
+}
+
+.hintDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--parchment-olive-soft), var(--parchment-blue-soft));
+  flex-shrink: 0;
+}
+
+.hintLine {
+  flex: 1;
+  height: 0.5px;
+  max-width: 120px;
+  background: linear-gradient(
+    90deg,
+    rgba(90, 99, 69, 0.35),
+    rgba(180, 185, 195, 0.2) 60%,
+    transparent
+  );
+}
+
+@keyframes hintFade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hintRow {
+    animation: none;
+    opacity: 0.5;
+  }
+}
+
+/* ——— Тёмная тема: глубокий фон, светлый текст, те же акценты в приглушённом виде ——— */
+html[data-theme="dark"] .shell {
+  --parchment-ivory: #1a1816;
+  --parchment-ivory-deep: #12100e;
+  --parchment-ink: #e9e6e0;
+  --parchment-ink-soft: #c4bfb4;
+  --parchment-muted: #8f8a80;
+  --parchment-blue: #9ec5e8;
+  --parchment-blue-soft: #7aa3cc;
+  --parchment-olive: #a8b892;
+  --parchment-olive-soft: #c4d1a8;
+  --parchment-glass: rgba(28, 26, 24, 0.58);
+  --parchment-glass-edge: rgba(255, 255, 255, 0.07);
+
+  background:
+    radial-gradient(120% 85% at 50% -5%, rgba(60, 100, 150, 0.2) 0%, transparent 52%),
+    radial-gradient(ellipse 95% 65% at 100% 100%, rgba(70, 85, 55, 0.14) 0%, transparent 52%),
+    radial-gradient(ellipse 75% 55% at 0% 85%, rgba(40, 65, 110, 0.16) 0%, transparent 48%),
+    linear-gradient(180deg, #1e1c19 0%, #141210 100%);
+  color: var(--parchment-ink);
+}
+
+html[data-theme="dark"] .shell .glassPanel {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05),
+    0 28px 56px -28px rgba(0, 0, 0, 0.55);
+}
+
+html[data-theme="dark"] .shell .glassPanel::before {
+  background: linear-gradient(
+    135deg,
+    rgba(180, 160, 110, 0.22) 0%,
+    rgba(130, 140, 160, 0.18) 45%,
+    rgba(100, 115, 95, 0.15) 100%
+  );
+}

@@ -4,6 +4,7 @@ import styles from "@/app/profile/profile.module.scss"
 import { useAuth } from "@/hooks/useAuth"
 import { formatMemberSince, getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { getAppStreak } from "@/lib/appStreak"
 import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 import { USERNAME_REGEX } from "@/lib/formValidation"
@@ -41,7 +42,7 @@ function getPushPermissionState(): PushPermissionState {
   return Notification.permission
 }
 
-const Profile = () => {
+export default function ProfilePage() {
   const hydrated = useHydrated()
   const { user, logout, refreshSession } = useAuth({ redirectIfUnauthenticated: "/" })
   const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
@@ -58,14 +59,53 @@ const Profile = () => {
   const [nickEdit, setNickEdit] = useState("")
   const [handleEdit, setHandleEdit] = useState("")
   const [profileSaving, setProfileSaving] = useState(false)
+  const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
+  const [avatarCacheBust, setAvatarCacheBust] = useState(0)
+  const [dayStreak, setDayStreak] = useState(0)
 
   useEffect(() => {
     setPushPermission(getPushPermissionState())
   }, [])
 
   useEffect(() => {
-    loadSavedVerses()
-  }, [])
+    return () => {
+      if (avatarPreviewUrl) {
+        URL.revokeObjectURL(avatarPreviewUrl)
+      }
+    }
+  }, [avatarPreviewUrl])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+    setDayStreak(getAppStreak())
+  }, [user])
+
+  useEffect(() => {
+    if (!user) {
+      return
+    }
+    let cancelled = false
+    const load = async () => {
+      setVersesLoading(true)
+      try {
+        const verses = await getSavedVerses()
+        if (!cancelled) {
+          setSavedVerses(verses)
+        }
+      } finally {
+        if (!cancelled) {
+          setVersesLoading(false)
+        }
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   useEffect(() => {
     if (!user) {
@@ -128,13 +168,6 @@ const Profile = () => {
     void refreshPushState()
   }, [isSettingsOpen, refreshPushState])
 
-  const loadSavedVerses = async () => {
-    setVersesLoading(true)
-    const verses = await getSavedVerses()
-    setSavedVerses(verses)
-    setVersesLoading(false)
-  }
-
   const handleDeleteVerse = async (verseId: string) => {
     await deleteSavedVerse(verseId)
     setSavedVerses((prev) => prev.filter((v) => v.id !== verseId))
@@ -142,7 +175,19 @@ const Profile = () => {
 
   const formattedDate = formatMemberSince(user?.createdAt)
   const initials = getInitials(user?.nickname ?? user?.username)
-  const avatarPhotoSrc = resolvePublicAvatarUrl(user?.avatarUrl)
+  const avatarPhotoSrc = useMemo(() => {
+    if (avatarPreviewUrl) {
+      return avatarPreviewUrl
+    }
+    const base = resolvePublicAvatarUrl(user?.avatarUrl)
+    if (!base) {
+      return undefined
+    }
+    if (avatarCacheBust) {
+      return `${base}${base.includes("?") ? "&" : "?"}v=${avatarCacheBust}`
+    }
+    return base
+  }, [avatarPreviewUrl, user?.avatarUrl, avatarCacheBust])
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -161,6 +206,13 @@ const Profile = () => {
       window.alert("Файл слишком большой. Максимум 5 МБ.")
       return
     }
+
+    setAvatarPreviewUrl((prev) => {
+      if (prev) {
+        URL.revokeObjectURL(prev)
+      }
+      return URL.createObjectURL(file)
+    })
 
     setIsAvatarUploading(true)
     try {
@@ -182,9 +234,25 @@ const Profile = () => {
       }
 
       await refreshSession()
+      setAvatarCacheBust(Date.now())
+      setAvatarPreviewUrl((prev) => {
+        if (prev) {
+          URL.revokeObjectURL(prev)
+        }
+        return null
+      })
     } finally {
       setIsAvatarUploading(false)
     }
+  }
+
+  const closeProfileEdit = () => {
+    setShowProfileEdit(false)
+  }
+
+  const openProfileEditFromSettings = () => {
+    closeSettingsMenu()
+    setShowProfileEdit(true)
   }
 
   const toggleSettingsMenu = () => setIsSettingsOpen((prev) => !prev)
@@ -306,6 +374,7 @@ const Profile = () => {
       }
 
       await refreshSession()
+      closeProfileEdit()
     } finally {
       setProfileSaving(false)
     }
@@ -332,9 +401,14 @@ const Profile = () => {
           <div className={`${styles.settingsMenu} ${isSettingsOpen ? styles.show : ""}`} id="settings-menu" role="menu">
             <p className={styles.menuTitle}>Быстрые настройки</p>
 
-            <button type="button" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
+            <button
+              type="button"
+              className={styles.menuItem}
+              role="menuitem"
+              onClick={openProfileEditFromSettings}
+            >
               <span>Редактировать профиль</span>
-              <span className={styles.menuHint}>Ниже</span>
+              <span className={styles.menuHint}>Ник и @username</span>
             </button>
 
             <button type="button" className={styles.menuItem} role="menuitem" onClick={handlePushSettings}>
@@ -397,42 +471,54 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className={styles.profileEdit}>
-        <label className={styles.profileLabel}>
-          Ник
-          <input
-            className={styles.profileInput}
-            value={nickEdit}
-            onChange={(event) => setNickEdit(event.target.value)}
-            autoComplete="nickname"
-            maxLength={40}
-          />
-        </label>
-        <label className={styles.profileLabel}>
-          @username
-          <input
-            className={styles.profileInput}
-            value={handleEdit}
-            onChange={(event) => setHandleEdit(event.target.value)}
-            autoComplete="username"
-            spellCheck={false}
-            maxLength={20}
-          />
-        </label>
-        <button
-          type="button"
-          className={styles.profileSave}
-          onClick={() => void handleSaveProfile()}
-          disabled={profileSaving}
-        >
-          {profileSaving ? "Сохранение…" : "Сохранить"}
-        </button>
-      </div>
+      {showProfileEdit ? (
+        <div className={styles.profileEdit}>
+          <label className={styles.profileLabel}>
+            Ник
+            <input
+              className={styles.profileInput}
+              value={nickEdit}
+              onChange={(event) => setNickEdit(event.target.value)}
+              autoComplete="nickname"
+              maxLength={40}
+            />
+          </label>
+          <label className={styles.profileLabel}>
+            @username
+            <input
+              className={styles.profileInput}
+              value={handleEdit}
+              onChange={(event) => setHandleEdit(event.target.value)}
+              autoComplete="username"
+              spellCheck={false}
+              maxLength={20}
+            />
+          </label>
+          <div className={styles.profileEditActions}>
+            <button
+              type="button"
+              className={styles.profileCancel}
+              onClick={closeProfileEdit}
+              disabled={profileSaving}
+            >
+              Отмена
+            </button>
+            <button
+              type="button"
+              className={styles.profileSave}
+              onClick={() => void handleSaveProfile()}
+              disabled={profileSaving}
+            >
+              {profileSaving ? "Сохранение…" : "Сохранить"}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <ul className={styles.list}>
         <li className={styles.item}>
           <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Серия дней" width={16} height={16} />
-          <span>1</span>
+          <span>{dayStreak}</span>
           <p>Серия дней</p>
         </li>
         <li className={styles.item}>
@@ -514,5 +600,3 @@ const Profile = () => {
     </section>
   )
 }
-
-export default Profile

@@ -1,0 +1,118 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.labelSource,
+.labelResponse {
+  margin: 0 0 8px;
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.labelSource {
+  color: var(--parchment-blue-soft, #2a4a6e);
+  opacity: 0.9;
+}
+
+.labelResponse {
+  color: var(--parchment-olive, #5a6345);
+  opacity: 0.95;
+}
+
+.sourceField,
+.responseField {
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 15px;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 96px;
+  padding: 14px 16px;
+  color: var(--parchment-ink, #2e2c29);
+  background: rgba(255, 252, 245, 0.75);
+  border: 0.5px solid rgba(100, 95, 85, 0.22);
+  outline: none;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+
+  &:focus {
+    border-color: rgba(42, 74, 110, 0.35);
+    box-shadow: 0 0 0 3px rgba(42, 74, 110, 0.08);
+  }
+}
+
+.sourceField {
+  font-family: var(--font-display, "Georgia", serif);
+  font-style: italic;
+  font-size: 16px;
+  line-height: 1.65;
+  min-height: 120px;
+}
+
+.actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.submit {
+  padding: 12px 22px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body, "Inter", sans-serif);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fdfcf0;
+  background: linear-gradient(145deg, var(--parchment-blue-soft, #2a4a6e) 0%, var(--parchment-blue, #1a3552) 100%);
+  box-shadow: 0 4px 16px -4px rgba(26, 53, 82, 0.45);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 22px -6px rgba(26, 53, 82, 0.5);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+:global(html[data-theme="dark"]) .sourceField,
+:global(html[data-theme="dark"]) .responseField {
+  color: var(--parchment-ink, #e9e6e0);
+  background: rgba(28, 26, 24, 0.75);
+  border-color: rgba(220, 215, 205, 0.12);
+
+  &:focus {
+    border-color: rgba(122, 163, 204, 0.45);
+    box-shadow: 0 0 0 3px rgba(80, 120, 180, 0.15);
+  }
+}
+
+:global(html[data-theme="dark"]) .submit {
+  color: #141210;
+  background: linear-gradient(145deg, #a8cce8 0%, #7aa3cc 45%, #5a7fa8 100%);
+  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.45);
+
+  &:hover:not(:disabled) {
+    box-shadow: 0 8px 26px -6px rgba(0, 0, 0, 0.5);
+  }
+}
