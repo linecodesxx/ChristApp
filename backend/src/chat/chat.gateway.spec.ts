@@ -72,7 +72,7 @@ describe('ChatGateway', () => {
     createRoomMessage: jest.Mock;
     markRoomAsRead: jest.Mock;
     getRoomMessages: jest.Mock;
-    deleteOwnGlobalMessage: jest.Mock;
+    deleteOwnMessage: jest.Mock;
   };
   let pushService: {
     sendChatMessagePush: jest.Mock;
@@ -93,7 +93,7 @@ describe('ChatGateway', () => {
       createRoomMessage: jest.fn(),
       markRoomAsRead: jest.fn().mockResolvedValue(undefined),
       getRoomMessages: jest.fn(),
-      deleteOwnGlobalMessage: jest.fn(),
+      deleteOwnMessage: jest.fn(),
     };
 
     pushService = {
@@ -113,6 +113,8 @@ describe('ChatGateway', () => {
       emit: jest.fn(),
       fetchSockets: jest.fn().mockResolvedValue([]),
     };
+
+    prisma.room.findUnique.mockResolvedValue({ title: 'private-room' });
   });
 
   it('delivers latest room history to user on join', async () => {
@@ -218,13 +220,30 @@ describe('ChatGateway', () => {
     expect(client.emit).toHaveBeenCalledWith('error', 'Нет доступа');
     expect(messagesService.createRoomMessage).not.toHaveBeenCalled();
     expect(pushService.sendChatMessagePush).not.toHaveBeenCalled();
+    expect(prisma.room.findUnique).not.toHaveBeenCalled();
+  });
+
+  it('rejects send when user is not a participant of dm title despite membership row', async () => {
+    const sender = { id: 'u3', username: 'intruder', nickname: 'intruder' };
+    const client = createClient(sender);
+
+    prisma.roomMember.findUnique.mockResolvedValue({ userId: 'u3' });
+    prisma.room.findUnique.mockResolvedValue({ title: 'dm:u1:u2' });
+
+    await gateway.handleMessage(
+      { roomId: 'room-dm', content: 'Сообщение' },
+      client as never,
+    );
+
+    expect(client.emit).toHaveBeenCalledWith('error', 'Нет доступа');
+    expect(messagesService.createRoomMessage).not.toHaveBeenCalled();
   });
 
   it('deletes own message in global room and emits messageDeleted', async () => {
     const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
-    messagesService.deleteOwnGlobalMessage.mockResolvedValue({
+    messagesService.deleteOwnMessage.mockResolvedValue({
       ok: true,
       messageId: 'm-global-1',
       roomId: '00000000-0000-0000-0000-000000000001',
@@ -235,11 +254,7 @@ describe('ChatGateway', () => {
       client as never,
     );
 
-    expect(messagesService.deleteOwnGlobalMessage).toHaveBeenCalledWith(
-      'm-global-1',
-      'u1',
-      '00000000-0000-0000-0000-000000000001',
-    );
+    expect(messagesService.deleteOwnMessage).toHaveBeenCalledWith('m-global-1', 'u1');
 
     expect(roomEmit).toHaveBeenCalledWith('messageDeleted', {
       messageId: 'm-global-1',
@@ -257,7 +272,7 @@ describe('ChatGateway', () => {
     const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
-    messagesService.deleteOwnGlobalMessage.mockResolvedValue({
+    messagesService.deleteOwnMessage.mockResolvedValue({
       ok: false,
       reason: 'not-owner',
     });

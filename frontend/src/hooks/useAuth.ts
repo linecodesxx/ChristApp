@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 import { getApiErrorMessage } from "@/lib/apiError"
+import { recordDailyVisit } from "@/lib/appStreak"
 
 type User = {
   id: string
@@ -102,6 +103,7 @@ export function useAuth(options?: UseAuthOptions) {
 
       const data = await res.json()
       setUser(data)
+      recordDailyVisit()
       await fetchUsers()
     } catch {
       setLoading(false)
@@ -122,6 +124,7 @@ export function useAuth(options?: UseAuthOptions) {
       if (!res.ok) return
       const data = await res.json()
       setUser(data)
+      recordDailyVisit()
       await fetchUsers()
     } catch {
       // ignore
@@ -170,6 +173,7 @@ export function useAuth(options?: UseAuthOptions) {
       })
       if (data.user) {
         setUser(data.user)
+        recordDailyVisit()
       } else {
         await refreshSession()
       }

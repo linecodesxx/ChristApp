@@ -104,6 +104,7 @@
       border: 1px solid transparent;
       border-radius: 12px;
       background: transparent;
+      font: inherit;
       color: var(--foreground);
       text-decoration: none;
       text-align: left;
@@ -267,8 +268,29 @@
     font-size: 14px;
   }
 
+  .profileEditActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .profileCancel {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: 1px solid var(--line-soft);
+    background: transparent;
+    color: var(--foreground);
+    font-weight: 600;
+    cursor: pointer;
+
+    &:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+  }
+
   .profileSave {
-    align-self: flex-start;
     padding: 10px 18px;
     border-radius: 10px;
     border: none;
@@ -339,6 +361,7 @@
   }
 
   .savedVersesSection {
+    min-height: 270px;
     display: flex;
     flex-direction: column;
     gap: 12px;

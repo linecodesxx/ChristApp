@@ -42,20 +42,25 @@ export async function getSavedVerses() {
   const token = getAuthToken();
 
   if (!token || !API_URL) {
-    throw new Error("Not authenticated or API URL not set");
+    return [];
   }
 
-  const res = await fetch(`${API_URL}/verses/saved`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  try {
+    const res = await fetch(`${API_URL}/verses/saved`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch saved verses");
+    if (!res.ok) {
+      return [];
+    }
+
+    const data = await res.json();
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
   }
-
-  return res.json();
 }
 
 export async function getSavedVersesByBook(book: string) {

@@ -1,3 +1,5 @@
+$book-accent: #c4a265;
+
 .main {
   padding: 24px;
 }
@@ -13,33 +15,33 @@
   justify-content: center;
   align-items: center;
   z-index: 1000;
-}
 
-.modal > div {
-  background: var(--background);
-  padding: 24px;
-  border-radius: 12px;
-  max-width: 90%;
-  max-height: 90%;
-  overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  border: 1px solid #e8dfd1;
-}
+  > div {
+    background: var(--background);
+    padding: 24px;
+    border-radius: 12px;
+    max-width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid #e8dfd1;
+  }
 
-.modal button {
-  margin-top: 16px;
-  padding: 10px 16px;
-  background: #C4A265;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: 0.2s;
-}
+  button {
+    margin-top: 16px;
+    padding: 10px 16px;
+    background: $book-accent;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.2s;
 
-.modal button:hover {
-  background: #b39a55;
+    &:hover {
+      background: #b39a55;
+    }
+  }
 }
 
 .chapter {
@@ -50,7 +52,6 @@
   display: flex;
   flex-direction: row;
   gap: 16px;
-
   border-bottom: 1px solid #c4a26580;
 }
 
@@ -71,7 +72,7 @@
   align-items: center;
   flex-shrink: 0;
   border-radius: 9999px;
-  background: #C4A265;
+  background: $book-accent;
 }
 
 .bookTitle {
@@ -94,7 +95,7 @@
 }
 
 .headerChapterTitle {
-  color: #c4a265;
+  color: $book-accent;
   font-size: 14px;
   font-style: normal;
   font-weight: 500;

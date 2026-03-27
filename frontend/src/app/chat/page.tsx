@@ -10,16 +10,18 @@ import { fetchUnreadSummary, type UnreadSummaryResponse, type UnreadSummaryRoomL
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
-
-const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
-const GLOBAL_ROOM_SLUG = "global"
-const GLOBAL_CHAT_TITLE = "Общий чат для всех"
-const GLOBAL_CHAT_AVATAR_SRC = "/ava-chat.jpeg"
-const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:"
-const SHARE_WITH_JESUS_CHAT_ID = "__share_with_jesus__"
-const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом"
-/** Стабильный URL без ожидания UUID с сервера */
-export const SHARE_WITH_JESUS_SLUG = "share-with-jesus"
+import {
+  GLOBAL_CHAT_AVATAR_SRC,
+  GLOBAL_CHAT_TITLE,
+  GLOBAL_ROOM_ID,
+  GLOBAL_ROOM_SLUG,
+  SHARE_WITH_JESUS_CHAT_ID,
+  SHARE_WITH_JESUS_CHAT_TITLE,
+  SHARE_WITH_JESUS_ROOM_PREFIX,
+  SHARE_WITH_JESUS_SLUG,
+  getDirectTargetUserId,
+  isShareWithJesusRoomTitle,
+} from "@/lib/chatRooms"
 
 function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
   return {
@@ -36,10 +38,6 @@ function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {
 }
 
 const BASE_GLOBAL_CHAT_ITEM: ChatListItem = createGlobalChatItem()
-
-function isShareWithJesusRoomTitle(title: string) {
-  return title.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
-}
 
 function createShareWithJesusChatItem(roomId: string, previous?: ChatListItem): ChatListItem {
   return {
@@ -163,18 +161,7 @@ type ChatListRuntimeCache = {
 
 let chatListRuntimeCache: ChatListRuntimeCache | null = null
 
-function getDirectTargetUserId(title: string, currentUserId?: string) {
-  if (!title?.startsWith("dm:")) return undefined
-
-  const ids = title.split(":").slice(1)
-  return ids.find((id) => id !== currentUserId)
-}
-
-type RoomSocketItem = {
-  id: string
-  title: string
-  createdAt?: string
-}
+type RoomSocketItem = { id: string; title: string; createdAt?: string }
 
 type NewMessageSocketEvent = {
   roomId: string

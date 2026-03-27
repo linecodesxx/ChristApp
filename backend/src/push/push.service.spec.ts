@@ -186,6 +186,29 @@ describe('PushService', () => {
     expect(payload.body).toBe('Привет, это последнее сообщение');
   });
 
+  it('does not send dm push to users not in dm title (spurious room members)', async () => {
+    prisma.room.findUnique.mockResolvedValue({ title: 'dm:u1:u2' });
+    prisma.roomMember.findMany.mockResolvedValue([
+      { userId: 'u2' },
+      { userId: 'u3' },
+    ]);
+    prisma.pushSubscription.findMany.mockResolvedValue([]);
+
+    await service.sendChatMessagePush({
+      roomId: 'room-dm',
+      senderId: 'u1',
+      senderUsername: 'sender',
+      content: 'Только u2',
+      createdAt: new Date('2026-03-13T10:01:00.000Z'),
+    });
+
+    expect(prisma.pushSubscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: { in: ['u2'] } },
+      }),
+    );
+  });
+
   it('deletes expired subscription when push endpoint is gone', async () => {
     prisma.roomMember.findMany.mockResolvedValue([{ userId: 'u2' }]);
     prisma.room.findUnique.mockResolvedValue({ title: 'dm:u1:u2' });

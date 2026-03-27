@@ -16,15 +16,18 @@ import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
 import { showChatNotification } from "@/lib/notifications"
 import Link from "next/link"
 import Image from "next/image"
+import {
+  GLOBAL_ROOM_ID,
+  GLOBAL_ROOM_SLUG,
+  SHARE_WITH_JESUS_CHAT_TITLE,
+  SHARE_WITH_JESUS_ROOM_PREFIX,
+  SHARE_WITH_JESUS_SLUG,
+} from "@/lib/chatRooms"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
-const GLOBAL_ROOM_ID = "00000000-0000-0000-0000-000000000001"
-const GLOBAL_ROOM_SLUG = "global"
-const SHARE_WITH_JESUS_ROOM_PREFIX = "share-with-jesus:"
-const SHARE_WITH_JESUS_CHAT_TITLE = "Поделись с Иисусом"
-const SHARE_WITH_JESUS_SLUG = "share-with-jesus"
+const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
 const SHARE_JESUS_PARCHMENT_TEXT =
-  "Дитя Моё, здесь ты можешь поделиться со Мной всем, что лежит на сердце — каждой мыслью, радостью и тревогой. Я слушаю тебя."
+  "Здесь затихает шум мира. Говори о том, что болит или радует"
 const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
@@ -82,6 +85,13 @@ type DeleteMessageResultSocketEvent = {
   ok?: boolean
   messageId?: string
   roomId?: string
+  error?: string
+}
+
+type ShareWithJesusRoomIdResolvedPayload = {
+  ok?: boolean
+  roomId?: string
+  roomTitle?: string
   error?: string
 }
 
@@ -529,9 +539,9 @@ export default function ChatPageDetails() {
           .map((messageItem) =>
             messageItem.replyTo?.id === deletedMessageId
               ? {
-                  ...messageItem,
-                  replyTo: undefined,
-                }
+                ...messageItem,
+                replyTo: undefined,
+              }
               : messageItem,
           ),
       )
@@ -755,7 +765,7 @@ export default function ChatPageDetails() {
     }
 
     if (routeRoomId === SHARE_WITH_JESUS_SLUG) {
-      socket.emit("getMyRooms")
+      socket.emit("resolveShareWithJesusRoomId")
       return
     }
 
@@ -766,6 +776,35 @@ export default function ChatPageDetails() {
 
     socket.emit("getMyRooms")
   }, [routeRoomId, loading, joinRoom, leaveCurrentRoom])
+
+  // Быстрое подключение «Поделись с Иисусом» без ожидания `myRooms`.
+  useEffect(() => {
+    if (loading || routeRoomId !== SHARE_WITH_JESUS_SLUG) return
+
+    const socket = socketRef.current
+    if (!socket) return
+
+    const onResolved = (payload: ShareWithJesusRoomIdResolvedPayload) => {
+      if (!payload?.ok || !payload.roomId) {
+        if (payload?.error) {
+          window.alert(payload.error)
+        }
+        return
+      }
+
+      if (!user?.id) return
+
+      setResolvedShareJesusRoomId(payload.roomId)
+      setRoomRawTitle(payload.roomTitle ?? `${SHARE_WITH_JESUS_ROOM_PREFIX}${user.id}`)
+      setRoomTitle(SHARE_WITH_JESUS_CHAT_TITLE)
+      joinRoom(socket, payload.roomId, { skipLoadingSpinner: true })
+    }
+
+    socket.on("shareWithJesusRoomIdResolved", onResolved)
+    return () => {
+      socket.off("shareWithJesusRoomIdResolved", onResolved)
+    }
+  }, [routeRoomId, loading, joinRoom, user?.id])
 
   useEffect(() => {
     if (isHistoryLoading || authError) {
@@ -803,6 +842,7 @@ export default function ChatPageDetails() {
   const shareJesusParchmentBanner = isShareWithJesusView ? (
     <div className={styles.shareJesusParchment}>
       <span className={styles.shareJesusParchmentEdge} aria-hidden />
+      <p className={styles.shareJesusParchmentTitle}>{SHARE_JESUS_PARCHMENT_TITLE}</p>
       <p className={styles.shareJesusParchmentText}>{SHARE_JESUS_PARCHMENT_TEXT}</p>
     </div>
   ) : null
@@ -867,6 +907,10 @@ export default function ChatPageDetails() {
         : styles.peerOffline
       : styles.peerNeutral
 
+  /** Зелёный цвет строки «N пользователей онлайн» в общем чате (не для «Загрузка…» / «Подключение…»). */
+  const globalOnlineStatusHighlight =
+    roomId === GLOBAL_ROOM_ID && !isHistoryLoading && isSocketConnected
+
   const typingUsernames = useMemo(() => Array.from(typingUsers.values()), [typingUsers])
 
   const handleReplyMessage = (message: Message) => {
@@ -879,7 +923,7 @@ export default function ChatPageDetails() {
 
   const handleDeleteOwnMessage = useCallback(
     (message: Message) => {
-      if (roomId !== GLOBAL_ROOM_ID) {
+      if (!effectiveSocketRoomId) {
         return
       }
 
@@ -893,14 +937,17 @@ export default function ChatPageDetails() {
         return
       }
 
-      const confirmed = window.confirm("Удалить это сообщение из общего чата?")
+      const isGlobal = effectiveSocketRoomId === GLOBAL_ROOM_ID
+      const confirmed = window.confirm(
+        isGlobal ? "Удалить это сообщение из общего чата?" : "Удалить это сообщение?",
+      )
       if (!confirmed) {
         return
       }
 
       socket.emit("deleteMessage", { messageId: message.id })
     },
-    [roomId, user],
+    [effectiveSocketRoomId, user],
   )
 
   const handleOpenDmFromAvatar = useCallback(
@@ -950,10 +997,10 @@ export default function ChatPageDetails() {
       normalizedText,
       replyTarget
         ? {
-            id: replyTarget.id,
-            username: replyTarget.username,
-            content: replyTarget.content,
-          }
+          id: replyTarget.id,
+          username: replyTarget.username,
+          content: replyTarget.content,
+        }
         : null,
     )
 
@@ -964,7 +1011,9 @@ export default function ChatPageDetails() {
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
-        <div className={`${styles.headerContent} ${headerPresenceClass}`}>
+        <div
+          className={`${styles.headerContent} ${headerPresenceClass} ${globalOnlineStatusHighlight ? styles.globalOnlineStatus : ""}`}
+        >
           <Link href="/chat">
             <Image className={styles.backIcon} src="/back-icon.svg" alt="Back" width={24} height={24} />
           </Link>
@@ -1000,14 +1049,14 @@ export default function ChatPageDetails() {
           messages={messages}
           currentUsername={user?.username}
           currentUser={user}
-          withSenderAvatars={roomId === GLOBAL_ROOM_ID}
+          withSenderAvatars
           resolveAvatarUrl={(senderId) =>
             resolvePublicAvatarUrl(users.find((existingUser) => existingUser.id === senderId)?.avatarUrl)
           }
           onAvatarClick={handleOpenDmFromAvatar}
           onReplyMessage={handleReplyMessage}
           onDeleteMessage={handleDeleteOwnMessage}
-          canDeleteOwnMessages={roomId === GLOBAL_ROOM_ID}
+          canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
           topBanner={shareJesusParchmentBanner}
           typingUsernames={typingUsernames}
         />

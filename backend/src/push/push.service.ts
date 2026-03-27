@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
+import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 
 const REPLY_META_PREFIX = '[[reply:';
@@ -154,7 +155,7 @@ export class PushService {
       return;
     }
 
-    const recipientUserIds = await this.resolveRecipientUserIds(
+    const { recipientUserIds, roomTitle } = await this.resolveRecipientUserIds(
       input.roomId,
       input.senderId,
     );
@@ -163,26 +164,18 @@ export class PushService {
       return;
     }
 
-    const [room, subscriptions] = await Promise.all([
-      this.prisma.room.findUnique({
-        where: { id: input.roomId },
-        select: {
-          title: true,
-        },
-      }),
-      this.prisma.pushSubscription.findMany({
-        where: {
-          userId: { in: recipientUserIds },
-        },
-        select: {
-          id: true,
-          userId: true,
-          endpoint: true,
-          p256dh: true,
-          auth: true,
-        },
-      }),
-    ]);
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: {
+        userId: { in: recipientUserIds },
+      },
+      select: {
+        id: true,
+        userId: true,
+        endpoint: true,
+        p256dh: true,
+        auth: true,
+      },
+    });
 
     if (!subscriptions.length) {
       return;
@@ -193,14 +186,14 @@ export class PushService {
     await Promise.allSettled(
       subscriptions.map((subscription) => {
         const targetUrl = this.resolveTargetUrl(
-          room?.title,
+          roomTitle ?? undefined,
           input.roomId,
           input.senderId,
           subscription.userId,
         );
 
         const title = this.resolveNotificationTitle(
-          room?.title,
+          roomTitle ?? undefined,
           isGlobalRoom,
           input.senderUsername,
         );
@@ -217,7 +210,10 @@ export class PushService {
     );
   }
 
-  private async resolveRecipientUserIds(roomId: string, senderId: string) {
+  private async resolveRecipientUserIds(
+    roomId: string,
+    senderId: string,
+  ): Promise<{ recipientUserIds: string[]; roomTitle: string | null }> {
     if (roomId === this.GLOBAL_ROOM) {
       const users = await this.prisma.user.findMany({
         where: {
@@ -231,8 +227,17 @@ export class PushService {
         },
       });
 
-      return users.map((user) => user.id);
+      return {
+        recipientUserIds: users.map((user) => user.id),
+        roomTitle: null,
+      };
     }
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    const title = room?.title ?? '';
 
     const members = await this.prisma.roomMember.findMany({
       where: {
@@ -246,7 +251,12 @@ export class PushService {
       },
     });
 
-    return Array.from(new Set(members.map((member) => member.userId)));
+    const rawIds = Array.from(new Set(members.map((member) => member.userId)));
+    const recipientUserIds = rawIds.filter((uid) =>
+      userMayAccessRoomByTitle(uid, title),
+    );
+
+    return { recipientUserIds, roomTitle: room?.title ?? null };
   }
 
   private resolveNotificationTitle(

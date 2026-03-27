@@ -27,128 +27,132 @@
     0 4px 6px -1px var(--login-card-shadow),
     0 0 0 0 rgba(0, 0, 0, 0),
     0 0 0 0 rgba(0, 0, 0, 0);
-}
 
-.header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-}
+  .loaderInCard {
+    width: 100%;
+    min-height: 160px;
+  }
 
-.title {
-  margin: 0;
-  color: var(--login-title);
-}
+  .header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
 
-.subtitle {
-  margin: 0;
-  color: var(--login-muted);
-}
+    .logo {
+      display: block;
+    }
+  }
 
-.loaderInCard {
-  width: 100%;
-  min-height: 160px;
-}
+  .title {
+    margin: 0;
+    color: var(--login-title);
+  }
 
-.errorWrap {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.error {
-  color: var(--login-error-text);
-  background: var(--login-error-bg);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.fieldGroup {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.label {
-  color: var(--login-label);
-  font-family: Inter;
-  font-size: 10px;
-  font-style: normal;
-  font-weight: 600;
-  line-height: 16px;
-}
-
-.input {
-  width: 100%;
-  box-sizing: border-box;
-  border: 1px solid var(--login-input-border);
-  background: var(--login-input-bg);
-  color: var(--foreground);
-  border-radius: 10px;
-  padding: 12px 12px;
-  transition:
-    background-color 0.3s ease,
-    border-color 0.3s ease,
-    color 0.3s ease;
-
-  &::placeholder {
+  .subtitle {
+    margin: 0;
     color: var(--login-muted);
   }
-}
 
-.inputInvalid {
-  border-color: #cf6f6f;
-}
-
-.fieldError {
-  color: var(--login-error-text);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-}
-
-.button {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--login-button-bg);
-  color: var(--login-button-text);
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    opacity 0.2s ease,
-    background-color 0.3s ease,
-    color 0.3s ease;
-
-  &:disabled {
-    opacity: 0.7;
-    cursor: default;
+  .errorWrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
   }
 
-  &:active {
-    transform: translateY(1px);
+  .error {
+    color: var(--login-error-text);
+    background: var(--login-error-bg);
+    border-radius: 10px;
+    padding: 10px 12px;
   }
-}
 
-.footer {
-  margin-top: 4px;
-}
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
 
-.footerText {
-  color: var(--login-footer);
-}
+  .fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
 
-.registerLink {
-  cursor: pointer;
-  color: var(--login-link);
+  .label {
+    color: var(--login-label);
+    font-family: Inter, sans-serif;
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 600;
+    line-height: 16px;
+  }
+
+  .input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--login-input-border);
+    background: var(--login-input-bg);
+    color: var(--foreground);
+    border-radius: 10px;
+    padding: 12px 12px;
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease;
+
+    &::placeholder {
+      color: var(--login-muted);
+    }
+
+    &.inputInvalid {
+      border-color: #cf6f6f;
+    }
+  }
+
+  .fieldError {
+    color: var(--login-error-text);
+    font-size: 12px;
+    line-height: 1.35;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .button {
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: var(--login-button-bg);
+    color: var(--login-button-text);
+    cursor: pointer;
+    transition:
+      transform 0.2s ease,
+      opacity 0.2s ease,
+      background-color 0.3s ease,
+      color 0.3s ease;
+
+    &:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    &:active {
+      transform: translateY(1px);
+    }
+  }
+
+  .footer {
+    margin-top: 4px;
+  }
+
+  .footerText {
+    color: var(--login-footer);
+  }
+
+  .registerLink {
+    cursor: pointer;
+    color: var(--login-link);
+  }
 }

@@ -6,6 +6,7 @@ import { type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useHydrated } from "@/hooks/useHydrated"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
+import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
 
 type MessageBubbleProps = {
   message: Message
@@ -109,9 +110,24 @@ export default function MessageBubble({
         </div>
       ) : null}
 
-      <p className={styles.messageContent}>
-        <strong>{message.username || "Unknown"}:</strong> {message.content}
-      </p>
+      {(() => {
+        const verseShare = parseVerseSharePayload(message.content)
+        if (!verseShare.payload) {
+          return (
+            <p className={styles.messageContent}>
+              <strong>{message.username || "Unknown"}:</strong> {message.content}
+            </p>
+          )
+        }
+
+        return (
+          <div className={styles.verseShareCard}>
+            <p className={styles.verseShareAuthor}>{message.username || "Unknown"} поделился стихом</p>
+            <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
+            <p className={styles.verseShareText}>{verseShare.payload.text}</p>
+          </div>
+        )
+      })()}
 
       <div className={styles.metaRow}>
         {isOwnMessage && canDeleteOwnMessage ? (

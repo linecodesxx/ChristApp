@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import styles from "./SplashScreen.module.css"
+import styles from "./SplashScreen.module.scss"
 
 const quotes = [
   "В начале было Слово...",

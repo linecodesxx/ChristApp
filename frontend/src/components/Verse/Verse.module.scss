@@ -43,15 +43,63 @@
       color: var(--foreground);
       font-family: inherit;
 
-      .selected {
-        text-decoration: line-through;
-        text-decoration-thickness: 20px;
-        text-underline-offset: 5px;
-        text-decoration-color: var(--selected-decoration-color, color-mix(in srgb, #f3d9adc5, transparent));
-        padding: 0 4px;
-        border-radius: 0 8px 8px 0;
-        border-left: 2px solid var(--selected-border-color, #c4a265);
-        background: var(--selected-background, rgba(232, 220, 200, 0.2));
+      .verseSup,
+      .verseSupLarge {
+        color: #c4a265;
+        vertical-align: baseline;
+        flex-shrink: 0;
+        line-height: 1.2;
+      }
+
+      .verseSup {
+        font-size: 12px;
+      }
+
+      .verseSupLarge {
+        font-size: 24px;
+      }
+
+      .verseText {
+        color: var(--foreground);
+        flex: 1 1 auto;
+        min-width: 0;
+      }
+
+      /* Весь стих: номер + текст; выбрано, цвет ещё не задан */
+      .selectionRing {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        max-width: 100%;
+        padding: 6px 12px;
+        margin: 2px 0;
+        border-radius: 10px;
+        border: 2px dotted color-mix(in srgb, var(--foreground) 42%, var(--accent) 38%);
+        background: transparent;
+        box-sizing: border-box;
+      }
+
+      /* После выбора цвета в плашке (или из localStorage) */
+      .painted {
+        display: inline-flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 4px 8px;
+        max-width: 100%;
+        padding: 6px 12px;
+        margin: 2px 0;
+        border-radius: 10px;
+        border: 1px solid color-mix(in srgb, var(--painted-border-color, var(--accent, #c4a265)) 45%, var(--line-soft));
+        border-left: 4px solid var(--painted-border-color, var(--accent, #c4a265));
+        background: var(
+          --painted-background,
+          color-mix(in srgb, var(--accent-soft, #e8dcc8) 50%, transparent)
+        );
+        box-shadow:
+          inset 0 0 0 1px color-mix(in srgb, var(--painted-border-color, var(--accent, #c4a265)) 28%, transparent),
+          0 1px 0 color-mix(in srgb, var(--foreground) 6%, transparent);
+        box-sizing: border-box;
       }
 
       .copied {
@@ -60,10 +108,21 @@
     }
 
     .inlineActions {
+      position: fixed;
+      left: 50%;
+      /* Выше фиксированного TabBar (~120px + safe-area из layout.module.scss) */
+      bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+      transform: translateX(-50%);
+      z-index: 160;
       display: flex;
       align-items: center;
-      gap: 2px;
-      margin-top: 5px;
+      gap: 4px;
+      padding: 6px;
+      border-radius: 14px;
+      border: 1px solid var(--line-soft);
+      background: color-mix(in srgb, var(--surface-elevated) 90%, var(--surface) 10%);
+      box-shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.35);
+      animation: inline-actions-slide-up 220ms ease-out;
 
       .inlineActionButton {
         padding: 10px 10px;
@@ -104,7 +163,7 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        margin-left: 2px;
+        margin-left: 4px;
 
         .colorDot {
           width: 18px;
@@ -127,7 +186,36 @@
               0 0 0 2px var(--foreground);
           }
         }
+
+        .customColorInputWrap {
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          overflow: hidden;
+          border: 1px solid var(--line-soft);
+        }
+
+        .customColorInput {
+          width: 26px;
+          height: 26px;
+          border: 0;
+          padding: 0;
+          margin: -3px;
+          background: transparent;
+          cursor: pointer;
+        }
       }
     }
+  }
+}
+
+@keyframes inline-actions-slide-up {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
   }
 }

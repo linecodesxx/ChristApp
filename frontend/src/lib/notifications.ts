@@ -2,6 +2,8 @@ import { hasActivePushSubscription } from "@/lib/push"
 
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
+const VERSE_SHARE_META_PREFIX = "[[verse-share:"
+const VERSE_SHARE_META_SUFFIX = "]]"
 
 type ChatNotificationPayload = {
   title: string
@@ -24,7 +26,15 @@ function stripReplyMetadata(rawBody: string) {
 }
 
 export function normalizeNotificationBody(rawBody: string) {
-  return stripReplyMetadata(String(rawBody ?? "")).replace(/\s+/g, " ").trim()
+  const withoutReply = stripReplyMetadata(String(rawBody ?? ""))
+  const withoutVerseMeta = withoutReply.startsWith(VERSE_SHARE_META_PREFIX)
+    ? (() => {
+        const suffixIndex = withoutReply.indexOf(VERSE_SHARE_META_SUFFIX, VERSE_SHARE_META_PREFIX.length)
+        if (suffixIndex === -1) return withoutReply
+        return withoutReply.slice(suffixIndex + VERSE_SHARE_META_SUFFIX.length)
+      })()
+    : withoutReply
+  return withoutVerseMeta.replace(/\s+/g, " ").trim()
 }
 
 function isClientNotificationSupported() {

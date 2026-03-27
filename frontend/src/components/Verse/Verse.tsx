@@ -1,13 +1,22 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, memo } from "react"
+import { useCallback, useEffect, useRef, useState, memo, type ChangeEvent } from "react"
 import styles from "./Verse.module.scss"
 import { saveVerse } from "@/lib/versesApi"
+import { VERSE_HIGHLIGHT_STORAGE_KEY, isValidHighlightHex } from "@/lib/verseHighlightStorage"
 import Image from "next/image"
 
 const selectedVersesClipboardStore = new Map<string, string>()
-const VERSE_HIGHLIGHT_STORAGE_KEY = "verse-highlight-colors"
 const colors = ["#e92441", "#C4A265", "#64B5F6", "#81C784", "#BA68C8"]
+
+export function getSelectedVersesClipboardText() {
+  return Array.from(selectedVersesClipboardStore.values()).join("\n")
+}
+
+/** Сброс мультивыбора в памяти (после покраски и т.п.) */
+export function clearVerseSelectionClipboard() {
+  selectedVersesClipboardStore.clear()
+}
 
 type VerseProps = {
   verse: number
@@ -25,6 +34,13 @@ type VerseProps = {
   id?: string
   /** show Save/Share actions near selected verse */
   showInlineActions?: boolean
+  activeActionsVerseKey?: string | null
+  onOpenActions?: (verseKey: string) => void
+  onShareClick?: () => void
+  /** Сдвигается после записи в localStorage — перечитать цвет подсветки */
+  highlightStorageEpoch?: number
+  /** Если задано, выбор цвета в плашке красит все выделенные стихи главы (через родителя) */
+  onApplyHighlightColorToSelection?: (color: string | null) => void
 }
 
 function Verse({
@@ -39,12 +55,18 @@ function Verse({
   selected,
   id,
   showInlineActions,
+  activeActionsVerseKey,
+  onOpenActions,
+  onShareClick,
+  highlightStorageEpoch = 0,
+  onApplyHighlightColorToSelection,
 }: VerseProps) {
   const [isClicked, setIsClicked] = useState(false)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   
   const isSelected = typeof selected === "boolean" ? selected : isClicked
   const verseKey = `${bookName ?? ""}|${chapter ?? 0}|${verse}|${text}`
+  const actionVerseKey = `${bookName ?? ""}|${chapter ?? 0}|${verse}`
   
   const [isSaving, setIsSaving] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -79,6 +101,18 @@ function Verse({
   }, [selected, syncClipboardSelection])
 
   useEffect(() => {
+    if (selected === false) {
+      setIsClicked(false)
+    }
+  }, [selected])
+
+  useEffect(() => {
+    if (activeActionsVerseKey !== actionVerseKey) {
+      setIsActionsVisible(false)
+    }
+  }, [activeActionsVerseKey, actionVerseKey])
+
+  useEffect(() => {
     return () => {
       selectedVersesClipboardStore.delete(verseKey)
       if (copiedTimeoutRef.current) {
@@ -99,7 +133,7 @@ function Verse({
 
       const parsed = JSON.parse(rawValue) as Record<string, string>
       const savedColor = parsed[verseKey]
-      if (savedColor && colors.includes(savedColor)) {
+      if (savedColor && isValidHighlightHex(savedColor)) {
         setSelectedColor(savedColor)
         return
       }
@@ -108,11 +142,21 @@ function Verse({
     } catch {
       setSelectedColor(null)
     }
-  }, [verseKey])
+  }, [verseKey, highlightStorageEpoch])
 
   const handleClick = () => {
-    if (isSelected && !isActionsVisible) {
+    const canUseActions = isSelected || Boolean(selectedColor)
+
+    if (canUseActions && activeActionsVerseKey !== actionVerseKey) {
+      onOpenActions?.(actionVerseKey)
       setIsActionsVisible(true)
+      syncClipboardSelection(true)
+      return
+    }
+
+    if (!isSelected && selectedColor) {
+      setIsActionsVisible(true)
+      onOpenActions?.(actionVerseKey)
       syncClipboardSelection(true)
       return
     }
@@ -122,6 +166,7 @@ function Verse({
       setIsClicked(nextIsClicked)
     }
     setIsActionsVisible(true)
+    onOpenActions?.(actionVerseKey)
     onVerseClick?.(verse)
     syncClipboardSelection(nextIsClicked)
   }
@@ -157,20 +202,13 @@ function Verse({
 
   const handleShare = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    if (typeof navigator === "undefined" || !navigator.share) return
-    void navigator
-      .share({
-        title: "Мой сайт",
-        text: "Посмотри эту страницу",
-        url: window.location.href,
-      })
-      .catch(() => undefined)
+    onShareClick?.()
   }
 
   const handleCopy = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) return
-    const selectedText = Array.from(selectedVersesClipboardStore.values()).join("\n")
+    const selectedText = getSelectedVersesClipboardText()
     const textToCopy = selectedText || verseLine
 
     void navigator.clipboard
@@ -196,6 +234,11 @@ function Verse({
     setSelectedColor(nextColor)
     setIsActionsVisible(false)
 
+    if (onApplyHighlightColorToSelection) {
+      onApplyHighlightColorToSelection(nextColor)
+      return
+    }
+
     if (typeof window === "undefined") return
 
     try {
@@ -214,39 +257,60 @@ function Verse({
     }
   }
 
-  const hasColorHighlight = Boolean(selectedColor)
+  const handleCustomColorInput = (event: ChangeEvent<HTMLInputElement>) => {
+    const pickedColor = event.target.value
+    if (!pickedColor || !isValidHighlightHex(pickedColor)) {
+      return
+    }
 
-  const selectedColorStyle = selectedColor
+    setSelectedColor(pickedColor)
+
+    if (onApplyHighlightColorToSelection) {
+      onApplyHighlightColorToSelection(pickedColor)
+      return
+    }
+
+    if (typeof window === "undefined") return
+
+    try {
+      const rawValue = window.localStorage.getItem(VERSE_HIGHLIGHT_STORAGE_KEY)
+      const parsed = rawValue ? (JSON.parse(rawValue) as Record<string, string>) : {}
+      parsed[verseKey] = pickedColor
+      window.localStorage.setItem(VERSE_HIGHLIGHT_STORAGE_KEY, JSON.stringify(parsed))
+    } catch {
+      // no-op
+    }
+  }
+
+  const paintedColorStyle = selectedColor
     ? ({
-        "--selected-decoration-color": `color-mix(in srgb, ${selectedColor} 45%, transparent)`,
-        "--selected-border-color": selectedColor,
-        "--selected-background": `color-mix(in srgb, ${selectedColor} 20%, transparent)`,
+        "--painted-border-color": selectedColor,
+        "--painted-background": `color-mix(in srgb, ${selectedColor} 22%, transparent)`,
       } as React.CSSProperties)
     : undefined
+
+  const showSelectionRing = isSelected && !selectedColor
+  const showPainted = Boolean(selectedColor)
+  const showActionBar =
+    showInlineActions &&
+    isActionsVisible &&
+    activeActionsVerseKey === actionVerseKey &&
+    (isSelected || Boolean(selectedColor))
 
   return (
     <div className={styles.verseContainer} id={id}>
       <div className={styles.verseRow}>
         <p className={styles.verse} onClick={handleClick}>
-          <sup
-            style={{
-              fontSize: verse === 1 ? "24px" : "12px",
-              color: "#C4A265",
-              verticalAlign: "super",
-              marginRight: "4px",
-            }}
-          >
-            {verse}
-          </sup>
           <span
-            className={`${hasColorHighlight ? styles.selected : ""} ${isCopied ? styles.copied : ""}`}
-            style={selectedColorStyle}
+            className={`${showPainted ? styles.painted : ""} ${showSelectionRing ? styles.selectionRing : ""} ${isCopied ? styles.copied : ""}`}
+            style={paintedColorStyle}
           >
-            {text}
+            <sup className={verse === 1 ? styles.verseSupLarge : styles.verseSup}>{verse}</sup>
+            <span className={styles.verseText}>{text}</span>
           </span>
         </p>
 
-        {showInlineActions && isSelected && isActionsVisible ? (
+        {showActionBar ? (
           <div className={styles.inlineActions}>
             <button
               type="button"
@@ -284,6 +348,15 @@ function Verse({
                   aria-pressed={selectedColor === color}
                 />
               ))}
+              <label className={styles.customColorInputWrap} aria-label="Выбрать свой цвет подсветки">
+                <input
+                  type="color"
+                  className={styles.customColorInput}
+                  value={selectedColor ?? "#C4A265"}
+                  onClick={(event) => event.stopPropagation()}
+                  onChange={handleCustomColorInput}
+                />
+              </label>
             </div>
           </div>
         ) : null}
@@ -293,5 +366,10 @@ function Verse({
 }
 
 export default memo(Verse, (prev, next) => {
-  return prev.selected === next.selected && prev.text === next.text
+  return (
+    prev.selected === next.selected &&
+    prev.text === next.text &&
+    prev.highlightStorageEpoch === next.highlightStorageEpoch &&
+    prev.activeActionsVerseKey === next.activeActionsVerseKey
+  )
 })
