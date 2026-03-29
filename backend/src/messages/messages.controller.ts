@@ -6,6 +6,7 @@ import {
   forwardRef,
   Get,
   Inject,
+  Logger,
   Post,
   Query,
   Req,
@@ -38,8 +39,30 @@ const VOICE_MIME_ALLOW = new Set([
   'video/webm',
 ]);
 
+function uploadErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message: unknown }).message;
+    if (typeof m === 'string') {
+      return m;
+    }
+  }
+  if (typeof err === 'string') {
+    return err;
+  }
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return String(err);
+  }
+}
+
 @Controller('messages')
 export class MessagesController {
+  private readonly logger = new Logger(MessagesController.name);
+
   constructor(
     private readonly messagesService: MessagesService,
     private readonly cloudinaryService: CloudinaryService,
@@ -95,7 +118,7 @@ export class MessagesController {
 
     if (!this.cloudinaryService.isReady()) {
       throw new ServiceUnavailableException(
-        'Загрузка голоса недоступна: задайте CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET в .env (см. backend/.env.example).',
+        'Загрузка голоса недоступна: задайте CLD_CLOUD_NAME, CLD_API_KEY, CLD_API_SECRET в .env (см. backend/.env.example).',
       );
     }
 
@@ -129,7 +152,8 @@ export class MessagesController {
       await this.chatGateway.broadcastNewChatMessage(rid, message);
       return { ok: true, id: message.id, content: message.content };
     } catch (err) {
-      const reason = err instanceof Error ? err.message : String(err);
+      this.logger.warn('uploadVoice failed', err);
+      const reason = uploadErrorMessage(err);
       throw new ServiceUnavailableException(`Не удалось загрузить голос: ${reason}`);
     }
   }
