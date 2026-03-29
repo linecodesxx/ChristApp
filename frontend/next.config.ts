@@ -1,10 +1,11 @@
 import type { NextConfig } from "next"
 
-/** Разрешённые источники для next/image (аватары с бэкенда `/uploads/...`). */
+/** Разрешённые источники для next/image: локальные `/uploads/...` и аватары с Cloudinary (`avatarUrl` = `https://res.cloudinary.com/...`). */
 function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> {
   const patterns: NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> = [
     { protocol: "http", hostname: "localhost", port: "3001", pathname: "/uploads/**" },
     { protocol: "http", hostname: "127.0.0.1", port: "3001", pathname: "/uploads/**" },
+    { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
   ]
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL

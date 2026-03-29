@@ -1,7 +1,11 @@
+export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE"
+
 export type MessageReply = {
   id: string
   username: string
   content: string
+  type?: AppMessageType
+  fileUrl?: string | null
 }
 
 export type Message = {
@@ -13,6 +17,8 @@ export type Message = {
   handle?: string
   senderId?: string
   content: string
+  type?: AppMessageType
+  fileUrl?: string | null
   createdAt: string
   replyTo?: MessageReply
 }

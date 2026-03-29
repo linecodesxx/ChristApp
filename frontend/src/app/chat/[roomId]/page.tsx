@@ -24,7 +24,7 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   SHARE_WITH_JESUS_SLUG,
 } from "@/lib/chatRooms"
-import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
+import { chatMessagePreview } from "@/lib/chatMessagePreview"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
@@ -39,6 +39,8 @@ type IncomingSocketMessage = {
   id?: string | number
   roomId?: string
   content?: string
+  type?: string
+  fileUrl?: string
   createdAt?: string | Date
   username?: string
   handle?: string
@@ -125,10 +127,17 @@ function serializeMessageWithReply(content: string, replyTo?: MessageReply | nul
     return normalizedContent
   }
 
+  const replySnippet =
+    chatMessagePreview({
+      content: replyTo.content,
+      type: replyTo.type,
+      fileUrl: replyTo.fileUrl,
+    }) || replyTo.content
+
   const safeReply: MessageReply = {
     id: String(replyTo.id),
     username: (String(replyTo.username || "Unknown").trim() || "Unknown").slice(0, 60),
-    content: normalizeReplyContent(String(replyTo.content || "")),
+    content: normalizeReplyContent(String(replySnippet || "")),
   }
 
   try {
@@ -229,6 +238,11 @@ function normalizeIncomingMessage(
     raw?.username ?? raw?.sender?.nickname ?? raw?.sender?.username ?? "Unknown"
   const rawContent = String(raw?.content ?? "")
   const { content, replyTo } = parseMessageWithReply(rawContent)
+  const type =
+    raw?.type === "TEXT" || raw?.type === "VOICE" || raw?.type === "IMAGE" || raw?.type === "FILE"
+      ? raw.type
+      : undefined
+  const fileUrl = raw?.fileUrl?.trim() ? raw.fileUrl.trim() : undefined
 
   const legacyMe =
     Boolean(currentUsername) &&
@@ -239,6 +253,8 @@ function normalizeIncomingMessage(
   return {
     id: String(raw?.id ?? Date.now()),
     content,
+    type,
+    fileUrl,
     createdAt: String(raw?.createdAt ?? new Date().toISOString()),
     username: displayName,
     handle,
@@ -479,7 +495,12 @@ export default function ChatPageDetails() {
       }
 
       const normalized = normalizeIncomingMessage(msg, user?.username)
-      if (!normalized.content.trim()) {
+      const previewLine = chatMessagePreview({
+        content: normalized.content,
+        type: normalized.type,
+        fileUrl: normalized.fileUrl,
+      })
+      if (!previewLine.trim()) {
         return
       }
 
@@ -489,12 +510,8 @@ export default function ChatPageDetails() {
 
       messageIdsRef.current.add(normalized.id)
 
-      if (joinedId && normalized.content?.trim()) {
-        const trimmed = normalized.content.trim()
-        persistLastSentPreview(
-          joinedId,
-          parseVoiceMessageUrl(trimmed) ? "Голосовое сообщение" : trimmed,
-        )
+      if (joinedId && previewLine.trim()) {
+        persistLastSentPreview(joinedId, previewLine)
       }
 
       const isOwnMessage = isMessageFromCurrentUser(normalized, user)
@@ -507,10 +524,9 @@ export default function ChatPageDetails() {
             ? `Новое сообщение в общем чате от ${normalized.username}`
             : `Новое сообщение от ${normalized.username}`
 
-        const trimmedBody = normalized.content.trim()
         void showChatNotification({
           title: notificationTitle,
-          body: parseVoiceMessageUrl(trimmedBody) ? "Голосовое сообщение" : normalized.content,
+          body: previewLine,
           targetUrl,
           tag: `room-${joinedId}`,
         })
@@ -579,12 +595,15 @@ export default function ChatPageDetails() {
       messageIdsRef.current = nextMessageIds
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
-      if (historyRoomId && lastMessage?.content?.trim()) {
-        const trimmed = lastMessage.content.trim()
-        persistLastSentPreview(
-          historyRoomId,
-          parseVoiceMessageUrl(trimmed) ? "Голосовое сообщение" : trimmed,
-        )
+      if (historyRoomId && lastMessage) {
+        const historyPreview = chatMessagePreview({
+          content: lastMessage.content,
+          type: lastMessage.type,
+          fileUrl: lastMessage.fileUrl,
+        })
+        if (historyPreview.trim()) {
+          persistLastSentPreview(historyRoomId, historyPreview)
+        }
       }
 
       setMessages(uniqueHistory)
@@ -1011,6 +1030,8 @@ export default function ChatPageDetails() {
           id: replyTarget.id,
           username: replyTarget.username,
           content: replyTarget.content,
+          type: replyTarget.type,
+          fileUrl: replyTarget.fileUrl,
         }
         : null,
     )
@@ -1084,6 +1105,63 @@ export default function ChatPageDetails() {
     ],
   )
 
+  const handleSendImage = useCallback(
+    async (imageFile: File): Promise<boolean> => {
+      const targetRoomId = effectiveSocketRoomId
+      if (!targetRoomId || !imageFile?.size) {
+        return false
+      }
+
+      if (routeRoomId === user?.id) {
+        return false
+      }
+
+      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+        setSendNotice("Подождите, комната ещё подключается.")
+        return false
+      }
+
+      if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+          openingDirectRoomRef.current.add(routeRoomId)
+          socketRef.current?.emit("openDirectRoom", { targetUserId: routeRoomId })
+        }
+        setSendNotice("Комната ещё не готова — повторите через секунду.")
+        return false
+      }
+
+      const token = getAuthToken()
+      if (!token) {
+        setSendNotice("Нет токена авторизации.")
+        return false
+      }
+
+      const formData = new FormData()
+      formData.append("file", imageFile)
+      formData.append("roomId", targetRoomId)
+
+      setSendNotice(null)
+      try {
+        const response = await fetch(`${WS_URL}/messages/image`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const text = (await response.text()).trim()
+          setSendNotice(text.slice(0, 280) || `Ошибка ${response.status}`)
+          return false
+        }
+        return true
+      } catch {
+        setSendNotice("Не удалось отправить изображение.")
+        return false
+      }
+    },
+    [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId],
+  )
+
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
@@ -1152,6 +1230,11 @@ export default function ChatPageDetails() {
           authError || routeRoomId === user?.id
             ? undefined
             : handleSendVoice
+        }
+        onSendImage={
+          authError || routeRoomId === user?.id
+            ? undefined
+            : handleSendImage
         }
       />
       {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}

@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { fetchUnreadSummary, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
+import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import {
@@ -165,7 +166,9 @@ type RoomSocketItem = { id: string; title: string; createdAt?: string }
 
 type NewMessageSocketEvent = {
   roomId: string
-  content: string
+  content?: string
+  type?: string
+  fileUrl?: string
   createdAt: string
   username?: string
   handle?: string
@@ -707,11 +710,19 @@ export default function ChatPage() {
     const onNewMessage = (msg: NewMessageSocketEvent) => {
       const directUserId = roomIdToDirectUserIdRef.current.get(msg.roomId)
       const mappedId = msg.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserId
-      const normalizedContent = normalizeNotificationBody(msg.content) || msg.content
+      const normalizedContent = chatMessagePreview({
+        content: msg.content ?? "",
+        type: msg.type,
+        fileUrl: msg.fileUrl,
+      })
 
       if (!mappedId) {
         socket.emit("getMyRooms")
         void refreshUnreadSummary()
+        return
+      }
+
+      if (!normalizedContent.trim()) {
         return
       }
 

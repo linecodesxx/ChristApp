@@ -2,7 +2,8 @@
 
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
 import type { Message } from "@/types/message"
@@ -23,6 +24,8 @@ type MessageInputProps = {
    * После успешной отправки возвращайте true.
    */
   onSendVoice?: (blob: Blob) => void | Promise<boolean>
+  /** Картинка в чат (кнопка скрепки слева). */
+  onSendImage?: (file: File) => void | Promise<boolean>
 }
 
 const MAX_MESSAGE_LENGTH = 2000
@@ -36,6 +39,7 @@ export default function MessageInput({
   placeholder = "Напиши сообщение...",
   onTypingActivity,
   onSendVoice,
+  onSendImage,
 }: MessageInputProps) {
   const tabBarOverlay = useTabBarOverlayOptional()
   const tabBarOverlayRef = useRef(tabBarOverlay)
@@ -44,6 +48,7 @@ export default function MessageInput({
   const [isSending, setIsSending] = useState(false)
   const [mode, setMode] = useState<ComposerMode>("text")
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const imageFileInputRef = useRef<HTMLInputElement | null>(null)
   const typingSentRef = useRef(false)
   const onTypingActivityRef = useRef(onTypingActivity)
   onTypingActivityRef.current = onTypingActivity
@@ -51,6 +56,7 @@ export default function MessageInput({
   const narrowViewport = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const sendOnEnter = !narrowViewport
   const voiceEnabled = Boolean(onSendVoice)
+  const imageEnabled = Boolean(onSendImage)
 
   useEffect(() => {
     return () => {
@@ -150,7 +156,31 @@ export default function MessageInput({
     }
   }
 
-  const replyText = replyToMessage?.content.replace(/\s+/g, " ").trim() ?? ""
+  const handleImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    event.target.value = ""
+    if (!file || !onSendImage || disabled) return
+    if (!file.type.startsWith("image/")) {
+      window.alert("Выберите файл изображения.")
+      return
+    }
+    try {
+      await Promise.resolve(onSendImage(file))
+    } catch {
+      // onSendImage показывает ошибку снаружи
+    }
+  }
+
+  const replyText = replyToMessage
+    ? chatMessagePreview({
+        content: replyToMessage.content,
+        type: replyToMessage.type,
+        fileUrl: replyToMessage.fileUrl,
+      })
+        .replace(/\s+/g, " ")
+        .trim()
+        .slice(0, 180)
+    : ""
 
   const messageRowClass =
     mode === "voice" && voiceEnabled
@@ -177,7 +207,23 @@ export default function MessageInput({
       ) : null}
 
       <div className={messageRowClass}>
-        <button type="button" className={styles.iconButton} aria-label="Прикрепить" title="Скоро доступно" disabled>
+        <input
+          ref={imageFileInputRef}
+          type="file"
+          accept="image/*"
+          className={styles.visuallyHidden}
+          tabIndex={-1}
+          aria-hidden
+          onChange={(event) => void handleImageFileChange(event)}
+        />
+        <button
+          type="button"
+          className={styles.iconButton}
+          aria-label="Прикрепить изображение"
+          title={imageEnabled ? "Отправить фото" : "Скоро доступно"}
+          disabled={disabled || mode === "voice" || !imageEnabled}
+          onClick={() => imageFileInputRef.current?.click()}
+        >
           <Image src="/icon-attachment.svg" alt="" width={20} height={20} className={styles.attachmentButton} />
         </button>
 
