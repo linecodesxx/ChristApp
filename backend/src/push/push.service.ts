@@ -5,6 +5,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
+import { MessageType } from '@prisma/client';
 
 const REPLY_META_PREFIX = '[[reply:';
 const REPLY_META_SUFFIX = ']]';
@@ -17,6 +18,8 @@ type ChatPushNotificationInput = {
   senderUsername: string;
   content: string;
   createdAt: Date;
+  messageType?: MessageType;
+  fileUrl?: string | null;
 };
 
 type PushSubscriptionRecord = {
@@ -152,7 +155,10 @@ export class PushService {
       return;
     }
 
-    const normalizedBody = this.normalizeMessageBody(input.content);
+    const normalizedBody =
+      input.messageType === MessageType.IMAGE
+        ? 'Фото'
+        : this.normalizeMessageBody(input.content);
     if (!normalizedBody) {
       return;
     }

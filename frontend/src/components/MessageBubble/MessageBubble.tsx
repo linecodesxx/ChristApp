@@ -7,7 +7,7 @@ import { useHydrated } from "@/hooks/useHydrated"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
-import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
+import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
 
 type MessageBubbleProps = {
   message: Message
@@ -112,15 +112,44 @@ export default function MessageBubble({
       ) : null}
 
       {(() => {
-        const voiceUrl = parseVoiceMessageUrl(message.content)
-        if (voiceUrl) {
+        const imgUrl = message.fileUrl?.trim()
+        if (message.type === "IMAGE" && imgUrl) {
+          return (
+            <div className={styles.imageMessage}>
+              <p className={styles.imageMessageMeta}>
+                <strong>{message.username || "Unknown"}</strong>
+                <span> — фото</span>
+              </p>
+              <a
+                className={styles.imageLink}
+                href={imgUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- внешний Cloudinary URL */}
+                <img src={imgUrl} alt="" className={styles.chatImage} loading="lazy" />
+              </a>
+            </div>
+          )
+        }
+
+        const rawUrl = message.content.trim()
+        if (rawUrl.startsWith(VOICE_META_PREFIX) && rawUrl.endsWith(VOICE_META_SUFFIX)) {
+          const cleanUrl = rawUrl.replace(VOICE_META_PREFIX, "").replace(VOICE_META_SUFFIX, "")
+          let playerSrc = cleanUrl
+          try {
+            playerSrc = decodeURIComponent(cleanUrl)
+          } catch {
+            /* бэкенд кладёт encodeURIComponent(URL); если строка уже «голая» — оставляем cleanUrl */
+          }
           return (
             <div className={styles.voiceMessage}>
               <p className={styles.voiceMessageMeta}>
                 <strong>{message.username || "Unknown"}</strong>
                 <span> — голосовое</span>
               </p>
-              <audio className={styles.voicePlayer} controls src={voiceUrl} preload="metadata" />
+              <audio className={styles.voicePlayer} controls src={playerSrc} preload="metadata" />
             </div>
           )
         }

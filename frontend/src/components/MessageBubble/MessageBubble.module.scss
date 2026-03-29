@@ -108,6 +108,39 @@
   height: 36px;
 }
 
+.imageMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.imageMessageMeta {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.imageLink {
+  display: block;
+  max-width: min(260px, 100%);
+  border-radius: 12px;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.chatImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  object-fit: contain;
+  background: color-mix(in srgb, var(--line-soft) 40%, transparent);
+}
+
 .messageContent {
   color: #2e2c2c;
   white-space: pre-wrap;
