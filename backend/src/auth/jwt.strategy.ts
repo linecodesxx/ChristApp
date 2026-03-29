@@ -35,6 +35,9 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         createdAt: true,
         isActive: true,
         avatarUrl: true,
+        themeForegroundHex: true,
+        themeBackgroundHex: true,
+        themeFontKey: true,
       },
     });
   }

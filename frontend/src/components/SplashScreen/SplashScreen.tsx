@@ -15,12 +15,19 @@ const TYPING_MS = 50
 const EXIT_MS = 480
 
 export default function SplashScreen() {
-  const [quote] = useState(() => quotes[Math.floor(Math.random() * quotes.length)])
+  /** Только после mount — иначе Math.random на SSR и на клиенте даст разный HTML (hydration error). */
+  const [quote, setQuote] = useState<string | null>(null)
   const [text, setText] = useState("")
   const [phase, setPhase] = useState<"enter" | "exit" | "done">("enter")
 
   useEffect(() => {
-    if (typeof window === "undefined") return
+    setQuote(quotes[Math.floor(Math.random() * quotes.length)])
+  }, [])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || quote == null) {
+      return
+    }
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 

@@ -1,3 +1,6 @@
+"use client"
+
+import { useHydrated } from "@/hooks/useHydrated"
 import FeatherDivider from "./FeatherDivider"
 import styles from "./PremiumNote.module.scss"
 
@@ -26,11 +29,12 @@ function formatNoteDate(iso: string | undefined): string {
 }
 
 export default function PremiumNote({ sourceText, responseText, createdAt }: PremiumNoteProps) {
-  const dateLine = formatNoteDate(createdAt)
+  const hydrated = useHydrated()
+  const dateLine = hydrated ? formatNoteDate(createdAt) : ""
 
   return (
     <article className={styles.card}>
-      {dateLine ? <p className={styles.meta}>{dateLine}</p> : null}
+      {createdAt ? <p className={styles.meta}>{dateLine || "\u00a0"}</p> : null}
 
       <div className={styles.sourceBlock}>
         <p className={styles.sourceLabel}>Источник</p>

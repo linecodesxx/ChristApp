@@ -1,3 +1,29 @@
+/* Pastah (trial) — положите файлы в public/fonts/; лицензия на вашей стороне. */
+@font-face {
+  font-family: "Pastah";
+  src: url("/fonts/Pastah-Bold.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pastah";
+  src: url("/fonts/Pastah-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Achiko — лицензия в public/fonts/; подключение для экрана «Заметки по стихам». */
+@font-face {
+  font-family: "Achiko";
+  src: url("/fonts/Achiko_1.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #2e2d2dc8;
   --foreground: #ffffff;
@@ -28,6 +54,7 @@
 
 [data-theme="light"] {
   --background: #f8f2e9d2;
+  // --background: #00239625;
   --foreground: #2e2c2c;
   --book-title-color: #3a2a1e;
   --surface: #f6efe4;
@@ -82,12 +109,12 @@ body {
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: "Inter", Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), "Inter", Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100%;
   min-height: -webkit-fill-available;
-  padding: 20px 16px;
+  padding: 10px 10px;
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 

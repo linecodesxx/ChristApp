@@ -1,7 +1,7 @@
 "use client"
 
 import { useRef, type MouseEvent, type TouchEvent } from "react"
-import Image from "next/image"
+import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useHydrated } from "@/hooks/useHydrated"
 import { getInitials } from "@/lib/utils"
@@ -164,11 +164,17 @@ export default function MessageBubble({
           onClick={handleAvatarClick}
           aria-label={`Написать ${message.handle ? `@${message.handle}` : message.username}`}
         >
-          {avatarSrc ? (
-            <Image src={avatarSrc} alt="" width={36} height={36} className={styles.avatarImg} unoptimized />
-          ) : (
-            <span className={styles.avatarFallback}>{getInitials(message.username)}</span>
-          )}
+          <AvatarWithFallback
+            src={avatarSrc}
+            initials={getInitials(message.username)}
+            colorSeed={message.senderId ?? message.username ?? "?"}
+            width={36}
+            height={36}
+            imageClassName={styles.avatarImg}
+            fallbackClassName={styles.avatarFallback}
+            fallbackTag="span"
+            fallbackTint="onError"
+          />
         </button>
         <div className={bubble}>{bubbleBody}</div>
       </article>

@@ -3,6 +3,7 @@
 import styles from "@/app/profile/profile.module.scss"
 import { useAuth } from "@/hooks/useAuth"
 import { formatMemberSince, getInitials } from "@/lib/utils"
+import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { getAppStreak } from "@/lib/appStreak"
 import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
@@ -10,6 +11,12 @@ import { getApiErrorMessage } from "@/lib/apiError"
 import { USERNAME_REGEX } from "@/lib/formValidation"
 import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter"
 import { getAuthToken } from "@/lib/auth"
+import {
+  SUGGESTED_THEME_BACKGROUND,
+  SUGGESTED_THEME_FOREGROUND,
+  normalizeThemeFontKey,
+  type ThemeFontKey,
+} from "@/lib/userAppearance"
 import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
 import {
   fetchPushStatus,
@@ -63,6 +70,10 @@ export default function ProfilePage() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [avatarCacheBust, setAvatarCacheBust] = useState(0)
   const [dayStreak, setDayStreak] = useState(0)
+  const [themeFgInput, setThemeFgInput] = useState(SUGGESTED_THEME_FOREGROUND)
+  const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND)
+  const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter")
+  const [appearanceSaving, setAppearanceSaving] = useState(false)
 
   useEffect(() => {
     setPushPermission(getPushPermissionState())
@@ -113,6 +124,9 @@ export default function ProfilePage() {
     }
     setNickEdit(user.nickname ?? user.username)
     setHandleEdit(user.username)
+    setThemeFgInput(user.themeForegroundHex || SUGGESTED_THEME_FOREGROUND)
+    setThemeBgInput(user.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND)
+    setThemeFontInput(normalizeThemeFontKey(user.themeFontKey))
   }, [user])
 
   useEffect(() => {
@@ -344,7 +358,24 @@ export default function ProfilePage() {
       return
     }
 
-    const body: { nickname?: string; username?: string } = {}
+    const hexFg = themeFgInput.trim().toLowerCase()
+    const hexBg = themeBgInput.trim().toLowerCase()
+    if (!/^#[0-9a-f]{6}$/.test(hexFg) || !/^#[0-9a-f]{6}$/.test(hexBg)) {
+      window.alert("Цвета: выберите оттенки в палитре (формат #RRGGBB).")
+      return
+    }
+
+    const body: {
+      nickname?: string
+      username?: string
+      themeForegroundHex: string
+      themeBackgroundHex: string
+      themeFontKey: string
+    } = {
+      themeForegroundHex: hexFg,
+      themeBackgroundHex: hexBg,
+      themeFontKey: themeFontInput,
+    }
     if (nextNick !== (user.nickname ?? user.username)) {
       body.nickname = nextNick
     }
@@ -352,7 +383,15 @@ export default function ProfilePage() {
       body.username = nextHandle
     }
 
-    if (Object.keys(body).length === 0) {
+    const userFg = (user.themeForegroundHex ?? "").toLowerCase()
+    const userBg = (user.themeBackgroundHex ?? "").toLowerCase()
+    const effFg = userFg || SUGGESTED_THEME_FOREGROUND.toLowerCase()
+    const effBg = userBg || SUGGESTED_THEME_BACKGROUND.toLowerCase()
+    const sameTheme =
+      hexFg === effFg && hexBg === effBg && themeFontInput === normalizeThemeFontKey(user.themeFontKey)
+    const sameNick = nextNick === (user.nickname ?? user.username)
+    const sameHandle = nextHandle === user.username
+    if (sameNick && sameHandle && sameTheme) {
       return
     }
 
@@ -377,6 +416,45 @@ export default function ProfilePage() {
       closeProfileEdit()
     } finally {
       setProfileSaving(false)
+    }
+  }
+
+  const handleResetAppearance = async () => {
+    if (!API_URL || !user) {
+      return
+    }
+    const token = getAuthToken()
+    if (!token) {
+      return
+    }
+
+    setAppearanceSaving(true)
+    try {
+      const response = await fetch(`${API_URL}/users/me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          themeForegroundHex: "",
+          themeBackgroundHex: "",
+          themeFontKey: "",
+        }),
+      })
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        window.alert(getApiErrorMessage(errData, "Не удалось сбросить оформление"))
+        return
+      }
+
+      await refreshSession()
+      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
+      setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
+      setThemeFontInput("inter")
+    } finally {
+      setAppearanceSaving(false)
     }
   }
 
@@ -451,18 +529,17 @@ export default function ProfilePage() {
           disabled={isAvatarUploading}
           aria-label={avatarPhotoSrc ? "Сменить фото профиля" : "Загрузить фото профиля"}
         >
-          {avatarPhotoSrc ? (
-            <Image
-              src={avatarPhotoSrc}
-              alt=""
-              width={60}
-              height={60}
-              className={styles.avatarImage}
-              unoptimized
-            />
-          ) : (
-            <span className={styles.avatarInitials}>{initials}</span>
-          )}
+          <AvatarWithFallback
+            src={avatarPhotoSrc ?? undefined}
+            initials={initials}
+            colorSeed={user?.id ?? "profile"}
+            width={60}
+            height={60}
+            imageClassName={styles.avatarImage}
+            fallbackClassName={styles.avatarInitials}
+            fallbackTag="span"
+            fallbackTint="onError"
+          />
         </button>
         <div className={styles.info}>
           <span className={styles.username}>{user?.nickname ?? user?.username}</span>
@@ -494,6 +571,64 @@ export default function ProfilePage() {
               maxLength={20}
             />
           </label>
+
+          <p className={styles.appearanceHint}>
+            Фон и текст применяются поверх тёмной/светлой темы (лампочка). Pastah и Achiko лежат в{" "}
+            <code>public/fonts/</code>; лицензии на вашей стороне.
+          </p>
+          <label className={styles.profileLabel}>
+            Цвет текста
+            <span className={styles.colorRow}>
+              <input
+                className={styles.colorInput}
+                type="color"
+                value={themeFgInput.startsWith("#") && themeFgInput.length === 7 ? themeFgInput : SUGGESTED_THEME_FOREGROUND}
+                onChange={(event) => setThemeFgInput(event.target.value)}
+                aria-label="Цвет текста"
+              />
+              <input
+                className={styles.profileInput}
+                value={themeFgInput}
+                onChange={(event) => setThemeFgInput(event.target.value)}
+                spellCheck={false}
+                maxLength={7}
+                placeholder={SUGGESTED_THEME_FOREGROUND}
+              />
+            </span>
+          </label>
+          <label className={styles.profileLabel}>
+            Цвет фона
+            <span className={styles.colorRow}>
+              <input
+                className={styles.colorInput}
+                type="color"
+                value={themeBgInput.startsWith("#") && themeBgInput.length === 7 ? themeBgInput : SUGGESTED_THEME_BACKGROUND}
+                onChange={(event) => setThemeBgInput(event.target.value)}
+                aria-label="Цвет фона"
+              />
+              <input
+                className={styles.profileInput}
+                value={themeBgInput}
+                onChange={(event) => setThemeBgInput(event.target.value)}
+                spellCheck={false}
+                maxLength={7}
+                placeholder={SUGGESTED_THEME_BACKGROUND}
+              />
+            </span>
+          </label>
+          <label className={styles.profileLabel}>
+            Шрифт интерфейса
+            <select
+              className={styles.appearanceSelect}
+              value={themeFontInput}
+              onChange={(event) => setThemeFontInput(event.target.value as ThemeFontKey)}
+            >
+              <option value="inter">Inter (по умолчанию)</option>
+              <option value="pastah">Pastah</option>
+              <option value="achiko">Achiko</option>
+            </select>
+          </label>
+
           <div className={styles.profileEditActions}>
             <button
               type="button"
@@ -507,9 +642,17 @@ export default function ProfilePage() {
               type="button"
               className={styles.profileSave}
               onClick={() => void handleSaveProfile()}
-              disabled={profileSaving}
+              disabled={profileSaving || appearanceSaving}
             >
               {profileSaving ? "Сохранение…" : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              className={styles.profileCancel}
+              onClick={() => void handleResetAppearance()}
+              disabled={profileSaving || appearanceSaving}
+            >
+              {appearanceSaving ? "Сброс…" : "Сбросить оформление"}
             </button>
           </div>
         </div>

@@ -16,6 +16,9 @@ const profileSelect = {
   createdAt: true,
   isActive: true,
   avatarUrl: true,
+  themeForegroundHex: true,
+  themeBackgroundHex: true,
+  themeFontKey: true,
 } as const;
 
 @Injectable()
@@ -59,7 +62,14 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto) {
-    if (dto.username === undefined && dto.nickname === undefined) {
+    const hasIdentity =
+      dto.username !== undefined || dto.nickname !== undefined;
+    const hasAppearance =
+      dto.themeForegroundHex !== undefined ||
+      dto.themeBackgroundHex !== undefined ||
+      dto.themeFontKey !== undefined;
+
+    if (!hasIdentity && !hasAppearance) {
       throw new BadRequestException('Нет данных для обновления');
     }
 
@@ -84,11 +94,33 @@ export class UsersService {
       }
     }
 
+    const themeFg =
+      dto.themeForegroundHex === undefined
+        ? undefined
+        : dto.themeForegroundHex === null || dto.themeForegroundHex === ''
+          ? null
+          : dto.themeForegroundHex;
+    const themeBg =
+      dto.themeBackgroundHex === undefined
+        ? undefined
+        : dto.themeBackgroundHex === null || dto.themeBackgroundHex === ''
+          ? null
+          : dto.themeBackgroundHex;
+    const themeFont =
+      dto.themeFontKey === undefined
+        ? undefined
+        : dto.themeFontKey === null || dto.themeFontKey === ''
+          ? null
+          : dto.themeFontKey;
+
     return this.prisma.user.update({
       where: { id: userId },
       data: {
         ...(nextUsername !== undefined ? { username: nextUsername } : {}),
         ...(nextNickname !== undefined ? { nickname: nextNickname } : {}),
+        ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),
+        ...(themeBg !== undefined ? { themeBackgroundHex: themeBg } : {}),
+        ...(themeFont !== undefined ? { themeFontKey: themeFont } : {}),
       },
       select: profileSelect,
     });

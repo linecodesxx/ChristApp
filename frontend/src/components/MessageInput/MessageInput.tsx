@@ -1,6 +1,7 @@
 "use client"
 
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
+import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
 import { useEffect, useRef, useState } from "react"
 import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
@@ -37,6 +38,8 @@ export default function MessageInput({
   const onTypingActivityRef = useRef(onTypingActivity)
   onTypingActivityRef.current = onTypingActivity
   const hasText = value.trim().length > 0
+  const narrowViewport = useMediaQuery(chatComposerTabLayoutMediaQuery())
+  const sendOnEnter = !narrowViewport
 
   useEffect(() => {
     return () => {
@@ -136,7 +139,18 @@ export default function MessageInput({
           onFocus={() => tabBarOverlayRef.current?.setChatComposerFocused(true)}
           onBlur={() => tabBarOverlayRef.current?.setChatComposerFocused(false)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            if (event.key !== "Enter") {
+              return
+            }
+            if (sendOnEnter) {
+              if (event.shiftKey) {
+                return
+              }
+              event.preventDefault()
+              void submit()
+              return
+            }
+            if (event.metaKey || event.ctrlKey) {
               event.preventDefault()
               void submit()
             }

@@ -74,6 +74,9 @@ export class AuthService {
         createdAt: true,
         isActive: true,
         avatarUrl: true,
+        themeForegroundHex: true,
+        themeBackgroundHex: true,
+        themeFontKey: true,
       },
     });
 

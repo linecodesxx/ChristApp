@@ -1,15 +1,22 @@
 .bibleReader {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     padding: 16px;
-    padding-left: 40px;
-    padding-right: 40px;
+    padding-left: 20px;
+    padding-right: 20px;
 
     .headerBar {
+        flex-shrink: 0;
         display: flex;
         align-items: baseline;
         gap: 16px;
         margin-bottom: 16px;
 
-        > * {
+
+        >* {
             min-width: 0;
             flex: 1;
         }
@@ -22,6 +29,11 @@
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+            font-size: 15px;
+
+            @media (min-width: 1440px) {
+                font-size: 20px;
+            }
         }
 
         select {
@@ -31,12 +43,16 @@
             border: 1px solid var(--login-card-border);
             padding: 8px 10px;
             border-radius: 64px;
-            font-size: 20px;
+            font-size: 15px;
             cursor: pointer;
             outline: none;
             overflow: hidden;
             white-space: nowrap;
             text-overflow: ellipsis;
+
+            @media (min-width: 1440px) {
+                font-size: 20px;
+            }
         }
     }
 
@@ -155,11 +171,57 @@
         }
     }
 
+    .floatingNavRow {
+        display: contents;
+
+        @media (max-width: 899px) {
+            display: flex;
+            position: fixed;
+            left: 0;
+            right: 0;
+            bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+            padding-left: max(12px, env(safe-area-inset-left, 0px));
+            padding-right: max(12px, env(safe-area-inset-right, 0px));
+            justify-content: space-between;
+            align-items: center;
+            z-index: 1600;
+            pointer-events: none;
+            transition:
+                transform 0.3s cubic-bezier(0.32, 0.72, 0, 1),
+                opacity 0.22s ease;
+
+            .floatingNavLeft,
+            .floatingNavRight {
+                pointer-events: auto;
+            }
+
+            &.floatingNavRowHidden {
+                transform: translateY(calc(100% + 20px));
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+    }
+
     .floatingNavLeft,
     .floatingNavRight {
-        position: fixed;
+        position: absolute;
         bottom: 95px;
         z-index: 1600;
+
+        @media (max-width: 899px) {
+            position: static;
+            bottom: auto;
+            top: auto;
+            left: auto !important;
+            right: auto !important;
+            transform: none !important;
+        }
+
+        @media (min-width: 900px) {
+            top: 50%;
+            bottom: auto;
+        }
 
         .navButton {
             border-radius: 9999px;
@@ -195,31 +257,84 @@
                 transform: none;
             }
 
-            @media (min-width: 1440px) {
-                width: 100px;
+            @media (min-width: 900px) {
+                width: 50px;
+                height: 50px;
             }
         }
     }
 
     .floatingNavLeft {
-        position: absolute;
-        left: 50px;
+        left: 12px;
+
+        @media (min-width: 900px) {
+            /* зазор от «колонки» текста; на узком десктопе ужимаем vw, чтобы кнопка не вылезала за main */
+            left: calc(50% - min(328px, 34vw) - 50px);
+            right: auto;
+            transform: translate(-100%, -50%);
+        }
+
+        @media (min-width: 1200px) {
+            left: calc(50% - min(400px, 42vw) - 50px);
+        }
     }
 
     .floatingNavRight {
-        position: absolute;
-        right: 50px;
+        right: 12px;
+
+        @media (min-width: 900px) {
+            left: calc(50% + min(328px, 34vw) + 50px);
+            right: auto;
+            transform: translateY(-50%);
+        }
+
+        @media (min-width: 1200px) {
+            left: calc(50% + min(400px, 42vw) + 50px);
+        }
     }
 
     .versesSection {
         display: flex;
         flex-direction: column;
         gap: 20px;
+        flex: 1;
+        min-height: 0;
         background-color: transparent;
         border-radius: 8px;
-        height: calc(100vh - 270px);
         overflow-y: auto;
         padding: 0;
+
+        @media (max-width: 899px) {
+            padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+        }
+    }
+
+    .chapterHeading {
+        flex-shrink: 0;
+        margin: 0 0 4px;
+        padding: 4px 0 12px;
+        border-bottom: 1px solid color-mix(in srgb, var(--line-soft) 55%, transparent);
+        font-family: "Inter", sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 1.35;
+        color: var(--book-title-color);
+        text-align: center;
+        letter-spacing: 0.02em;
+    }
+
+    .chapterHeadingBook {
+        color: var(--book-title-color);
+    }
+
+    .chapterHeadingSep {
+        font-weight: 600;
+        color: var(--text-dim);
+    }
+
+    .chapterHeadingChapter {
+        font-weight: 600;
+        color: var(--accent);
     }
 }
 
@@ -284,6 +399,7 @@
     0% {
         background-position: 200% 0;
     }
+
     100% {
         background-position: -200% 0;
     }

@@ -71,6 +71,12 @@
   color: var(--text-muted);
 }
 
+.loadingPlain {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
 .pushLoaderWrap {
   margin-top: 10px;
   display: flex;

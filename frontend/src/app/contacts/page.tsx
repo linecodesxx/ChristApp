@@ -47,7 +47,7 @@ const Contacts = () => {
         ))}
 
         <div className={styles.appVersion}>
-          <span>App version 0.0.1</span>
+          <span>App version 0.0.3</span>
           <span>Authors: Ed Hristov, Xho Hristov</span>
         </div>
       </div>

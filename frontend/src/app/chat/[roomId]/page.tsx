@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
 import { showChatNotification } from "@/lib/notifications"
+import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import Link from "next/link"
 import Image from "next/image"
 import {
@@ -1018,18 +1019,17 @@ export default function ChatPageDetails() {
             <Image className={styles.backIcon} src="/back-icon.svg" alt="Back" width={24} height={24} />
           </Link>
           <div className={headerAvatarClassName}>
-            {headerAvatarSrc ? (
-              <Image
-                src={headerAvatarSrc}
-                alt=""
-                width={40}
-                height={40}
-                className={styles.avatarPhoto}
-                unoptimized
-              />
-            ) : (
-              getInitials(resolvedTitle)
-            )}
+            <AvatarWithFallback
+              src={headerAvatarSrc}
+              initials={getInitials(resolvedTitle)}
+              colorSeed={directChatTargetUser?.id ?? roomId ?? resolvedTitle}
+              width={40}
+              height={40}
+              imageClassName={styles.avatarPhoto}
+              fallbackClassName={styles.avatarLetterFallback}
+              loading="eager"
+              fallbackTint="onError"
+            />
           </div>
           <div className={styles.wrapContent}>
             <h2 className={styles.chatName}>{resolvedTitle}</h2>

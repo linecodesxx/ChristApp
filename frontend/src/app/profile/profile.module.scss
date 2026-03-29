@@ -5,7 +5,7 @@
   padding: 0;
   color: var(--foreground);
   overflow: auto;
-  height: calc(100vh - 50px - 120px);
+  height: calc(100vh - 50px - 96px);
 
   .header {
     display: flex;
@@ -266,6 +266,41 @@
     background: var(--surface);
     color: var(--foreground);
     font-size: 14px;
+  }
+
+  .appearanceHint {
+    margin: 0 0 4px;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-dim);
+    line-height: 1.4;
+  }
+
+  .colorRow {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .colorInput {
+    width: 48px;
+    height: 48px;
+    padding: 2px;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor: pointer;
+  }
+
+  .appearanceSelect {
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--line-soft);
+    background: var(--surface);
+    color: var(--foreground);
+    font-size: 14px;
+    min-width: 180px;
   }
 
   .profileEditActions {

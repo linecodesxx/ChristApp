@@ -110,7 +110,7 @@
     .inlineActions {
       position: fixed;
       left: 50%;
-      /* Выше фиксированного TabBar (~120px + safe-area из layout.module.scss) */
+      /* Выше фиксированного TabBar (~96px + safe-area из layout.module.scss) */
       bottom: calc(128px + env(safe-area-inset-bottom, 0px));
       transform: translateX(-50%);
       z-index: 160;
