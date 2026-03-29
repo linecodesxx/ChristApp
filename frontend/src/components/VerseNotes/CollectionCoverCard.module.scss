@@ -99,7 +99,7 @@
 
 .title {
   margin: 0 0 5px;
-  font-family: var(--font-cormorant-garamond), "Cormorant Garamond", "Georgia", serif;
+  font-family: var(--font-display, "Achiko", "Inter", system-ui, sans-serif);
   font-size: clamp(1.02rem, 3vw, 1.2rem);
   font-weight: 700;
   line-height: 1.18;
@@ -112,7 +112,7 @@
 
 .tagline {
   margin: 0;
-  font-family: var(--font-cormorant-garamond), "Cormorant Garamond", "Georgia", serif;
+  font-family: var(--font-body, "Achiko", "Inter", system-ui, sans-serif);
   font-size: 11px;
   font-weight: 400;
   line-height: 1.4;

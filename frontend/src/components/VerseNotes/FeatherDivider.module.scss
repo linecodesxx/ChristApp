@@ -33,14 +33,14 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(200, 195, 185, 0.18) 22%,
-    rgba(160, 175, 200, 0.22) 50%,
-    rgba(200, 195, 185, 0.18) 78%,
+    rgba(200, 195, 185, 0.16) 22%,
+    color-mix(in srgb, var(--accent-soft) 28%, transparent) 50%,
+    rgba(200, 195, 185, 0.16) 78%,
     transparent
   );
 }
 
 :global(html[data-theme="dark"]) .feather {
   opacity: 0.65;
-  color: var(--parchment-blue-soft, #7aa3cc);
+  color: var(--parchment-blue-soft, var(--text-muted));
 }

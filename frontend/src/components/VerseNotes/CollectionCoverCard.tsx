@@ -1,6 +1,5 @@
 import Link from "next/link"
 import type { VerseNotesCollectionMeta } from "@/lib/verseNotesCollections"
-import { cormorantGaramond } from "@/styles/fonts"
 import styles from "./CollectionCoverCard.module.scss"
 
 const VARIANT_CLASS: Record<VerseNotesCollectionMeta["coverVariant"], string> = {
@@ -17,7 +16,7 @@ export default function CollectionCoverCard({ collection }: { collection: VerseN
   return (
     <Link
       href={`/verse-notes/${collection.id}`}
-      className={`${cormorantGaramond.variable} ${styles.link}`}
+      className={styles.link}
     >
       <div className={`${styles.cover} ${blurClass}`}>
         <div className={styles.inner}>

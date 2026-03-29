@@ -38,6 +38,23 @@ function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>[
   return patterns
 }
 
+/** Origins для CSP сервис-воркера (`connect-src`): fetch к API и статике аватаров. */
+function serviceWorkerConnectSrc(): string {
+  const parts = new Set<string>(["'self'", "https://api.prayerpulse.io", "http://localhost:3001", "http://127.0.0.1:3001"])
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  if (apiUrl) {
+    try {
+      const parsed = new URL(apiUrl)
+      parts.add(`${parsed.protocol}//${parsed.host}`)
+    } catch {
+      // ignore invalid URL
+    }
+  }
+
+  return Array.from(parts).join(" ")
+}
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: uploadsRemotePatterns(),
@@ -64,15 +81,15 @@ const nextConfig: NextConfig = {
       {
         source: "/sw.js",
         headers: [
-            {
-              key: "Content-Security-Policy",
-              value: `
-                default-src 'self';
-                script-src 'self';
-                connect-src 'self' https://api.prayerpulse.io;
-              `.replace(/\n/g, ""),
-            },
-          ],
+          {
+            key: "Content-Security-Policy",
+            value: [
+              "default-src 'self'",
+              "script-src 'self'",
+              `connect-src ${serviceWorkerConnectSrc()}`,
+            ].join("; "),
+          },
+        ],
       },
       {
         source: "/manifest.webmanifest",

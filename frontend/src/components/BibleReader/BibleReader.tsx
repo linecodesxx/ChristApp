@@ -73,6 +73,9 @@ export default function BibleReader() {
   );
 
   const touchStartX = useRef(0);
+  const versesSectionRef = useRef<HTMLDivElement | null>(null);
+  /** На мобиле: прячем нижние стрелки при прокрутке текста главы. */
+  const [floatingNavScrolledAway, setFloatingNavScrolledAway] = useState(false);
 
   // ===== LOAD CHAPTER =====
   const loadChapter = useCallback((book: BookType, chapter: number) => {
@@ -367,10 +370,12 @@ export default function BibleReader() {
   }, [verses, highlights, currentBook, currentChapter]);
 
   const applyHighlightColorToSelection = useCallback(
-    (color: string | null) => {
+    (color: string | null, options?: { closeToolbar?: boolean }) => {
       if (typeof window === "undefined" || !currentBook) {
         return;
       }
+
+      const closeToolbar = options?.closeToolbar !== false;
 
       const rows = verses ?? [];
       if (!rows.length) {
@@ -416,15 +421,39 @@ export default function BibleReader() {
 
         window.localStorage.setItem(VERSE_HIGHLIGHT_STORAGE_KEY, JSON.stringify(parsed));
         setHighlightStorageEpoch((e) => e + 1);
-        setHighlights(new Set());
-        setActiveActionsVerseKey(null);
-        clearVerseSelectionClipboard();
+        if (closeToolbar) {
+          setHighlights(new Set());
+          setActiveActionsVerseKey(null);
+          clearVerseSelectionClipboard();
+        }
       } catch {
         // ignore localStorage errors
       }
     },
     [activeActionsVerseKey, currentBook, currentChapter, verses, highlights],
   );
+
+  useEffect(() => {
+    if (!currentBook || isLoading) return;
+    const el = versesSectionRef.current;
+    if (el) {
+      el.scrollTop = 0;
+    }
+    setFloatingNavScrolledAway(false);
+  }, [currentBook?.id, currentChapter, isLoading]);
+
+  useEffect(() => {
+    if (!currentBook || isLoading) return undefined;
+    const el = versesSectionRef.current;
+    if (!el) return undefined;
+    const threshold = 40;
+    const onScroll = () => {
+      setFloatingNavScrolledAway(el.scrollTop > threshold);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [currentBook?.id, currentChapter, isLoading, memomizedVerses.length]);
 
   if (!isMounted || !currentBook || isLoading) {
     return (
@@ -569,40 +598,52 @@ export default function BibleReader() {
         </div>
       )}
 
-      {/* FLOATING NAV */}
-      <div className={styles.floatingNavLeft}>
-        <button
-          aria-label="previous chapter"
-          onClick={goPrev}
-          className={styles.navButton}
-          disabled={isFirstChapter}
-        >
-          <Image
-            src="/icon-arrow-left.svg"
-            alt="Previous Chapter"
-            width={24}
-            height={24}
-          />
-        </button>
-      </div>
-      <div className={styles.floatingNavRight}>
-        <button
-          aria-label="next chapter"
-          onClick={goNext}
-          className={styles.navButton}
-          disabled={isLastBook && isLastChapter}
-        >
-          <Image
-            src="/icon-arrow-right.svg"
-            alt="Next Chapter"
-            width={24}
-            height={24}
-          />
-        </button>
+      {/* FLOATING NAV: ниже 900px — fixed у низа; при прокрутке главы уезжают вниз */}
+      <div
+        className={`${styles.floatingNavRow} ${floatingNavScrolledAway ? styles.floatingNavRowHidden : ""}`}
+      >
+        <div className={styles.floatingNavLeft}>
+          <button
+            aria-label="previous chapter"
+            onClick={goPrev}
+            className={styles.navButton}
+            disabled={isFirstChapter}
+          >
+            <Image
+              src="/icon-arrow-left.svg"
+              alt="Previous Chapter"
+              width={24}
+              height={24}
+            />
+          </button>
+        </div>
+        <div className={styles.floatingNavRight}>
+          <button
+            aria-label="next chapter"
+            onClick={goNext}
+            className={styles.navButton}
+            disabled={isLastBook && isLastChapter}
+          >
+            <Image
+              src="/icon-arrow-right.svg"
+              alt="Next Chapter"
+              width={24}
+              height={24}
+            />
+          </button>
+        </div>
       </div>
 
       {/* VERSES */}
-      <section className={styles.versesSection}>
+      <section ref={versesSectionRef} className={styles.versesSection}>
+        <h3 className={styles.chapterHeading}>
+          <span className={styles.chapterHeadingBook}>{currentBook!.name}</span>
+          <span className={styles.chapterHeadingSep} aria-hidden>
+            {" "}
+            ·{" "}
+          </span>
+          <span className={styles.chapterHeadingChapter}>Глава {currentChapter}</span>
+        </h3>
         {memomizedVerses.map((v: any) => (
           <Verse
             key={v.pk}

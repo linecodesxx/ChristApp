@@ -15,7 +15,7 @@
 }
 
 .labelSource {
-  color: var(--parchment-blue-soft, #2a4a6e);
+  color: var(--parchment-blue-soft, var(--text-muted));
   opacity: 0.9;
 }
 
@@ -102,17 +102,22 @@
   border-color: rgba(220, 215, 205, 0.12);
 
   &:focus {
-    border-color: rgba(122, 163, 204, 0.45);
-    box-shadow: 0 0 0 3px rgba(80, 120, 180, 0.15);
+    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-soft) 35%, transparent);
   }
 }
 
 :global(html[data-theme="dark"]) .submit {
-  color: #141210;
-  background: linear-gradient(145deg, #a8cce8 0%, #7aa3cc 45%, #5a7fa8 100%);
-  box-shadow: 0 4px 20px -4px rgba(0, 0, 0, 0.45);
+  color: var(--login-button-text, #1f1d1d);
+  background: linear-gradient(
+    145deg,
+    var(--accent-soft) 0%,
+    var(--accent) 52%,
+    color-mix(in srgb, var(--accent) 85%, #1a1510) 100%
+  );
+  box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--accent) 25%, transparent);
 
   &:hover:not(:disabled) {
-    box-shadow: 0 8px 26px -6px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 8px 26px -6px color-mix(in srgb, var(--accent) 32%, transparent);
   }
 }

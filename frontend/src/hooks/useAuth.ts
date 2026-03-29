@@ -6,6 +6,7 @@ import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 import { getApiErrorMessage } from "@/lib/apiError"
 import { recordDailyVisit } from "@/lib/appStreak"
+import { applyUserAppearanceToDocument } from "@/lib/userAppearance"
 
 type User = {
   id: string
@@ -15,6 +16,9 @@ type User = {
   createdAt: string
   isActive: boolean
   avatarUrl?: string | null
+  themeForegroundHex?: string | null
+  themeBackgroundHex?: string | null
+  themeFontKey?: string | null
 }
 
 type UseAuthOptions = {
@@ -65,6 +69,7 @@ export function useAuth(options?: UseAuthOptions) {
     const token = getAuthToken()
 
     if (!token) {
+      applyUserAppearanceToDocument(null)
       if (redirectIfUnauthenticated) {
         router.push(redirectIfUnauthenticated)
       }
@@ -88,6 +93,7 @@ export function useAuth(options?: UseAuthOptions) {
         clearAuthToken()
         setUser(null)
         setUsers([])
+        applyUserAppearanceToDocument(null)
 
         if (redirectIfUnauthenticated) {
           router.push(redirectIfUnauthenticated)
@@ -103,6 +109,7 @@ export function useAuth(options?: UseAuthOptions) {
 
       const data = await res.json()
       setUser(data)
+      applyUserAppearanceToDocument(data)
       recordDailyVisit()
       await fetchUsers()
     } catch {
@@ -124,6 +131,7 @@ export function useAuth(options?: UseAuthOptions) {
       if (!res.ok) return
       const data = await res.json()
       setUser(data)
+      applyUserAppearanceToDocument(data)
       recordDailyVisit()
       await fetchUsers()
     } catch {
@@ -173,6 +181,7 @@ export function useAuth(options?: UseAuthOptions) {
       })
       if (data.user) {
         setUser(data.user)
+        applyUserAppearanceToDocument(data.user)
         recordDailyVisit()
       } else {
         await refreshSession()
@@ -197,6 +206,7 @@ export function useAuth(options?: UseAuthOptions) {
     clearAuthToken()
     setUser(null)
     setUsers([])
+    applyUserAppearanceToDocument(null)
     router.push("/")
   }
 

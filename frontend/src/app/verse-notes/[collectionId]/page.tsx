@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
@@ -11,6 +11,7 @@ import {
   type VerseNotesCollectionId,
 } from "@/lib/verseNotesCollections"
 import { appendVerseNote, loadVerseNotes, type VerseNoteRecord } from "@/lib/verseNotesStorage"
+import NoteScene from "@/components/NoteScene/NoteScene"
 import PremiumNote from "@/components/VerseNotes/PremiumNote"
 import PremiumNoteForm from "@/components/VerseNotes/PremiumNoteForm"
 import styles from "../verse-notes.module.scss"
@@ -28,6 +29,11 @@ export default function VerseNotesCollectionPage() {
   const meta = collectionId ? getCollectionMeta(collectionId) : undefined
 
   const [notes, setNotes] = useState<VerseNoteRecord[]>([])
+  const [noteSceneOpen, setNoteSceneOpen] = useState(false)
+  const [noteSceneDraft, setNoteSceneDraft] = useState("")
+  const noteSceneDraftRef = useRef(noteSceneDraft)
+  noteSceneDraftRef.current = noteSceneDraft
+  const [parchmentAppend, setParchmentAppend] = useState<string | null>(null)
 
   const reload = useCallback(() => {
     if (!user?.id || !collectionId) {
@@ -62,6 +68,19 @@ export default function VerseNotesCollectionPage() {
     [user?.id, collectionId, reload],
   )
 
+  const saveNoteScene = useCallback(() => {
+    setNoteSceneOpen(false)
+    const t = noteSceneDraftRef.current.trim()
+    if (t) {
+      setParchmentAppend(t)
+    }
+    setNoteSceneDraft("")
+  }, [])
+
+  const consumeParchmentAppend = useCallback(() => {
+    setParchmentAppend(null)
+  }, [])
+
   if (loading || !user || !canSeeVerseNotesNav(user.username) || !collectionId || !meta) {
     return null
   }
@@ -84,10 +103,32 @@ export default function VerseNotesCollectionPage() {
         <h2 id="new-note-heading" className={styles.sectionTitle}>
           Новая заметка
         </h2>
+        <div className={styles.parchmentSceneRow}>
+          <button
+            type="button"
+            className={styles.parchmentSceneBtn}
+            onClick={() => setNoteSceneOpen(true)}
+          >
+            Сцена пергамента
+          </button>
+        </div>
         <div className={styles.glassPanel}>
-          <PremiumNoteForm onSubmit={handleAdd} />
+          <PremiumNoteForm
+            onSubmit={handleAdd}
+            appendToResponse={parchmentAppend}
+            onAppendConsumed={consumeParchmentAppend}
+          />
         </div>
       </section>
+
+      <NoteScene
+        isOpen={noteSceneOpen}
+        onSave={saveNoteScene}
+        value={noteSceneDraft}
+        onChange={setNoteSceneDraft}
+        ariaLabel="Текст заметки в сцене пергамента"
+        placeholder="Пишите отклик при свете свечи…"
+      />
 
       <section className={styles.section} aria-labelledby="notes-list-heading">
         <h2 id="notes-list-heading" className={styles.sectionTitle}>

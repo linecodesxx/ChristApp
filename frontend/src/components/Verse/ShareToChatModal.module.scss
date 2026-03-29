@@ -136,6 +136,12 @@
 
 .avatarWrap {
   position: relative;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--surface-elevated);
 }
 
 .avatarImage,
@@ -143,6 +149,19 @@
   width: 40px;
   height: 40px;
   border-radius: 50%;
+}
+
+.avatarImage {
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+
+.avatarImage:global(.jesusAvatar) {
+  object-fit: contain;
+  padding: 5px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated));
 }
 
 .avatarInitials {

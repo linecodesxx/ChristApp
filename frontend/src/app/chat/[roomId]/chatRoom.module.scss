@@ -113,13 +113,34 @@
           padding: 0;
           overflow: hidden;
         }
-      }
 
-      .avatarPhoto {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        border-radius: 50%;
+        .avatarPhoto {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          object-position: center;
+          border-radius: 50%;
+        }
+
+        &.avatarJesus .avatarPhoto {
+          object-fit: contain;
+          padding: 6px;
+          box-sizing: border-box;
+          background: color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated));
+        }
+
+        .avatarLetterFallback {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 100%;
+          height: 100%;
+          border-radius: 50%;
+          font-size: inherit;
+          font-weight: inherit;
+          line-height: inherit;
+          color: inherit;
+        }
       }
 
       .wrapContent {

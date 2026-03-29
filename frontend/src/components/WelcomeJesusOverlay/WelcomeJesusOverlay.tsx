@@ -5,6 +5,8 @@ import { getAuthToken } from "@/lib/auth"
 import styles from "./WelcomeJesusOverlay.module.scss"
 
 const STORAGE_KEY = "christapp-welcome-jesus-shown"
+/** Показ только после логина: таймер стартует после успешного `/auth/me`, не с загрузки гостевой страницы. */
+const WELCOME_OVERLAY_DELAY_MS = 30_000
 
 type MeUser = {
   username?: string
@@ -95,7 +97,7 @@ export default function WelcomeJesusOverlay() {
           // ignore
         }
         setOpen(true)
-      }, 20_000)
+      }, WELCOME_OVERLAY_DELAY_MS)
     }
 
     const tick = () => {

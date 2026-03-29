@@ -30,5 +30,6 @@ export function formatMemberSince(value?: string | Date | null) {
     year: "numeric",
     month: "long",
     day: "numeric",
+    timeZone: "UTC",
   })
 }

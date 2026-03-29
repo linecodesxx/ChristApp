@@ -1,7 +1,7 @@
 /* Цифровой пергамент: слоновая кость, библейский синий / оливковый акцент, мягкий антрацит */
 
 .shell {
-  --parchment-ivory: #fdfcf0;
+  --parchment-ivory: transparent;
   --parchment-ivory-deep: #f5f2e8;
   --parchment-ink: #2e2c29;
   --parchment-ink-soft: #4a4743;
@@ -13,17 +13,12 @@
   --parchment-glass: rgba(255, 252, 245, 0.42);
   --parchment-glass-edge: rgba(255, 255, 255, 0.55);
 
-  --font-display: var(--font-parchment-display), "Georgia", "Times New Roman", serif;
-  --font-body: var(--font-inter, "Inter", system-ui, sans-serif);
+  --font-display: "Achiko", var(--font-inter, "Inter"), system-ui, sans-serif;
+  --font-body: "Achiko", var(--font-inter, "Inter"), system-ui, sans-serif;
 
   min-height: 100%;
   box-sizing: border-box;
-  background:
-    radial-gradient(120% 80% at 50% -10%, rgba(42, 74, 110, 0.06) 0%, transparent 55%),
-    radial-gradient(ellipse 90% 60% at 100% 100%, rgba(90, 99, 69, 0.07) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 50% at 0% 80%, rgba(26, 53, 82, 0.05) 0%, transparent 45%),
-    linear-gradient(180deg, var(--parchment-ivory) 0%, var(--parchment-ivory-deep) 100%);
-  color: var(--parchment-ink);
+  color: inherit;
 }
 
 .page {
@@ -32,6 +27,7 @@
   margin: 0 auto;
   padding: clamp(28px, 6vw, 48px) clamp(18px, 4vw, 28px) clamp(100px, 18vh, 140px);
   animation: parchmentPageIn 0.85s cubic-bezier(0.22, 1, 0.36, 1) both;
+  background: transparent;
 }
 
 @keyframes parchmentPageIn {
@@ -110,6 +106,34 @@
 
 .collectionHeader {
   margin-bottom: clamp(24px, 4vw, 32px);
+}
+
+.parchmentSceneRow {
+  margin-bottom: 12px;
+}
+
+.parchmentSceneBtn {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--parchment-blue-soft);
+  color: var(--parchment-blue);
+  background: color-mix(in srgb, var(--parchment-glass) 40%, transparent);
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+
+  &:hover {
+    opacity: 0.92;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+  }
 }
 
 .collectionsGrid {
@@ -278,19 +302,13 @@ html[data-theme="dark"] .shell {
   --parchment-ink: #e9e6e0;
   --parchment-ink-soft: #c4bfb4;
   --parchment-muted: #8f8a80;
-  --parchment-blue: #9ec5e8;
-  --parchment-blue-soft: #7aa3cc;
+  /* Вместо голубого — глобальные «мягкие» токены темы */
+  --parchment-blue: var(--accent-soft);
+  --parchment-blue-soft: var(--text-muted);
   --parchment-olive: #a8b892;
   --parchment-olive-soft: #c4d1a8;
   --parchment-glass: rgba(28, 26, 24, 0.58);
   --parchment-glass-edge: rgba(255, 255, 255, 0.07);
-
-  background:
-    radial-gradient(120% 85% at 50% -5%, rgba(60, 100, 150, 0.2) 0%, transparent 52%),
-    radial-gradient(ellipse 95% 65% at 100% 100%, rgba(70, 85, 55, 0.14) 0%, transparent 52%),
-    radial-gradient(ellipse 75% 55% at 0% 85%, rgba(40, 65, 110, 0.16) 0%, transparent 48%),
-    linear-gradient(180deg, #1e1c19 0%, #141210 100%);
-  color: var(--parchment-ink);
 }
 
 html[data-theme="dark"] .shell .glassPanel {

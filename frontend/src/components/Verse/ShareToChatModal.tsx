@@ -1,8 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import Image from "next/image"
-import { getAvatarColor } from "@/lib/avatarColor"
+import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import type { ShareTarget } from "@/lib/chatRooms"
 import { getInitials } from "@/lib/utils"
 import styles from "./ShareToChatModal.module.scss"
@@ -156,20 +155,20 @@ export default function ShareToChatModal({ open, targets, onClose, onSelectTarge
                         disabled={phase === "sending"}
                       >
                         <span className={styles.avatarWrap}>
-                          {target.avatarImage ? (
-                            <Image
-                              src={target.avatarImage}
-                              alt=""
-                              width={40}
-                              height={40}
-                              className={styles.avatarImage}
-                              unoptimized
-                            />
-                          ) : (
-                            <span className={styles.avatarInitials} style={{ backgroundColor: getAvatarColor(target.id) }}>
-                              {target.avatarInitials ?? getInitials(target.title)}
-                            </span>
-                          )}
+                          <AvatarWithFallback
+                            src={target.avatarImage}
+                            initials={target.avatarInitials ?? getInitials(target.title)}
+                            colorSeed={target.id}
+                            width={40}
+                            height={40}
+                            imageClassName={
+                              target.avatarClass
+                                ? `${styles.avatarImage} ${target.avatarClass}`
+                                : styles.avatarImage
+                            }
+                            fallbackClassName={styles.avatarInitials}
+                            fallbackTag="span"
+                          />
                           {target.isOnline ? <span className={styles.onlineDot} /> : null}
                         </span>
                         <span className={styles.title}>{target.title}</span>

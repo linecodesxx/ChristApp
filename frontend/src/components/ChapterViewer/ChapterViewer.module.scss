@@ -1,6 +1,6 @@
 .viewer {
   position: relative;
-  padding-bottom: 120px; // чтобы не перекрывалось TabBar
+  padding-bottom: 96px; // запас под TabBar (см. layout.module .main)
 }
 
 .chapter {

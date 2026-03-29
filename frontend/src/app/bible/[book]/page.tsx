@@ -8,6 +8,7 @@ type Props = {
 };
 
 export default async function BookPage({ params }: Props) {
+  await params;
   // const { book } = await params;
   // // const bible = await getBibleData();
   // const bookId = parseInt(book);

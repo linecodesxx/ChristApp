@@ -1,10 +1,13 @@
-/* Таб фиксирован (TabBar.module); 40px — вертикальные отступы body; запас под таб + safe-area для PWA/iOS */
+/* Таб фиксирован (TabBar): bottom 12px + min-height ~80px + padding — итого ~92px; небольшой зазор до контента. */
+/* 40px — суммарные вертикальные отступы body (globals). display:flex — дочерние экраны могут flex:1 и заполнять высоту без дыры над табом. */
 .main {
   box-sizing: border-box;
   width: 100%;
   height: calc(100svh - 40px);
   height: calc(100dvh - 40px);
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
 
   @media (min-width: 1440px) {
     max-width: 800px;

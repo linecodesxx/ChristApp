@@ -1,5 +1,5 @@
-const STATIC_CACHE = "christapp-static-v3"
-const RUNTIME_CACHE = "christapp-runtime-v3"
+const STATIC_CACHE = "christapp-static-v4"
+const RUNTIME_CACHE = "christapp-runtime-v4"
 const OFFLINE_URL = "/offline"
 
 const APP_SHELL = [
@@ -47,8 +47,16 @@ function isStaticAsset(url) {
   )
 }
 
+function isHttpOrHttps(url) {
+  return url.protocol === "http:" || url.protocol === "https:"
+}
+
 function shouldBypass(request) {
   const url = new URL(request.url)
+
+  if (!isHttpOrHttps(url)) {
+    return true
+  }
 
   if (request.method !== "GET") {
     return true
@@ -70,12 +78,19 @@ function shouldBypass(request) {
 }
 
 async function networkFirst(request) {
+  const requestUrl = new URL(request.url)
+  const canUseCacheApi = isHttpOrHttps(requestUrl)
+
   try {
     const response = await fetch(request)
 
-    if (response && response.ok) {
-      const cache = await caches.open(RUNTIME_CACHE)
-      cache.put(request, response.clone())
+    if (canUseCacheApi && response && response.ok) {
+      try {
+        const cache = await caches.open(RUNTIME_CACHE)
+        await cache.put(request, response.clone())
+      } catch {
+        // chrome-extension: и др. схемы не кладутся в Cache
+      }
     }
 
     return response
@@ -97,13 +112,16 @@ async function networkFirst(request) {
 }
 
 async function staleWhileRevalidate(request) {
+  const requestUrl = new URL(request.url)
+  const canUseCacheApi = isHttpOrHttps(requestUrl)
+
   const cache = await caches.open(STATIC_CACHE)
   const cached = await cache.match(request)
 
   const networkPromise = fetch(request)
     .then((response) => {
-      if (response && response.ok) {
-        cache.put(request, response.clone())
+      if (canUseCacheApi && response && response.ok) {
+        cache.put(request, response.clone()).catch(() => {})
       }
       return response
     })

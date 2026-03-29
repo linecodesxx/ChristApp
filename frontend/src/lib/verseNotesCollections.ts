@@ -40,12 +40,6 @@ export const VERSE_NOTES_COLLECTIONS: VerseNotesCollectionMeta[] = [
     tagline: "Короткие откровения и мысли",
     coverVariant: "insights",
   },
-  {
-    id: "sermons",
-    title: "Проповеди",
-    tagline: "Тезисы, цитаты и отклик на слово служителя",
-    coverVariant: "sermons",
-  },
 ]
 
 const COLLECTION_IDS = new Set(VERSE_NOTES_COLLECTIONS.map((c) => c.id))

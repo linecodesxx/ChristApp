@@ -271,6 +271,9 @@ export default function ChatPage() {
   const pathnameRef = useRef(pathname)
   const router = useRouter()
 
+  /** На каждом рендере — чтобы обработчик `myRooms` не читал устаревший пустой список до useEffect. */
+  usersRef.current = users
+
   const activeRoomIdPath = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
   const activeRoomId =
     activeRoomIdPath === GLOBAL_ROOM_SLUG
@@ -502,11 +505,24 @@ export default function ChatPage() {
     }
   }, [refreshUnreadSummary])
 
-  useEffect(() => {
-    usersRef.current = users
+  const prevUsersCountRef = useRef(0)
+  const pendingMyRoomsAfterUsersRef = useRef(false)
 
+  useEffect(() => {
     if (!users.length) {
+      prevUsersCountRef.current = 0
+      pendingMyRoomsAfterUsersRef.current = false
       return
+    }
+
+    if (prevUsersCountRef.current === 0) {
+      pendingMyRoomsAfterUsersRef.current = true
+    }
+    prevUsersCountRef.current = users.length
+
+    if (pendingMyRoomsAfterUsersRef.current && socket?.connected) {
+      socket.emit("getMyRooms")
+      pendingMyRoomsAfterUsersRef.current = false
     }
 
     const usersMap = new Map(users.map((existingUser) => [existingUser.id, existingUser]))
@@ -543,7 +559,7 @@ export default function ChatPage() {
 
       return hasUpdates ? nextRooms : prev
     })
-  }, [users])
+  }, [socket, users])
 
   useEffect(() => {
     if (!socket) {

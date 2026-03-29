@@ -243,9 +243,13 @@ export default function PushNotificationCenter() {
         role="status"
         aria-busy={true}
       >
-        <div className={styles.pushLoaderWrap}>
-          <CrossLoader label="Проверка уведомлений" variant="inline" />
-        </div>
+        {isProfileRoute ? (
+          <p className={styles.loadingPlain}>Проверка уведомлений…</p>
+        ) : (
+          <div className={styles.pushLoaderWrap}>
+            <CrossLoader label="Проверка уведомлений" variant="inline" />
+          </div>
+        )}
       </section>
     )
   }

@@ -40,7 +40,10 @@ type VerseProps = {
   /** Сдвигается после записи в localStorage — перечитать цвет подсветки */
   highlightStorageEpoch?: number
   /** Если задано, выбор цвета в плашке красит все выделенные стихи главы (через родителя) */
-  onApplyHighlightColorToSelection?: (color: string | null) => void
+  onApplyHighlightColorToSelection?: (
+    color: string | null,
+    options?: { closeToolbar?: boolean },
+  ) => void
 }
 
 function Verse({
@@ -266,7 +269,7 @@ function Verse({
     setSelectedColor(pickedColor)
 
     if (onApplyHighlightColorToSelection) {
-      onApplyHighlightColorToSelection(pickedColor)
+      onApplyHighlightColorToSelection(pickedColor, { closeToolbar: false })
       return
     }
 
