@@ -7,6 +7,7 @@ import { useHydrated } from "@/hooks/useHydrated"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
+import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
 
 type MessageBubbleProps = {
   message: Message
@@ -111,6 +112,19 @@ export default function MessageBubble({
       ) : null}
 
       {(() => {
+        const voiceUrl = parseVoiceMessageUrl(message.content)
+        if (voiceUrl) {
+          return (
+            <div className={styles.voiceMessage}>
+              <p className={styles.voiceMessageMeta}>
+                <strong>{message.username || "Unknown"}</strong>
+                <span> — голосовое</span>
+              </p>
+              <audio className={styles.voicePlayer} controls src={voiceUrl} preload="metadata" />
+            </div>
+          )
+        }
+
         const verseShare = parseVerseSharePayload(message.content)
         if (!verseShare.payload) {
           return (

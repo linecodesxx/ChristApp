@@ -523,6 +523,76 @@
     }
   }
 
+  .notificationsPanel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 16px 18px 18px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 88%, var(--accent) 12%);
+    border-radius: 20px;
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--surface-elevated) 94%, var(--accent-soft) 6%),
+      var(--surface-elevated)
+    );
+    box-shadow:
+      0 10px 28px -16px rgba(38, 28, 16, 0.2),
+      inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+    animation: notificationsPanelIn 220ms ease-out;
+  }
+
+  @keyframes notificationsPanelIn {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .notificationsPanelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .notificationsTitle {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--foreground);
+  }
+
+  .notificationsClose {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface-elevated) 90%, var(--background));
+    color: var(--text-muted);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease;
+
+    &:hover {
+      color: var(--accent);
+      border-color: color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent) 12%, var(--surface-elevated));
+    }
+  }
+
   .support {
     cursor: pointer;
     display: flex;

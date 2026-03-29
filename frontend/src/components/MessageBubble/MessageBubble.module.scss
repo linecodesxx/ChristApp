@@ -86,6 +86,28 @@
   text-overflow: ellipsis;
 }
 
+.voiceMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+}
+
+.voiceMessageMeta {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--foreground);
+}
+
+.voicePlayer {
+  width: 100%;
+  max-width: 260px;
+  height: 36px;
+}
+
 .messageContent {
   color: #2e2c2c;
   white-space: pre-wrap;

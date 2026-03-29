@@ -24,6 +24,7 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   SHARE_WITH_JESUS_SLUG,
 } from "@/lib/chatRooms"
+import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
@@ -489,7 +490,11 @@ export default function ChatPageDetails() {
       messageIdsRef.current.add(normalized.id)
 
       if (joinedId && normalized.content?.trim()) {
-        persistLastSentPreview(joinedId, normalized.content.trim())
+        const trimmed = normalized.content.trim()
+        persistLastSentPreview(
+          joinedId,
+          parseVoiceMessageUrl(trimmed) ? "Голосовое сообщение" : trimmed,
+        )
       }
 
       const isOwnMessage = isMessageFromCurrentUser(normalized, user)
@@ -502,9 +507,10 @@ export default function ChatPageDetails() {
             ? `Новое сообщение в общем чате от ${normalized.username}`
             : `Новое сообщение от ${normalized.username}`
 
+        const trimmedBody = normalized.content.trim()
         void showChatNotification({
           title: notificationTitle,
-          body: normalized.content,
+          body: parseVoiceMessageUrl(trimmedBody) ? "Голосовое сообщение" : normalized.content,
           targetUrl,
           tag: `room-${joinedId}`,
         })
@@ -574,7 +580,11 @@ export default function ChatPageDetails() {
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
       if (historyRoomId && lastMessage?.content?.trim()) {
-        persistLastSentPreview(historyRoomId, lastMessage.content.trim())
+        const trimmed = lastMessage.content.trim()
+        persistLastSentPreview(
+          historyRoomId,
+          parseVoiceMessageUrl(trimmed) ? "Голосовое сообщение" : trimmed,
+        )
       }
 
       setMessages(uniqueHistory)
@@ -1009,6 +1019,71 @@ export default function ChatPageDetails() {
     return true
   }
 
+  const handleSendVoice = useCallback(
+    async (audioBlob: Blob): Promise<boolean> => {
+      const targetRoomId = effectiveSocketRoomId
+      if (!targetRoomId || !audioBlob?.size) {
+        return false
+      }
+
+      if (routeRoomId === user?.id) {
+        return false
+      }
+
+      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+        setSendNotice("Подождите, комната ещё подключается.")
+        return false
+      }
+
+      if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+          openingDirectRoomRef.current.add(routeRoomId)
+          socketRef.current?.emit("openDirectRoom", { targetUserId: routeRoomId })
+        }
+        setSendNotice("Комната ещё не готова — повторите через секунду.")
+        return false
+      }
+
+      const token = getAuthToken()
+      if (!token) {
+        setSendNotice("Нет токена авторизации.")
+        return false
+      }
+
+      const formData = new FormData()
+      const file = new File([audioBlob], "voice.webm", {
+        type: audioBlob.type || "audio/webm",
+      })
+      formData.append("file", file)
+      formData.append("roomId", targetRoomId)
+
+      setSendNotice(null)
+      try {
+        const response = await fetch(`${WS_URL}/messages/voice`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const text = (await response.text()).trim()
+          setSendNotice(text.slice(0, 280) || `Ошибка ${response.status}`)
+          return false
+        }
+        return true
+      } catch {
+        setSendNotice("Не удалось отправить голосовое сообщение.")
+        return false
+      }
+    },
+    [
+      effectiveSocketRoomId,
+      routeRoomId,
+      user?.id,
+      resolvedShareJesusRoomId,
+    ],
+  )
+
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
@@ -1073,6 +1148,11 @@ export default function ChatPageDetails() {
             : "Напиши сообщение…"
         }
         onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
+        onSendVoice={
+          authError || routeRoomId === user?.id
+            ? undefined
+            : handleSendVoice
+        }
       />
       {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
     </section>
