@@ -17,6 +17,12 @@ model User {
   avatarUrl         String?
   /// * Отображаемый ник (изначально совпадает с username).
   nickname          String?
+  /// * Кастомный цвет текста (#RRGGBB), опционально.
+  themeForegroundHex String? @db.VarChar(7)
+  /// * Кастомный фон (#RRGGBB), опционально.
+  themeBackgroundHex String? @db.VarChar(7)
+  /// * Ключ шрифта: `inter` | `pastah` | `achiko`.
+  themeFontKey      String? @db.VarChar(16)
   messages          Message[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]
