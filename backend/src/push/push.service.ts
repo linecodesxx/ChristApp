@@ -8,6 +8,8 @@ import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
 
 const REPLY_META_PREFIX = '[[reply:';
 const REPLY_META_SUFFIX = ']]';
+const VOICE_META_PREFIX = '[[voice:';
+const VOICE_META_SUFFIX = ']]';
 
 type ChatPushNotificationInput = {
   roomId: string;
@@ -302,6 +304,14 @@ export class PushService {
 
   private normalizeMessageBody(content: string) {
     const rawContent = String(content || '');
+    const trimmed = rawContent.trim();
+
+    if (
+      trimmed.startsWith(VOICE_META_PREFIX) &&
+      trimmed.endsWith(VOICE_META_SUFFIX)
+    ) {
+      return 'Голосовое сообщение';
+    }
 
     if (!rawContent.startsWith(REPLY_META_PREFIX)) {
       return rawContent.replace(/\s+/g, ' ').trim();

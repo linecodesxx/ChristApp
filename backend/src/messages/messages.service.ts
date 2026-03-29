@@ -3,6 +3,8 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
+import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
+import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from './voice-message';
 
 type UnreadRoomSummaryRow = {
   roomId: string;
@@ -49,6 +51,10 @@ export class MessagesService {
   private readonly REPLY_META_SUFFIX = ']]';
 
   constructor(private prisma: PrismaService) {}
+
+  userCanPostToRoom(userId: string, roomId: string) {
+    return canUserPostToRoom(this.prisma, userId, roomId);
+  }
 
   async createMessage(content: string, userId: string) {
     return this.prisma.message.create({
@@ -368,6 +374,14 @@ export class MessagesService {
 
   private normalizeMessagePreview(content: string | null | undefined) {
     const rawContent = String(content || '');
+    const trimmed = rawContent.trim();
+
+    if (
+      trimmed.startsWith(VOICE_META_PREFIX) &&
+      trimmed.endsWith(VOICE_META_SUFFIX)
+    ) {
+      return 'Голосовое сообщение';
+    }
 
     if (!rawContent.startsWith(this.REPLY_META_PREFIX)) {
       return rawContent.replace(/\s+/g, ' ').trim();
