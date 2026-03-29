@@ -54,7 +54,7 @@ export class UsersController {
   ) {
     if (!this.cloudinaryService.isReady()) {
       throw new ServiceUnavailableException(
-        'Загрузка аватара недоступна: задайте CLD_CLOUD_NAME, CLD_API_KEY, CLD_API_SECRET в .env (см. backend/.env.example).',
+        'Загрузка аватара недоступна: задайте CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET в .env (см. backend/.env.example).',
       );
     }
 

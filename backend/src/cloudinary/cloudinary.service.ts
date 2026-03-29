@@ -9,9 +9,9 @@ export class CloudinaryService {
   private readonly ready: boolean;
 
   constructor(private readonly config: ConfigService) {
-    const cloudName = this.config.get<string>('CLD_CLOUD_NAME')?.trim();
-    const apiKey = this.config.get<string>('CLD_API_KEY')?.trim();
-    const apiSecret = this.config.get<string>('CLD_API_SECRET')?.trim();
+    const cloudName = this.config.get<string>('CLOUDINARY_CLOUD_NAME')?.trim();
+    const apiKey = this.config.get<string>('CLOUDINARY_API_KEY')?.trim();
+    const apiSecret = this.config.get<string>('CLOUDINARY_API_SECRET')?.trim();
 
     if (cloudName && apiKey && apiSecret) {
       cloudinary.config({
@@ -23,7 +23,7 @@ export class CloudinaryService {
     } else {
       this.ready = false;
       this.logger.warn(
-        'Cloudinary disabled: set CLD_CLOUD_NAME, CLD_API_KEY, CLD_API_SECRET for voice messages.',
+        'Cloudinary disabled: set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET.',
       );
     }
   }
