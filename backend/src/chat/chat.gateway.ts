@@ -17,6 +17,7 @@ import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
+import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
 
 interface SocketUser {
   id: string;
@@ -266,7 +267,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     try {
       // Проверяем доступ к комнате
-      const hasAccess = await this.checkRoomAccess(user.id, roomId);
+      const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
       if (!hasAccess) {
         client.emit('error', 'Нет доступа');
         return;
@@ -322,7 +323,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const hasAccess = await this.checkRoomAccess(user.id, roomId);
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
     if (!hasAccess) {
       client.emit('error', 'Нет доступа');
       return;
@@ -342,7 +343,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
     if (!roomId) return;
 
-    const hasAccess = await this.checkRoomAccess(user.id, roomId);
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
     if (!hasAccess) return;
 
     client.to(roomId).emit('userTyping', {
@@ -665,7 +666,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const inviterHasAccess = await this.checkRoomAccess(inviter.id, roomId);
+    const inviterHasAccess = await canUserPostToRoom(this.prisma, inviter.id, roomId);
     if (!inviterHasAccess) {
       client.emit('error', 'Нет доступа к комнате');
       return;
@@ -762,55 +763,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!content?.trim()) return;
 
     try {
-      // Проверяем доступ к комнате
-      const hasAccess = await this.checkRoomAccess(user.id, roomId);
+      const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
       if (!hasAccess) {
         client.emit('error', 'Нет доступа');
         return;
       }
 
-      // Сохраняем сообщение в БД
       const message = await this.messagesService.createRoomMessage(
         content,
         user.id,
         roomId,
       );
 
-      // Отправитель уже видит свое сообщение в активной комнате.
-      await this.messagesService.markRoomAsRead(
-        roomId,
-        user.id,
-        message.createdAt,
-      );
-
-      // Отправляем сообщение только участникам комнаты
-      this.server.to(roomId).emit('newMessage', {
-        id: message.id,
-        content: message.content,
-        username: message.sender.nickname || message.sender.username,
-        handle: message.sender.username,
-        senderId: message.senderId,
-        createdAt: message.createdAt,
-        roomId,
-      });
-
-      // Push отправляем асинхронно, чтобы не тормозить realtime-канал.
-      void this.pushService
-        .sendChatMessagePush({
-          roomId,
-          senderId: user.id,
-          senderUsername: message.sender.nickname || message.sender.username,
-          content: message.content,
-          createdAt: message.createdAt,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
-          console.error('[Push] sendChatMessagePush failed:', {
-            roomId,
-            userId: user.id,
-            reason,
-          });
-        });
+      await this.broadcastNewChatMessage(roomId, message);
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] sendMessage failed:', {
@@ -894,37 +859,51 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ================= ACCESS CHECK =================
-  private async checkRoomAccess(userId: string, roomId: string) {
-    // К общему чату доступ есть у всех
-    if (roomId === this.GLOBAL_ROOM) return true;
+  /**
+   * После сохранения сообщения в БД: read receipt, сокет и push (как при sendMessage).
+   */
+  async broadcastNewChatMessage(
+    roomId: string,
+    message: {
+      id: string;
+      content: string;
+      createdAt: Date;
+      senderId: string;
+      sender: { username: string; nickname: string | null };
+    },
+  ) {
+    await this.messagesService.markRoomAsRead(
+      roomId,
+      message.senderId,
+      message.createdAt,
+    );
 
-    const membership = await this.prisma.roomMember.findUnique({
-      where: {
-        roomId_userId: {
+    this.server.to(roomId).emit('newMessage', {
+      id: message.id,
+      content: message.content,
+      username: message.sender.nickname || message.sender.username,
+      handle: message.sender.username,
+      senderId: message.senderId,
+      createdAt: message.createdAt,
+      roomId,
+    });
+
+    void this.pushService
+      .sendChatMessagePush({
+        roomId,
+        senderId: message.senderId,
+        senderUsername: message.sender.nickname || message.sender.username,
+        content: message.content,
+        createdAt: message.createdAt,
+      })
+      .catch((error: unknown) => {
+        const reason = error instanceof Error ? error.message : String(error);
+        console.error('[Push] sendChatMessagePush failed:', {
           roomId,
-          userId,
-        },
-      },
-      select: {
-        userId: true,
-      },
-    });
-
-    if (!membership) {
-      return false;
-    }
-
-    const room = await this.prisma.room.findUnique({
-      where: { id: roomId },
-      select: { title: true },
-    });
-
-    if (!room) {
-      return false;
-    }
-
-    return userMayAccessRoomByTitle(userId, room.title);
+          userId: message.senderId,
+          reason,
+        });
+      });
   }
 
   private async emitMyRooms(client: SocketWithUser, userId: string) {

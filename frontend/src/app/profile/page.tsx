@@ -17,13 +17,7 @@ import {
   normalizeThemeFontKey,
   type ThemeFontKey,
 } from "@/lib/userAppearance"
-import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
-import {
-  fetchPushStatus,
-  getPushSyncErrorMessage,
-  isPushSupportedInBrowser,
-  syncBrowserPushSubscription,
-} from "@/lib/push"
+import { fetchPushStatus, isPushSupportedInBrowser } from "@/lib/push"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { useHydrated } from "@/hooks/useHydrated"
 import Link from "next/link"
@@ -55,11 +49,11 @@ export default function ProfilePage() {
   const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
   const [versesLoading, setVersesLoading] = useState(false)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [pushPermission, setPushPermission] = useState<PushPermissionState>("unsupported")
   const [isPushConfigured, setIsPushConfigured] = useState(false)
   const [hasPushSubscription, setHasPushSubscription] = useState(false)
   const [pushSyncErrorMessage, setPushSyncErrorMessage] = useState<string | null>(null)
-  const [isPushLoading, setIsPushLoading] = useState(false)
   const settingsRef = useRef<HTMLDivElement | null>(null)
   const avatarFileRef = useRef<HTMLInputElement | null>(null)
   const [isAvatarUploading, setIsAvatarUploading] = useState(false)
@@ -128,6 +122,19 @@ export default function ProfilePage() {
     setThemeBgInput(user.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND)
     setThemeFontInput(normalizeThemeFontKey(user.themeFontKey))
   }, [user])
+
+  useEffect(() => {
+    if (!isNotificationsOpen) return
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsNotificationsOpen(false)
+      }
+    }
+
+    document.addEventListener("keydown", handleEscape)
+    return () => document.removeEventListener("keydown", handleEscape)
+  }, [isNotificationsOpen])
 
   useEffect(() => {
     if (!isSettingsOpen) return
@@ -278,10 +285,6 @@ export default function ProfilePage() {
       return "\u2014"
     }
 
-    if (isPushLoading) {
-      return "Проверка..."
-    }
-
     if (!isPushSupportedInBrowser()) {
       return "Недоступно"
     }
@@ -303,31 +306,12 @@ export default function ProfilePage() {
     }
 
     return hasPushSubscription ? "Активно" : "Не подключено"
-  }, [hydrated, hasPushSubscription, isPushConfigured, isPushLoading, pushPermission, pushSyncErrorMessage])
+  }, [hydrated, hasPushSubscription, isPushConfigured, pushPermission, pushSyncErrorMessage])
 
-  const handlePushSettings = useCallback(async () => {
-    setIsPushLoading(true)
-
-    try {
-      const permission = await requestNotificationPermissionIfNeeded()
-      setPushPermission(permission)
-
-      if (permission !== "granted") {
-        setPushSyncErrorMessage(null)
-        await refreshPushState()
-        return
-      }
-
-      const token = getAuthToken()
-      if (token) {
-        const syncResult = await syncBrowserPushSubscription(token)
-        setPushSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
-      }
-
-      await refreshPushState()
-    } finally {
-      setIsPushLoading(false)
-    }
+  const openNotificationsFromMenu = useCallback(() => {
+    setIsSettingsOpen(false)
+    setIsNotificationsOpen(true)
+    void refreshPushState()
   }, [refreshPushState])
 
   const handleLogoutFromMenu = () => {
@@ -489,7 +473,7 @@ export default function ProfilePage() {
               <span className={styles.menuHint}>Ник и @username</span>
             </button>
 
-            <button type="button" className={styles.menuItem} role="menuitem" onClick={handlePushSettings}>
+            <button type="button" className={styles.menuItem} role="menuitem" onClick={openNotificationsFromMenu}>
               <span>Уведомления</span>
               <span className={styles.menuHint}>{pushHint}</span>
             </button>
@@ -725,7 +709,22 @@ export default function ProfilePage() {
         </Link>
       </div>
 
-      <PushNotificationCenter />
+      {isNotificationsOpen ? (
+        <div className={styles.notificationsPanel}>
+          <div className={styles.notificationsPanelHeader}>
+            <h2 className={styles.notificationsTitle}>Уведомления</h2>
+            <button
+              type="button"
+              className={styles.notificationsClose}
+              onClick={() => setIsNotificationsOpen(false)}
+              aria-label="Закрыть уведомления"
+            >
+              ×
+            </button>
+          </div>
+          <PushNotificationCenter />
+        </div>
+      ) : null}
 
       <div className={styles.signOut}>
         <div>

@@ -76,6 +76,14 @@
   background: var(--accent-soft);
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
 
+  &.messageVoice {
+    align-items: stretch;
+    max-height: none;
+    min-height: auto;
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
   .iconButton {
     display: flex;
     align-items: center;
@@ -125,13 +133,15 @@
 
   .sendButton,
   .attachmentButton,
-  .microButton {
+  .microButton,
+  .keyboardButton {
     display: block;
   }
 
   .attachmentButton,
   .sendButton,
-  .microButton {
+  .microButton,
+  .keyboardButton {
     filter: brightness(0) saturate(100%) invert(16%);
     transition: filter 0.25s ease;
   }
@@ -151,7 +161,8 @@ html[data-theme="dark"] .message {
 
   .attachmentButton,
   .sendButton,
-  .microButton {
+  .microButton,
+  .keyboardButton {
     filter: brightness(0) saturate(100%) invert(100%);
   }
 

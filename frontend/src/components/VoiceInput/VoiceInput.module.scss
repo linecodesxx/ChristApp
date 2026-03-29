@@ -1,0 +1,309 @@
+.voiceRoot {
+  --voice-wave-h: 48px;
+}
+
+.voiceBar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 22px;
+  border: 1px solid var(--line-soft);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 94%, var(--accent-soft) 6%),
+    var(--surface-elevated)
+  );
+  box-shadow:
+    0 1px 3px rgba(38, 28, 16, 0.07),
+    inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+}
+
+.voiceBarEmbedded {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.recorderWrap {
+  display: flex;
+  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 0;
+  min-height: 44px;
+  min-width: 0;
+  width: 100%;
+}
+
+.recorderDisabled {
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+.recordStartBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--accent-soft) 55%, var(--surface-elevated)),
+    color-mix(in srgb, var(--accent) 18%, var(--surface-elevated))
+  );
+  box-shadow:
+    0 2px 10px color-mix(in srgb, var(--accent) 22%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 14%, transparent);
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow:
+      0 4px 14px color-mix(in srgb, var(--accent) 28%, transparent),
+      inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+.startBtnInner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--foreground) 92%, #1a1208 8%);
+}
+
+.micIcon {
+  display: block;
+  flex-shrink: 0;
+  filter: brightness(0) saturate(100%) invert(16%);
+}
+
+.recordingPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 2px 2px;
+}
+
+.waveSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.waveCanvasWrap {
+  width: 100%;
+  height: var(--voice-wave-h);
+  min-height: 44px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--accent-soft) 35%, var(--surface-elevated)),
+    color-mix(in srgb, var(--surface-elevated) 92%, #000 8%)
+  );
+  border: 1px solid color-mix(in srgb, var(--line-soft) 85%, var(--accent) 15%);
+  box-shadow: inset 0 2px 12px rgba(38, 28, 16, 0.06);
+}
+
+.waveCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  vertical-align: middle;
+}
+
+.timeProgressTrack {
+  position: relative;
+  height: 4px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--line-soft) 75%, transparent);
+  overflow: hidden;
+}
+
+.timeProgressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 70%, #c62828),
+    var(--accent)
+  );
+  transition: width 0.35s linear;
+}
+
+.recordingFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  justify-content: space-between;
+}
+
+.timePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--surface-elevated) 88%, var(--accent-soft) 12%);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 30%);
+  color: var(--foreground);
+}
+
+.recDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e53935;
+  box-shadow: 0 0 10px rgba(229, 57, 53, 0.65);
+  animation: recPulse 1.1s ease-in-out infinite;
+}
+
+@keyframes recPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(0.92);
+  }
+}
+
+.timeElapsed {
+  color: #c62828;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeSep {
+  opacity: 0.45;
+  font-weight: 500;
+}
+
+.timeCap {
+  opacity: 0.55;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.timeRemaining {
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.03em;
+}
+
+.recordStopBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 10px 18px;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--foreground) 94%, #1a1208 6%);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 90%, var(--accent-soft) 10%),
+    color-mix(in srgb, var(--accent-soft) 40%, var(--surface-elevated))
+  );
+  box-shadow: 0 2px 8px rgba(38, 28, 16, 0.1);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    border-color: color-mix(in srgb, var(--accent) 65%, var(--line-soft));
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 18%, transparent);
+  }
+}
+
+.stopIcon {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: currentColor;
+  opacity: 0.9;
+}
+
+.micError {
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  color: #c62828;
+  width: 100%;
+  margin-top: 4px;
+}
+
+html[data-theme="dark"] .micIcon {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+html[data-theme="dark"] .voiceBar {
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 88%, var(--accent) 8%),
+    var(--surface-elevated)
+  );
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 color-mix(in srgb, #fff 6%, transparent);
+}
+
+html[data-theme="dark"] .waveCanvasWrap {
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-elevated) 75%, #0a0a0c),
+    color-mix(in srgb, var(--surface-elevated) 92%, var(--accent) 8%)
+  );
+  border-color: color-mix(in srgb, var(--line-soft) 55%, var(--accent) 45%);
+}
+
+html[data-theme="dark"] .timeElapsed {
+  color: #ff8a80;
+}
+
+html[data-theme="dark"] .recDot {
+  background: #ff5252;
+  box-shadow: 0 0 12px rgba(255, 82, 82, 0.55);
+}
+
+html[data-theme="dark"] .micError {
+  color: #ff8a80;
+}

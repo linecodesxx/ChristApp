@@ -6,6 +6,9 @@ import { useEffect, useRef, useState } from "react"
 import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
 import type { Message } from "@/types/message"
+import VoiceInput from "@/components/VoiceInput/VoiceInput"
+
+type ComposerMode = "text" | "voice"
 
 type MessageInputProps = {
   onSend: (text: string, replyToMessage?: Message | null) => Promise<boolean>
@@ -15,6 +18,11 @@ type MessageInputProps = {
   placeholder?: string
   /** Сигнал для индикатора «печатает» (debounce внутри). */
   onTypingActivity?: (isActivelyTyping: boolean) => void
+  /**
+   * Голосовые сообщения: при пустом поле справа показывается микрофон (как в Telegram).
+   * После успешной отправки возвращайте true.
+   */
+  onSendVoice?: (blob: Blob) => void | Promise<boolean>
 }
 
 const MAX_MESSAGE_LENGTH = 2000
@@ -27,12 +35,14 @@ export default function MessageInput({
   disabled = false,
   placeholder = "Напиши сообщение...",
   onTypingActivity,
+  onSendVoice,
 }: MessageInputProps) {
   const tabBarOverlay = useTabBarOverlayOptional()
   const tabBarOverlayRef = useRef(tabBarOverlay)
   tabBarOverlayRef.current = tabBarOverlay
   const [value, setValue] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const [mode, setMode] = useState<ComposerMode>("text")
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const typingSentRef = useRef(false)
   const onTypingActivityRef = useRef(onTypingActivity)
@@ -40,6 +50,7 @@ export default function MessageInput({
   const hasText = value.trim().length > 0
   const narrowViewport = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const sendOnEnter = !narrowViewport
+  const voiceEnabled = Boolean(onSendVoice)
 
   useEffect(() => {
     return () => {
@@ -57,15 +68,27 @@ export default function MessageInput({
   }, [])
 
   useEffect(() => {
+    if (disabled) {
+      setMode("text")
+    }
+  }, [disabled])
+
+  useEffect(() => {
+    if (!voiceEnabled) {
+      setMode("text")
+    }
+  }, [voiceEnabled])
+
+  useEffect(() => {
     const textarea = textareaRef.current
-    if (!textarea) return
+    if (!textarea || mode !== "text") return
 
     textarea.style.height = "auto"
     textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`
-  }, [value])
+  }, [value, mode])
 
   useEffect(() => {
-    if (!onTypingActivity || disabled) {
+    if (!onTypingActivity || disabled || mode !== "text") {
       return
     }
 
@@ -88,7 +111,7 @@ export default function MessageInput({
     }, 2200)
 
     return () => window.clearTimeout(idleTimer)
-  }, [value, onTypingActivity, disabled])
+  }, [value, onTypingActivity, disabled, mode])
 
   const submit = async () => {
     const text = value.trim()
@@ -106,7 +129,33 @@ export default function MessageInput({
     }
   }
 
+  const openVoiceMode = () => {
+    if (disabled || !voiceEnabled) return
+    setMode("voice")
+  }
+
+  const backToTextMode = () => {
+    setMode("text")
+  }
+
+  const handleVoiceComplete = async (blob: Blob) => {
+    if (!onSendVoice || disabled) return
+    try {
+      const result = await Promise.resolve(onSendVoice(blob))
+      if (result !== false) {
+        setMode("text")
+      }
+    } catch {
+      // остаёмся в режиме голоса
+    }
+  }
+
   const replyText = replyToMessage?.content.replace(/\s+/g, " ").trim() ?? ""
+
+  const messageRowClass =
+    mode === "voice" && voiceEnabled
+      ? `${styles.message} ${styles.messageVoice}`
+      : styles.message
 
   return (
     <div className={styles.messageComposer}>
@@ -127,51 +176,95 @@ export default function MessageInput({
         </div>
       ) : null}
 
-      <div className={styles.message}>
+      <div className={messageRowClass}>
         <button type="button" className={styles.iconButton} aria-label="Прикрепить" title="Скоро доступно" disabled>
-          <Image src="/icon-attachment.svg" alt="Add" width={20} height={20} className={styles.attachmentButton} />
+          <Image src="/icon-attachment.svg" alt="" width={20} height={20} className={styles.attachmentButton} />
         </button>
 
-        <textarea
-          ref={textareaRef}
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          onFocus={() => tabBarOverlayRef.current?.setChatComposerFocused(true)}
-          onBlur={() => tabBarOverlayRef.current?.setChatComposerFocused(false)}
-          onKeyDown={(event) => {
-            if (event.key !== "Enter") {
-              return
-            }
-            if (sendOnEnter) {
-              if (event.shiftKey) {
+        {mode === "voice" && voiceEnabled ? (
+          <VoiceInput embedded onSend={handleVoiceComplete} disabled={disabled} />
+        ) : (
+          <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+            onFocus={() => tabBarOverlayRef.current?.setChatComposerFocused(true)}
+            onBlur={() => tabBarOverlayRef.current?.setChatComposerFocused(false)}
+            onKeyDown={(event) => {
+              if (event.key !== "Enter") {
                 return
               }
-              event.preventDefault()
-              void submit()
-              return
-            }
-            if (event.metaKey || event.ctrlKey) {
-              event.preventDefault()
-              void submit()
-            }
-          }}
-          rows={1}
-          maxLength={MAX_MESSAGE_LENGTH}
-          placeholder={placeholder}
-          className={styles.input}
-          aria-label="Сообщение"
-          disabled={disabled}
-        />
+              if (sendOnEnter) {
+                if (event.shiftKey) {
+                  return
+                }
+                event.preventDefault()
+                void submit()
+                return
+              }
+              if (event.metaKey || event.ctrlKey) {
+                event.preventDefault()
+                void submit()
+              }
+            }}
+            rows={1}
+            maxLength={MAX_MESSAGE_LENGTH}
+            placeholder={placeholder}
+            className={styles.input}
+            aria-label="Сообщение"
+            disabled={disabled}
+          />
+        )}
 
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label="Отправить сообщение"
-          onClick={() => void submit()}
-          disabled={disabled || !hasText || isSending}
-        >
-          <Image src="/icon-send.svg" className={styles.sendButton} alt="Send" width={18} height={18} />
-        </button>
+        {mode === "voice" && voiceEnabled ? (
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="Текстовое сообщение"
+            title="Клавиатура"
+            onClick={backToTextMode}
+            disabled={disabled}
+          >
+            <Image
+              src="/icon-keyboard.svg"
+              alt=""
+              width={22}
+              height={22}
+              className={styles.keyboardButton}
+            />
+          </button>
+        ) : hasText ? (
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="Отправить сообщение"
+            onClick={() => void submit()}
+            disabled={disabled || isSending}
+          >
+            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={18} height={18} />
+          </button>
+        ) : voiceEnabled ? (
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="Голосовое сообщение"
+            title="Голосовое"
+            onClick={openVoiceMode}
+            disabled={disabled}
+          >
+            <Image src="/icon-micro.svg" alt="" width={22} height={22} className={styles.microButton} />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={styles.iconButton}
+            aria-label="Отправить сообщение"
+            onClick={() => void submit()}
+            disabled={disabled || !hasText || isSending}
+          >
+            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={18} height={18} />
+          </button>
+        )}
       </div>
     </div>
   )
