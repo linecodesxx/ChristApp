@@ -61,6 +61,41 @@ export class CloudinaryService {
     });
   }
 
+  /** Картинки в чат (папка `christapp/chat-images`). */
+  async uploadChatImage(buffer: Buffer): Promise<string> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/chat-images',
+          resource_type: 'image',
+          transformation: [
+            { width: 1000, crop: 'limit' },
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+          ],
+        },
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const url = result?.secure_url;
+          if (!url) {
+            reject(new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve(url);
+        },
+      );
+
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
   /**
    * Аватар: один ресурс на пользователя (public_id = userId), перезапись при новой загрузке.
    * В БД сохраняется только secure_url.

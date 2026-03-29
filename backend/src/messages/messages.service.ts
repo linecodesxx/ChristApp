@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { MessageType, Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
@@ -11,6 +11,7 @@ type UnreadRoomSummaryRow = {
   unreadCount: number;
   messageId: string | null;
   messageContent: string | null;
+  messageType: MessageType | string | null;
   messageCreatedAt: Date | string | null;
   messageSenderId: string | null;
   messageSenderUsername: string | null;
@@ -59,7 +60,9 @@ export class MessagesService {
   async createMessage(content: string, userId: string) {
     return this.prisma.message.create({
       data: {
+        type: MessageType.TEXT,
         content,
+        fileUrl: null,
         senderId: userId,
         roomId: this.GLOBAL_ROOM,
       },
@@ -69,11 +72,36 @@ export class MessagesService {
     });
   }
 
-  async createRoomMessage(content: string, userId: string, roomId: string) {
+  async createRoomMessage(
+    params:
+      | {
+          roomId: string;
+          senderId: string;
+          type: 'TEXT';
+          content: string;
+        }
+      | {
+          roomId: string;
+          senderId: string;
+          type: 'VOICE';
+          content: string;
+        }
+      | {
+          roomId: string;
+          senderId: string;
+          type: 'IMAGE';
+          fileUrl: string;
+        },
+  ) {
+    const { roomId, senderId, type } = params;
+    const content = type === 'IMAGE' ? null : params.content;
+    const fileUrl = type === 'IMAGE' ? params.fileUrl : null;
     return this.prisma.message.create({
       data: {
+        type,
         content,
-        senderId: userId,
+        fileUrl,
+        senderId,
         roomId,
       },
       include: {
@@ -261,6 +289,7 @@ export class MessagesService {
           m."roomId" AS "roomId",
           m.id AS "messageId",
           m.content AS "messageContent",
+          m.type AS "messageType",
           m."createdAt" AS "messageCreatedAt",
           m."senderId" AS "messageSenderId",
           u.username AS "messageSenderUsername"
@@ -276,6 +305,7 @@ export class MessagesService {
         COALESCE(uc.unread_n, 0)::int AS "unreadCount",
         lm."messageId" AS "messageId",
         lm."messageContent" AS "messageContent",
+        lm."messageType" AS "messageType",
         lm."messageCreatedAt" AS "messageCreatedAt",
         lm."messageSenderId" AS "messageSenderId",
         lm."messageSenderUsername" AS "messageSenderUsername"
@@ -324,7 +354,7 @@ export class MessagesService {
       return null;
     }
 
-    const normalizedContent = this.normalizeMessagePreview(row.messageContent);
+    const normalizedContent = this.resolveUnreadPreview(row);
     const normalizedCreatedAt = this.normalizeSummaryCreatedAt(
       row.messageCreatedAt,
     );
@@ -370,6 +400,17 @@ export class MessagesService {
     }
 
     return null;
+  }
+
+  private resolveUnreadPreview(row: UnreadRoomSummaryRow): string | null {
+    const mt = String(row.messageType ?? 'TEXT');
+    if (mt === 'IMAGE') {
+      return 'Фото';
+    }
+    if (mt === 'FILE') {
+      return 'Файл';
+    }
+    return this.normalizeMessagePreview(row.messageContent);
   }
 
   private normalizeMessagePreview(content: string | null | undefined) {

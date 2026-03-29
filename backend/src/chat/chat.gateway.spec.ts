@@ -1,3 +1,4 @@
+import { MessageType } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { ChatGateway } from './chat.gateway';
 
@@ -164,7 +165,9 @@ describe('ChatGateway', () => {
     const client = createClient(sender);
     const savedMessage = {
       id: 'm3',
+      type: MessageType.TEXT,
       content: 'Свежое сообщение для получателя',
+      fileUrl: null,
       createdAt: new Date('2026-03-13T10:02:00.000Z'),
       senderId: 'u1',
       sender: {
@@ -181,15 +184,18 @@ describe('ChatGateway', () => {
       client as never,
     );
 
-    expect(messagesService.createRoomMessage).toHaveBeenCalledWith(
-      'Свежое сообщение для получателя',
-      'u1',
-      'room-1',
-    );
+    expect(messagesService.createRoomMessage).toHaveBeenCalledWith({
+      type: 'TEXT',
+      content: 'Свежое сообщение для получателя',
+      senderId: 'u1',
+      roomId: 'room-1',
+    });
 
     expect(roomEmit).toHaveBeenCalledWith('newMessage', {
       id: 'm3',
       content: 'Свежое сообщение для получателя',
+      type: MessageType.TEXT,
+      fileUrl: undefined,
       username: 'sender',
       handle: 'sender',
       senderId: 'u1',
@@ -202,6 +208,8 @@ describe('ChatGateway', () => {
       senderId: 'u1',
       senderUsername: 'sender',
       content: 'Свежое сообщение для получателя',
+      messageType: MessageType.TEXT,
+      fileUrl: null,
       createdAt: savedMessage.createdAt,
     });
   });

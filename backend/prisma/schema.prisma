@@ -30,14 +30,23 @@ model User {
   savedVerses       SavedVerse[]
 }
 
+enum MessageType {
+  TEXT
+  VOICE
+  IMAGE
+  FILE
+}
+
 model Message {
-  id        String   @id @default(uuid())
-  content   String
+  id        String      @id @default(uuid())
+  type      MessageType @default(TEXT)
+  content   String?
+  fileUrl   String?
   senderId  String
-  createdAt DateTime @default(now())
-  roomId    String   @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
-  room      Room     @relation(fields: [roomId], references: [id])
-  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  createdAt DateTime    @default(now())
+  roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
+  room      Room        @relation(fields: [roomId], references: [id])
+  sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([roomId, createdAt])
 }

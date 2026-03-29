@@ -18,6 +18,7 @@ import {
   userMayAccessRoomByTitle,
 } from 'src/chat/room-access.util';
 import { canUserPostToRoom } from 'src/chat/user-may-post-to-room';
+import { MessageType } from '@prisma/client';
 
 interface SocketUser {
   id: string;
@@ -769,11 +770,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const message = await this.messagesService.createRoomMessage(
-        content,
-        user.id,
+      const message = await this.messagesService.createRoomMessage({
+        type: 'TEXT',
+        content: content.trim(),
+        senderId: user.id,
         roomId,
-      );
+      });
 
       await this.broadcastNewChatMessage(roomId, message);
     } catch (err) {
@@ -866,7 +868,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     roomId: string,
     message: {
       id: string;
-      content: string;
+      type: MessageType;
+      content: string | null;
+      fileUrl: string | null;
       createdAt: Date;
       senderId: string;
       sender: { username: string; nickname: string | null };
@@ -880,7 +884,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     this.server.to(roomId).emit('newMessage', {
       id: message.id,
-      content: message.content,
+      content: message.content ?? '',
+      type: message.type,
+      fileUrl: message.fileUrl ?? undefined,
       username: message.sender.nickname || message.sender.username,
       handle: message.sender.username,
       senderId: message.senderId,
@@ -893,7 +899,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId,
         senderId: message.senderId,
         senderUsername: message.sender.nickname || message.sender.username,
-        content: message.content,
+        content: message.content ?? '',
+        messageType: message.type,
+        fileUrl: message.fileUrl,
         createdAt: message.createdAt,
       })
       .catch((error: unknown) => {

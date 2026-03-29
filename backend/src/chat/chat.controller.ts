@@ -12,7 +12,9 @@ export class ChatController {
     const messages = await this.messagesService.getGlobalRoomMessages(200, 0);
     return messages.map((m) => ({
       id: m.id,
-      content: m.content,
+      type: m.type,
+      content: m.content ?? '',
+      fileUrl: m.fileUrl ?? undefined,
       username: m.sender.nickname || m.sender.username,
       handle: m.sender.username,
       senderId: m.senderId,
