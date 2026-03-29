@@ -3,75 +3,40 @@ import {
   Body,
   Controller,
   Get,
+  Logger,
   Param,
   Patch,
   Post,
   Req,
+  ServiceUnavailableException,
   UploadedFile,
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
-import { join } from 'path';
+import { memoryStorage } from 'multer';
+import { CloudinaryService } from 'src/cloudinary/cloudinary.service';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
+import { uploadErrorMessage } from 'src/common/upload-error-message';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
-const AVATARS_DIR = join(process.cwd(), 'uploads', 'avatars');
-
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024;
-
-/** Расширение для сохранения файла по MIME (любой image/*). */
-function extensionForImageMime(mimetype: string): string {
-  const known: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'image/gif': '.gif',
-    'image/svg+xml': '.svg',
-    'image/bmp': '.bmp',
-    'image/x-ms-bmp': '.bmp',
-    'image/x-icon': '.ico',
-    'image/vnd.microsoft.icon': '.ico',
-    'image/avif': '.avif',
-    'image/heic': '.heic',
-    'image/heif': '.heif',
-    'image/tiff': '.tiff',
-    'image/x-tiff': '.tiff',
-    'image/jxl': '.jxl',
-  };
-  const normalized = mimetype.split(';')[0].trim().toLowerCase();
-  if (known[normalized]) {
-    return known[normalized];
-  }
-  const parts = normalized.split('/');
-  if (parts[0] !== 'image' || !parts[1]) {
-    return '.img';
-  }
-  const sub = parts[1].replace(/^x-/, '');
-  const base = sub.split('+')[0].replace(/[^a-z0-9]/gi, '');
-  if (!base) {
-    return '.img';
-  }
-  return `.${base.slice(0, 16)}`;
-}
-
-function ensureAvatarsDir() {
-  if (!existsSync(AVATARS_DIR)) {
-    mkdirSync(AVATARS_DIR, { recursive: true });
-  }
-}
 
 @Controller('users')
 export class UsersController {
-  constructor(private readonly usersService: UsersService) {}
+  private readonly logger = new Logger(UsersController.name);
+
+  constructor(
+    private readonly usersService: UsersService,
+    private readonly cloudinaryService: CloudinaryService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post('me/avatar')
   @UseInterceptors(
     FileInterceptor('avatar', {
+      storage: memoryStorage(),
       limits: { fileSize: AVATAR_MAX_BYTES },
       fileFilter: (_req, file, cb) => {
         const type = (file.mimetype ?? '').split(';')[0].trim().toLowerCase();
@@ -81,46 +46,37 @@ export class UsersController {
           cb(null, false);
         }
       },
-      storage: diskStorage({
-        destination: (_req, _file, cb) => {
-          ensureAvatarsDir();
-          cb(null, AVATARS_DIR);
-        },
-        filename: (req, file, cb) => {
-          const user = (req as { user?: { id: string } }).user;
-          const ext = extensionForImageMime(file.mimetype ?? 'image/jpeg');
-          if (user?.id) {
-            try {
-              if (existsSync(AVATARS_DIR)) {
-                const oldFiles = readdirSync(AVATARS_DIR).filter((name) =>
-                  name.startsWith(`${user.id}.`),
-                );
-                for (const name of oldFiles) {
-                  unlinkSync(join(AVATARS_DIR, name));
-                }
-              }
-            } catch {
-              // ignore cleanup errors
-            }
-            cb(null, `${user.id}${ext}`);
-            return;
-          }
-          cb(null, `temp-${Date.now()}${ext}`);
-        },
-      }),
     }),
   )
   async uploadAvatar(
     @Req() req: { user: { id: string } },
-    @UploadedFile() file: { filename: string } | undefined,
+    @UploadedFile() file: Express.Multer.File | undefined,
   ) {
-    if (!file) {
+    if (!this.cloudinaryService.isReady()) {
+      throw new ServiceUnavailableException(
+        'Загрузка аватара недоступна: задайте CLD_CLOUD_NAME, CLD_API_KEY, CLD_API_SECRET в .env (см. backend/.env.example).',
+      );
+    }
+
+    if (!file?.buffer?.length) {
       throw new BadRequestException(
         'Нужен файл изображения (любой поддерживаемый браузером формат), до 5 МБ',
       );
     }
-    const publicPath = `/uploads/avatars/${file.filename}`;
-    return this.usersService.setAvatarUrl(req.user.id, publicPath);
+
+    try {
+      const url = await this.cloudinaryService.uploadUserAvatar(
+        file.buffer,
+        req.user.id,
+      );
+      return this.usersService.setAvatarUrl(req.user.id, url);
+    } catch (err) {
+      this.logger.warn('uploadAvatar failed', err);
+      const reason = uploadErrorMessage(err);
+      throw new ServiceUnavailableException(
+        `Не удалось загрузить аватар: ${reason}`,
+      );
+    }
   }
 
   @UseGuards(JwtAuthGuard)

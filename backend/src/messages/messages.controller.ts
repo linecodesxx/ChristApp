@@ -24,6 +24,7 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { ChatGateway } from 'src/chat/chat.gateway';
 import { voiceMessageContent } from './voice-message';
 import { VoiceUploadDto } from './dto/voice-upload.dto';
+import { uploadErrorMessage } from 'src/common/upload-error-message';
 
 type AuthenticatedRequest = {
   user?: { id?: string };
@@ -38,26 +39,6 @@ const VOICE_MIME_ALLOW = new Set([
   'audio/x-m4a',
   'video/webm',
 ]);
-
-function uploadErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    return err.message;
-  }
-  if (err && typeof err === 'object' && 'message' in err) {
-    const m = (err as { message: unknown }).message;
-    if (typeof m === 'string') {
-      return m;
-    }
-  }
-  if (typeof err === 'string') {
-    return err;
-  }
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return String(err);
-  }
-}
 
 @Controller('messages')
 export class MessagesController {
