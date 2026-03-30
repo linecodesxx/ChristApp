@@ -224,7 +224,7 @@ export default function MessageInput({
           disabled={disabled || mode === "voice" || !imageEnabled}
           onClick={() => imageFileInputRef.current?.click()}
         >
-          <Image src="/icon-attachment.svg" alt="" width={20} height={20} className={styles.attachmentButton} />
+          <Image src="/icon-attachment.svg" alt="" width={24} height={24} className={styles.attachmentButton} />
         </button>
 
         {mode === "voice" && voiceEnabled ? (
@@ -274,8 +274,8 @@ export default function MessageInput({
             <Image
               src="/icon-keyboard.svg"
               alt=""
-              width={22}
-              height={22}
+              width={26}
+              height={26}
               className={styles.keyboardButton}
             />
           </button>
@@ -287,7 +287,7 @@ export default function MessageInput({
             onClick={() => void submit()}
             disabled={disabled || isSending}
           >
-            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={18} height={18} />
+            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={22} height={22} />
           </button>
         ) : voiceEnabled ? (
           <button
@@ -298,7 +298,7 @@ export default function MessageInput({
             onClick={openVoiceMode}
             disabled={disabled}
           >
-            <Image src="/icon-micro.svg" alt="" width={22} height={22} className={styles.microButton} />
+            <Image src="/icon-micro.svg" alt="" width={34} height={34} className={styles.microButton} />
           </button>
         ) : (
           <button
@@ -308,7 +308,7 @@ export default function MessageInput({
             onClick={() => void submit()}
             disabled={disabled || !hasText || isSending}
           >
-            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={18} height={18} />
+            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={22} height={22} />
           </button>
         )}
       </div>
