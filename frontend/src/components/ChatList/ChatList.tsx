@@ -198,7 +198,13 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
                       className={styles.userPickerItem}
                       onClick={() => handleSelectCandidate(candidate.id)}
                     >
-                      <span className={styles.userPickerAvatarWrap}>
+                      <span
+                        className={
+                          candidate.isOnline
+                            ? `${styles.userPickerAvatarWrap} ${styles.userPickerAvatarWrapOnline}`
+                            : styles.userPickerAvatarWrap
+                        }
+                      >
                         <AvatarWithFallback
                           src={pickerAvatarSrc}
                           initials={getInitials(candidate.username)}
@@ -270,19 +276,28 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
 
                 const mainInner = (
                   <>
-                    <div className={styles.avatarWrapper} title={chat.isOnline ? "В сети" : undefined}>
-                      <AvatarWithFallback
-                        src={chat.avatarImage}
-                        initials={chat.avatarInitials ?? "?"}
-                        colorSeed={chat.id}
-                        width={40}
-                        height={40}
-                        imageClassName={
-                          chat.avatarClass ? `${styles.avatarImage} ${chat.avatarClass}` : styles.avatarImage
-                        }
-                        fallbackClassName={styles.avatarInitials}
-                      />
-                      {chat.isOnline ? <span className={styles.avatarOnlineDot} /> : null}
+                    <div
+                      className={
+                        chat.isOnline
+                          ? `${styles.avatarWrapper} ${styles.avatarWrapperOnline}`
+                          : styles.avatarWrapper
+                      }
+                      title={chat.isOnline ? "В сети" : undefined}
+                    >
+                      <span className={styles.avatarCircle}>
+                        <AvatarWithFallback
+                          src={chat.avatarImage}
+                          initials={chat.avatarInitials ?? "?"}
+                          colorSeed={chat.id}
+                          width={40}
+                          height={40}
+                          imageClassName={
+                            chat.avatarClass ? `${styles.avatarImage} ${chat.avatarClass}` : styles.avatarImage
+                          }
+                          fallbackClassName={styles.avatarInitials}
+                        />
+                      </span>
+                      {chat.isOnline ? <span className={styles.avatarOnlineDot} aria-hidden /> : null}
                     </div>
                     <div className={styles.chatInfo}>
                       <div className={styles.flex}>

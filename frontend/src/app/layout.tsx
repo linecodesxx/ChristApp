@@ -1,5 +1,5 @@
 import { globalSeo } from "@/seo/global.seo"
-import { inter, geistMono } from "@/styles/fonts"
+import { cinzel, inter, geistMono, bodoniModa, plusJakartaSans } from "@/styles/fonts"
 import "@/styles/globals.scss"
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain"
 import TabBar from "@/components/TabBar/TabBar"
@@ -36,7 +36,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ru" data-theme="dark">
-      <body className={`${inter.variable} ${geistMono.variable}`}>
+      <body
+        className={`${inter.variable} ${geistMono.variable} ${bodoniModa.variable} ${plusJakartaSans.variable} ${cinzel.variable}`}
+      >
         <SplashScreen />
         <Providers>
         <WelcomeJesusOverlay />

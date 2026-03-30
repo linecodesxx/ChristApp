@@ -557,8 +557,8 @@ export default function ProfilePage() {
           </label>
 
           <p className={styles.appearanceHint}>
-            Фон и текст применяются поверх тёмной/светлой темы (лампочка). Pastah и Achiko лежат в{" "}
-            <code>public/fonts/</code>; лицензии на вашей стороне.
+            Фон и текст применяются поверх тёмной/светлой темы (лампочка). Pastah и Achiko лежат в <code>public/fonts/</code>;{" "}
+            лицензии на вашей стороне. Bodoni Moda / Plus Jakarta Sans / Cinzel подключаются автоматически.
           </p>
           <label className={styles.profileLabel}>
             Цвет текста
@@ -610,6 +610,9 @@ export default function ProfilePage() {
               <option value="inter">Inter (по умолчанию)</option>
               <option value="pastah">Pastah</option>
               <option value="achiko">Achiko</option>
+              <option value="bodoni-moda">Bodoni Moda</option>
+              <option value="plus-jakarta-sans">Plus Jakarta Sans</option>
+              <option value="cinzel">Cinzel</option>
             </select>
           </label>
 

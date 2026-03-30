@@ -116,7 +116,11 @@ function orderChatListRows(rooms: ChatListItem[]): ChatListItem[] {
     if (leftTs !== rightTs) {
       return rightTs - leftTs
     }
-    return leftRoom.title.localeCompare(rightRoom.title, "ru", { sensitivity: "base" })
+    const byTitle = leftRoom.title.localeCompare(rightRoom.title, "ru", { sensitivity: "base" })
+    if (byTitle !== 0) {
+      return byTitle
+    }
+    return leftRoom.id.localeCompare(rightRoom.id)
   })
 
   return [...(shareWithJesusRoom ? [shareWithJesusRoom] : []), ...(globalRoom ? [globalRoom] : []), ...sortedDirectRooms]
@@ -198,6 +202,27 @@ function areSetsEqual(leftSet: Set<string>, rightSet: Set<string>) {
     }
   }
   return true
+}
+
+/** Сравнение времени последней активности по миллисекундам (разные ISO-строки одного момента не дают ложного обновления). */
+function lastActivityInstantMs(value: string | null | undefined): number | null {
+  if (value == null || value === "") {
+    return null
+  }
+  const t = new Date(value).getTime()
+  return Number.isNaN(t) ? null : t
+}
+
+function sameLastActivityAt(a: string | null | undefined, b: string | null | undefined): boolean {
+  const ma = lastActivityInstantMs(a)
+  const mb = lastActivityInstantMs(b)
+  if (ma === null && mb === null) {
+    return true
+  }
+  if (ma === null || mb === null) {
+    return false
+  }
+  return ma === mb
 }
 
 function getUserIdFromJwt(token: string) {
@@ -342,14 +367,24 @@ export default function ChatPage() {
           const nextTimeLabel = summaryRoom?.lastMessage
             ? formatChatTimeLabel(summaryRoom.lastMessage.createdAt)
             : (room.timeLabel ?? "")
-          const nextLastActivityAt = summaryRoom?.lastMessage?.createdAt ?? room.lastActivityAt
+          const rawLastMsgAt = summaryRoom?.lastMessage?.createdAt
+          const nextLastActivityAt = (() => {
+            if (rawLastMsgAt == null || rawLastMsgAt === "") {
+              return room.lastActivityAt
+            }
+            const t = new Date(rawLastMsgAt).getTime()
+            if (Number.isNaN(t)) {
+              return room.lastActivityAt
+            }
+            return new Date(t).toISOString()
+          })()
           const currentUnread = typeof room.unread === "number" ? room.unread : room.unread ? 1 : 0
 
           if (
             currentUnread === nextUnread &&
             (room.preview ?? "") === nextPreview &&
             (room.timeLabel ?? "") === nextTimeLabel &&
-            (room.lastActivityAt ?? "") === (nextLastActivityAt ?? "")
+            sameLastActivityAt(room.lastActivityAt, nextLastActivityAt)
           ) {
             return room
           }
@@ -577,9 +612,9 @@ export default function ChatPage() {
       currentUserIdRef.current = getUserIdFromJwt(token)
     }
 
+    /** Только запрос списка комнат; сводку непрочитанных обновляет `myRooms` (иначе двойной fetch и дёрганье порядка). */
     const syncRoomsFromServer = () => {
       socket.emit("getMyRooms")
-      void refreshUnreadSummary()
     }
 
     const onConnect = () => {
@@ -644,7 +679,8 @@ export default function ChatPage() {
                 title: directTitle,
                 previous,
                 isOnline: onlineUserIdsRef.current.has(targetUserId),
-                lastActivityAt: room.createdAt,
+                /** Не затирать время последнего сообщения датой создания комнаты — иначе список прыгает до прихода unread-summary. */
+                lastActivityAt: previous?.lastActivityAt ?? room.createdAt,
                 avatarUrl: targetUser?.avatarUrl,
               }),
             )
