@@ -41,7 +41,13 @@ function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>[
 
 /** Origins для CSP сервис-воркера (`connect-src`): fetch к API и статике аватаров. */
 function serviceWorkerConnectSrc(): string {
-  const parts = new Set<string>(["'self'", "https://api.prayerpulse.io", "http://localhost:3001", "http://127.0.0.1:3001"])
+  const parts = new Set<string>([
+    "'self'",
+    "https://api.prayerpulse.io",
+    "https://res.cloudinary.com",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
+  ])
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
   if (apiUrl) {
