@@ -21,3 +21,8 @@
   height: calc(100dvh - 40px);
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
+
+/* Открыта комната чата: TabBar скрыт — убираем запас снизу под таб. */
+.mainChatRoom {
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}

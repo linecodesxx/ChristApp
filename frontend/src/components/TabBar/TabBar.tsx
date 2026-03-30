@@ -23,7 +23,10 @@ export default function TabBar() {
   const [unreadCount, setUnreadCount] = useState(0)
   const [verseNotesNavVisible, setVerseNotesNavVisible] = useState(false)
   const hiddenRoutes = ["/", "/register"]
-  const shouldHideTabBar = hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
+  /** Список чатов — таб виден; открытая комната — таб скрыт, больше места под переписку. */
+  const hideOnActiveChatRoom = pathname.startsWith("/chat/")
+  const shouldHideTabBar =
+    hideOnActiveChatRoom || hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))
   const hideForChatComposer = (tabBarOverlay?.chatComposerFocused ?? false) && narrowForChatComposer
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
