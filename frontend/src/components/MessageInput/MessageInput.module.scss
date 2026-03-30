@@ -76,7 +76,7 @@
 .message {
   display: flex;
   justify-content: flex-start;
-  align-items: flex-end;
+  align-items: center;
   position: relative;
   min-height: 60px;
   max-height: 170px;
@@ -100,8 +100,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 34px;
-    height: 34px;
+    width: 42px;
+    height: 42px;
     padding: 0;
     border: 0;
     border-radius: 9999px;

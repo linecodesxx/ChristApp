@@ -62,7 +62,9 @@
   box-shadow:
     0 2px 8px 0 rgba(38, 28, 16, 0.08),
     0 6px 18px 0 rgba(38, 28, 16, 0.08);
-  height: calc(100% - 20px);
+  /* Важно для мобильной клавиатуры: без фиксированной height контейнер корректно сжимается в flex-режиме. */
+  flex: 1 1 auto;
+  height: auto;
   padding: 16px 16px;
   padding-bottom: 10px;
   display: flex;
