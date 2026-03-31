@@ -265,7 +265,7 @@
   gap: 6px;
   padding: 6px 8px;
   border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-elevated) 94%, transparent);
   box-shadow: 0 8px 20px -16px rgba(0, 0, 0, 0.4);
   z-index: 4;
@@ -292,7 +292,7 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  border: 1px solid color-mix(in srgb, #d4af37 20%, transparent);
+  border: none;
   background: color-mix(in srgb, var(--surface-elevated) 86%, transparent);
   border-radius: 10px;
   padding: 1px 6px;
@@ -308,7 +308,6 @@
 }
 
 .reactionBadgeActive {
-  border-color: color-mix(in srgb, var(--accent) 38%, transparent);
   background: color-mix(in srgb, var(--accent-soft) 85%, transparent);
 }
 

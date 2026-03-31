@@ -181,6 +181,9 @@ export default function VoiceInput({
   const [seconds, setSeconds] = useState(0)
   const [micError, setMicError] = useState<string | null>(null)
   const [recordingStream, setRecordingStream] = useState<MediaStream | null>(null)
+  const [draftBlob, setDraftBlob] = useState<Blob | null>(null)
+  const [draftUrl, setDraftUrl] = useState<string | null>(null)
+  const [isSendingDraft, setIsSendingDraft] = useState(false)
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -205,6 +208,16 @@ export default function VoiceInput({
       clearInterval(tickRef.current)
       tickRef.current = null
     }
+  }, [])
+
+  const clearDraft = useCallback(() => {
+    setDraftBlob(null)
+    setDraftUrl((previous) => {
+      if (previous) {
+        URL.revokeObjectURL(previous)
+      }
+      return null
+    })
   }, [])
 
   const stopStream = useCallback(() => {
@@ -251,8 +264,9 @@ export default function VoiceInput({
       }
       mediaRecorderRef.current = null
       stopStream()
+      clearDraft()
     }
-  }, [clearTimers, stopStream])
+  }, [clearDraft, clearTimers, stopStream])
 
   useEffect(() => {
     if (disabled && isRecording) {
@@ -266,6 +280,7 @@ export default function VoiceInput({
     }
 
     setMicError(null)
+    clearDraft()
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
@@ -289,7 +304,14 @@ export default function VoiceInput({
         const blob = new Blob(chunksRef.current, { type })
         chunksRef.current = []
         if (!disabledRef.current && blob.size > 0) {
-          void onSendRef.current(blob)
+          const nextUrl = URL.createObjectURL(blob)
+          setDraftBlob(blob)
+          setDraftUrl((previous) => {
+            if (previous) {
+              URL.revokeObjectURL(previous)
+            }
+            return nextUrl
+          })
         }
       }
 
@@ -310,7 +332,7 @@ export default function VoiceInput({
       setMicError("Нет доступа к микрофону")
       stopStream()
     }
-  }, [disabled, finalizeRecording, stopStream])
+  }, [clearDraft, disabled, finalizeRecording, stopStream])
 
   const stopRecording = useCallback(() => {
     const mr = mediaRecorderRef.current
@@ -332,6 +354,17 @@ export default function VoiceInput({
     mediaRecorderRef.current = null
   }, [clearTimers, stopStream])
 
+  const sendDraft = useCallback(async () => {
+    if (!draftBlob || disabled || isSendingDraft) return
+    setIsSendingDraft(true)
+    try {
+      await Promise.resolve(onSendRef.current(draftBlob))
+      clearDraft()
+    } finally {
+      setIsSendingDraft(false)
+    }
+  }, [clearDraft, disabled, draftBlob, isSendingDraft])
+
   const formatDuration = (totalSeconds: number) => {
     const m = Math.floor(totalSeconds / 60)
     const s = totalSeconds % 60
@@ -348,7 +381,7 @@ export default function VoiceInput({
   return (
     <div className={rootClass} aria-label="Голосовое сообщение" data-disabled={disabled ? "true" : undefined}>
       <div className={`${styles.recorderWrap} ${disabled ? styles.recorderDisabled : ""}`}>
-        {!isRecording ? (
+        {!isRecording && !draftUrl ? (
           <button
             type="button"
             className={styles.recordStartBtn}
@@ -360,7 +393,7 @@ export default function VoiceInput({
               <span>Записать</span>
             </span>
           </button>
-        ) : (
+        ) : isRecording ? (
           <div className={styles.recordingPanel}>
             <div className={styles.waveSection}>
               {recordingStream ? <RecordingWaveform stream={recordingStream} /> : null}
@@ -393,7 +426,29 @@ export default function VoiceInput({
                 disabled={disabled}
               >
                 <span className={styles.stopIcon} aria-hidden />
-                Отправить
+                Остановить
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className={styles.previewPanel}>
+            <audio className={styles.previewAudio} controls src={draftUrl ?? undefined} preload="metadata" />
+            <div className={styles.previewActions}>
+              <button
+                type="button"
+                className={styles.previewDiscardBtn}
+                onClick={clearDraft}
+                disabled={disabled || isSendingDraft}
+              >
+                Удалить
+              </button>
+              <button
+                type="button"
+                className={styles.previewSendBtn}
+                onClick={() => void sendDraft()}
+                disabled={disabled || isSendingDraft}
+              >
+                {isSendingDraft ? "Отправка..." : "Отправить"}
               </button>
             </div>
           </div>

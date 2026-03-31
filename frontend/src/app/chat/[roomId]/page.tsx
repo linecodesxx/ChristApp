@@ -67,6 +67,12 @@ type MyRoomItem = {
   id: string
   title: string
   createdAt: string
+  directPeer?: {
+    id: string
+    username: string
+    nickname?: string | null
+    avatarUrl?: string | null
+  }
 }
 
 type DirectRoomOpenedPayload = {
@@ -304,6 +310,7 @@ function getReadableRoomTitle(
   rawTitle?: string,
   currentUserId?: string,
   users?: Array<{ id: string; username: string; nickname?: string }>,
+  directPeer?: { username: string; nickname?: string | null } | null,
 ) {
   if (roomId === GLOBAL_ROOM_ID) return "Общий чат для всех"
 
@@ -311,13 +318,17 @@ function getReadableRoomTitle(
     return SHARE_WITH_JESUS_CHAT_TITLE
   }
 
-  if (!rawTitle?.trim()) return "Личный чат"
+  if (!rawTitle?.trim()) {
+    return directPeer ? `Чат с ${directPeer.nickname ?? directPeer.username}` : "Чат"
+  }
 
   if (rawTitle.startsWith("dm:")) {
     const directIds = rawTitle.split(":").slice(1)
     const otherUserId = directIds.find((id) => id !== currentUserId)
     const otherUser = users?.find((existingUser) => existingUser.id === otherUserId)
-    return otherUser ? `Чат с ${otherUser.nickname ?? otherUser.username}` : "Личный чат"
+    if (otherUser) return `Чат с ${otherUser.nickname ?? otherUser.username}`
+    if (directPeer) return `Чат с ${directPeer.nickname ?? directPeer.username}`
+    return "Чат"
   }
 
   return rawTitle
@@ -347,6 +358,7 @@ export default function ChatPageDetails() {
   const availableRoomIdsRef = useRef<Set<string>>(new Set())
   const openingDirectRoomRef = useRef<Set<string>>(new Set())
   const messageIdsRef = useRef<Set<string>>(new Set())
+  const lastMyRoomsEmitAtRef = useRef(0)
   /** true после joinRoom до прихода roomHistory (в т.ч. при skipLoadingSpinner). */
   const awaitingRoomHistoryRef = useRef(false)
   const [messages, setMessages] = useState<Message[]>([])
@@ -370,6 +382,16 @@ export default function ChatPageDetails() {
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
 
+  const requestMyRooms = useCallback((targetSocket: { emit: (event: string) => void } | null | undefined) => {
+    if (!targetSocket) return
+    const now = Date.now()
+    if (now - lastMyRoomsEmitAtRef.current < 350) {
+      return
+    }
+    lastMyRoomsEmitAtRef.current = now
+    targetSocket.emit("getMyRooms")
+  }, [])
+
   const params = useParams<{ roomId: string }>()
   const router = useRouter()
   const routeRoomId = params?.roomId
@@ -381,17 +403,21 @@ export default function ChatPageDetails() {
         : routeRoomId
 
   const [resolvedShareJesusRoomId, setResolvedShareJesusRoomId] = useState<string | null>(null)
+  const [directRouteRoomId, setDirectRouteRoomId] = useState<string | null>(null)
   const routeRoomIdRef = useRef(routeRoomId)
   useEffect(() => {
     routeRoomIdRef.current = routeRoomId
+  }, [routeRoomId])
+  useEffect(() => {
+    setDirectRouteRoomId(null)
   }, [routeRoomId])
 
   const effectiveSocketRoomId = useMemo(() => {
     if (!routeRoomId) return null
     if (routeRoomId === GLOBAL_ROOM_SLUG) return GLOBAL_ROOM_ID
     if (routeRoomId === SHARE_WITH_JESUS_SLUG) return resolvedShareJesusRoomId
-    return routeRoomId
-  }, [routeRoomId, resolvedShareJesusRoomId])
+    return directRouteRoomId ?? routeRoomId
+  }, [directRouteRoomId, routeRoomId, resolvedShareJesusRoomId])
 
   const roomHistoryQuery = useQuery({
     queryKey: chatRoomHistoryQueryKey(effectiveSocketRoomId),
@@ -589,11 +615,11 @@ export default function ChatPageDetails() {
         if (directRoom) {
           joinRoom(socket, directRoom.id)
           setRoomRawTitle(directRoom.title)
-          setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user?.id, usersRef.current))
+          setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user?.id, usersRef.current, directRoom.directPeer))
         }
       }
 
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
     }
     socket.on("connect", onConnect)
 
@@ -770,7 +796,7 @@ export default function ChatPageDetails() {
 
       if (roomForRoute?.title && rr !== SHARE_WITH_JESUS_SLUG && rr !== shareRoom?.id) {
         setRoomRawTitle(roomForRoute.title)
-        setRoomTitle(getReadableRoomTitle(roomForRoute.id, roomForRoute.title, uid, usersRef.current))
+        setRoomTitle(getReadableRoomTitle(roomForRoute.id, roomForRoute.title, uid, usersRef.current, roomForRoute.directPeer))
       }
 
       const routeCandidate = rr
@@ -787,6 +813,9 @@ export default function ChatPageDetails() {
       }
 
       if (roomForRoute) {
+        if (rr !== GLOBAL_ROOM_SLUG && rr !== GLOBAL_ROOM_ID && rr !== SHARE_WITH_JESUS_SLUG) {
+          setDirectRouteRoomId(roomForRoute.id)
+        }
         const isShareTitle = Boolean(roomForRoute.title?.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX))
         if (rr === SHARE_WITH_JESUS_SLUG && isShareTitle) {
           joinRoom(socket, roomForRoute.id, { skipLoadingSpinner: true })
@@ -799,12 +828,8 @@ export default function ChatPageDetails() {
 
     const onDirectRoomOpened = (payload: DirectRoomOpenedPayload) => {
       openingDirectRoomRef.current.delete(payload.targetUserId)
-
-      if (currentRoomRef.current === payload.targetUserId) {
-        const nextRoomId = payload.roomId === GLOBAL_ROOM_ID ? GLOBAL_ROOM_SLUG : payload.roomId
-        router.replace(`/chat/${nextRoomId}`)
-        return
-      }
+      setDirectRouteRoomId(payload.roomId)
+      joinRoom(socket, payload.roomId)
 
       if (payload.targetUsername) {
         setRoomTitle(`Чат с ${payload.targetUsername}`)
@@ -942,7 +967,7 @@ export default function ChatPageDetails() {
     socket.on("update-message-reactions", onUpdateMessageReactions)
 
     const onInvitedToRoom = () => {
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
     }
     socket.on("userInvitedToRoom", onInvitedToRoom)
 
@@ -969,7 +994,7 @@ export default function ChatPageDetails() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, queryClient, router, user])
+  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, user])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
@@ -1010,13 +1035,13 @@ export default function ChatPageDetails() {
       if (directRoom) {
         joinRoom(socket, directRoom.id)
         setRoomRawTitle(directRoom.title)
-        setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user.id, usersRef.current))
+        setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user.id, usersRef.current, directRoom.directPeer))
         return
       }
     }
 
-    socket.emit("getMyRooms")
-  }, [queryClient, routeRoomId, loading, joinRoom, leaveCurrentRoom, user?.id])
+    requestMyRooms(socket)
+  }, [queryClient, requestMyRooms, routeRoomId, loading, joinRoom, leaveCurrentRoom, user?.id])
 
   // Быстрое подключение «Поделись с Иисусом» без ожидания `myRooms`.
   useEffect(() => {
@@ -1275,7 +1300,7 @@ export default function ChatPageDetails() {
     if (routeRoomId === user?.id) return false
 
     if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
-      socketRef.current.emit("getMyRooms")
+      requestMyRooms(socketRef.current)
       return false
     }
 
@@ -1445,7 +1470,7 @@ export default function ChatPageDetails() {
         return false
       }
       if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
-        socket.emit("getMyRooms")
+        requestMyRooms(socket)
         return false
       }
       if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
@@ -1462,7 +1487,7 @@ export default function ChatPageDetails() {
       socket.emit("sendMessage", { roomId: targetRoomId, content: payload })
       return true
     },
-    [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId, directChatTargetUserId],
+    [directChatTargetUserId, effectiveSocketRoomId, requestMyRooms, resolvedShareJesusRoomId, routeRoomId, user?.id],
   )
 
   return (

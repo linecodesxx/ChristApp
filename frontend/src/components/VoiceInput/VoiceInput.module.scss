@@ -107,6 +107,56 @@
   padding: 4px 2px 2px;
 }
 
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+  padding: 4px 2px 2px;
+}
+
+.previewAudio {
+  width: 100%;
+  height: 36px;
+  border-radius: 12px;
+}
+
+.previewActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.previewDiscardBtn,
+.previewSendBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.previewDiscardBtn {
+  border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+}
+
+.previewSendBtn {
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
+  color: color-mix(in srgb, var(--foreground) 94%, #1a1208 6%);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 90%, var(--accent-soft) 10%),
+    color-mix(in srgb, var(--accent-soft) 40%, var(--surface-elevated))
+  );
+}
+
 .waveSection {
   display: flex;
   flex-direction: column;

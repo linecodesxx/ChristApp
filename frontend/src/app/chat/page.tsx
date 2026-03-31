@@ -15,6 +15,7 @@ import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { canSeeVerseNotesNav } from "@/lib/verseNotesNav"
 import {
   GLOBAL_CHAT_AVATAR_SRC,
   GLOBAL_CHAT_TITLE,
@@ -62,6 +63,7 @@ function getShareWithJesusRoomFromPrevious(rooms: ChatListItem[]) {
 type DirectRoomItemInput = {
   userId: string
   title: string
+  titleLoading?: boolean
   isOnline: boolean
   previous?: ChatListItem
   lastActivityAt?: string
@@ -81,6 +83,7 @@ function getGlobalRoomFromPrevious(rooms: ChatListItem[]) {
 function createDirectRoomItem({
   userId,
   title,
+  titleLoading = false,
   isOnline,
   previous,
   lastActivityAt,
@@ -96,6 +99,7 @@ function createDirectRoomItem({
   return {
     id: userId,
     title,
+    titleLoading,
     avatarInitials: getInitials(title),
     ...(avatarImage ? { avatarImage } : {}),
     href: `/chat/${userId}`,
@@ -169,7 +173,17 @@ type ChatListRuntimeCache = {
 
 let chatListRuntimeCache: ChatListRuntimeCache | null = null
 
-type RoomSocketItem = { id: string; title: string; createdAt?: string }
+type RoomSocketItem = {
+  id: string
+  title: string
+  createdAt?: string
+  directPeer?: {
+    id: string
+    username: string
+    nickname?: string | null
+    avatarUrl?: string | null
+  }
+}
 
 type NewMessageSocketEvent = {
   roomId: string
@@ -285,10 +299,12 @@ function formatRoomPreviewFromLastMessage(
 }
 
 export default function ChatPage() {
-  const { user, users } = useAuth()
+  const { user, users, loading } = useAuth()
   const { socket } = usePresenceSocket()
   const queryClient = useQueryClient()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
+  const [hasReceivedMyRooms, setHasReceivedMyRooms] = useState(false)
+  const [hasUnresolvedDirectNames, setHasUnresolvedDirectNames] = useState(true)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
   // Эти refs нужны socket listeners, чтобы всегда читать актуальное состояние между рендерами.
   const roomsRef = useRef<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
@@ -299,6 +315,7 @@ export default function ChatPage() {
   const roomIdToDirectUserIdRef = useRef<Map<string, string>>(new Map())
   const directUserIdToRoomIdRef = useRef<Map<string, string>>(new Map())
   const lastDirectMapSizeRef = useRef(-1)
+  const lastMyRoomsEmitAtRef = useRef(0)
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
   const router = useRouter()
@@ -419,6 +436,16 @@ export default function ChatPage() {
     })
   }, [queryClient, user?.id])
 
+  const requestMyRooms = useCallback((targetSocket: { emit: (event: string) => void } | null | undefined) => {
+    if (!targetSocket) return
+    const now = Date.now()
+    if (now - lastMyRoomsEmitAtRef.current < 350) {
+      return
+    }
+    lastMyRoomsEmitAtRef.current = now
+    targetSocket.emit("getMyRooms")
+  }, [])
+
   const unreadSummaryQuery = useQuery({
     queryKey: ["push", "unread-summary", user?.id ?? "anonymous"],
     enabled: Boolean(user?.id),
@@ -482,6 +509,14 @@ export default function ChatPage() {
   }, [rooms])
 
   useEffect(() => {
+    if (!hasReceivedMyRooms) return
+    const hasFallbackDirectTitles = rooms.some(
+      (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
+    )
+    setHasUnresolvedDirectNames((prev) => (prev === hasFallbackDirectTitles ? prev : hasFallbackDirectTitles))
+  }, [hasReceivedMyRooms, rooms])
+
+  useEffect(() => {
     if (!chatListRuntimeCache) {
       return
     }
@@ -502,6 +537,13 @@ export default function ChatPage() {
     directUserIdToRoomIdRef.current = new Map(chatListRuntimeCache.directUserIdToRoomId)
 
     setRooms(chatListRuntimeCache.rooms.length ? chatListRuntimeCache.rooms : [BASE_GLOBAL_CHAT_ITEM])
+    if (chatListRuntimeCache.rooms.length > 0) {
+      setHasReceivedMyRooms(true)
+      const hasFallbackDirectTitles = chatListRuntimeCache.rooms.some(
+        (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
+      )
+      setHasUnresolvedDirectNames(hasFallbackDirectTitles)
+    }
   }, [])
 
   useEffect(() => {
@@ -575,7 +617,7 @@ export default function ChatPage() {
     prevUsersCountRef.current = users.length
 
     if (pendingMyRoomsAfterUsersRef.current && socket?.connected) {
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
       pendingMyRoomsAfterUsersRef.current = false
     }
 
@@ -606,6 +648,7 @@ export default function ChatPage() {
         return {
           ...room,
           title: displayTitle,
+          titleLoading: false,
           avatarInitials: getInitials(displayTitle),
           avatarImage: nextAvatar,
         }
@@ -613,7 +656,13 @@ export default function ChatPage() {
 
       return hasUpdates ? nextRooms : prev
     })
-  }, [socket, users])
+    setHasUnresolvedDirectNames((prev) => {
+      const hasFallbackDirectTitles = roomsRef.current.some(
+        (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
+      )
+      return prev === hasFallbackDirectTitles ? prev : hasFallbackDirectTitles
+    })
+  }, [requestMyRooms, socket, users])
 
   useEffect(() => {
     if (!socket) {
@@ -630,7 +679,7 @@ export default function ChatPage() {
 
     /** Только запрос списка комнат; сводку непрочитанных обновляет `myRooms` (иначе двойной fetch и дёрганье порядка). */
     const syncRoomsFromServer = () => {
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
     }
 
     const onConnect = () => {
@@ -644,6 +693,7 @@ export default function ChatPage() {
 
     const onMyRooms = (data: { rooms: RoomSocketItem[] }) => {
       const socketRooms = data.rooms ?? []
+      setHasReceivedMyRooms(true)
       queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), socketRooms)
       const previousRooms = roomsRef.current
 
@@ -665,8 +715,9 @@ export default function ChatPage() {
 
       const directChatsByUserId = new Map<string, ChatListItem>()
       let shareWithJesusRoom: ChatListItem | undefined
+      let unresolvedDirectNamesFound = false
 
-      const resolvedCurrentUserId = currentUserIdRef.current
+      const resolvedCurrentUserId = user?.id ?? currentUserIdRef.current
 
       socketRooms
         .filter((room) => room.id !== GLOBAL_ROOM_ID)
@@ -682,8 +733,14 @@ export default function ChatPage() {
           if (!targetUserId) return
 
           const targetUser = usersById.get(targetUserId)
+          const directPeer = room.directPeer
           const previous = previousById.get(targetUserId)
-          const directTitle = targetUser?.nickname ?? targetUser?.username ?? "Личный чат"
+          const directTitle = targetUser?.nickname ?? targetUser?.username ?? directPeer?.nickname ?? directPeer?.username ?? ""
+          const resolvedAvatarUrl = targetUser?.avatarUrl ?? directPeer?.avatarUrl
+          const titleLoading = !targetUser && !directPeer
+          if (!targetUser && !directPeer) {
+            unresolvedDirectNamesFound = true
+          }
 
           nextRoomToUser.set(room.id, targetUserId)
           nextUserToRoom.set(targetUserId, room.id)
@@ -694,11 +751,12 @@ export default function ChatPage() {
               createDirectRoomItem({
                 userId: targetUserId,
                 title: directTitle,
+                titleLoading,
                 previous,
                 isOnline: onlineUserIdsRef.current.has(targetUserId),
                 /** Не затирать время последнего сообщения датой создания комнаты — иначе список прыгает до прихода unread-summary. */
                 lastActivityAt: previous?.lastActivityAt ?? room.createdAt,
-                avatarUrl: targetUser?.avatarUrl,
+                avatarUrl: resolvedAvatarUrl,
               }),
             )
           }
@@ -714,6 +772,7 @@ export default function ChatPage() {
           ...Array.from(directChatsByUserId.values()),
         ]),
       )
+      setHasUnresolvedDirectNames(unresolvedDirectNamesFound)
       void refreshUnreadSummary()
     }
     socket.on("myRooms", onMyRooms)
@@ -770,7 +829,7 @@ export default function ChatPage() {
       })
 
       if (!mappedId) {
-        socket.emit("getMyRooms")
+        requestMyRooms(socket)
         void refreshUnreadSummary()
         return
       }
@@ -824,8 +883,9 @@ export default function ChatPage() {
                     title:
                       (() => {
                         const u = usersRef.current.find((existingUser) => existingUser.id === mappedId)
-                        return u?.nickname ?? u?.username ?? "Личный чат"
+                        return u?.nickname ?? u?.username ?? ""
                       })(),
+                    titleLoading: !usersRef.current.some((existingUser) => existingUser.id === mappedId),
                     isOnline: onlineUserIdsRef.current.has(mappedId),
                     lastActivityAt: msg.createdAt,
                     avatarUrl: usersRef.current.find((existingUser) => existingUser.id === mappedId)?.avatarUrl,
@@ -858,13 +918,13 @@ export default function ChatPage() {
     socket.on("messageDeleted", onMessageDeleted)
 
     const onUserInvitedToRoom = () => {
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
       void refreshUnreadSummary()
     }
     socket.on("userInvitedToRoom", onUserInvitedToRoom)
 
     const onRoomCreated = () => {
-      socket.emit("getMyRooms")
+      requestMyRooms(socket)
       void refreshUnreadSummary()
     }
     socket.on("roomCreated", onRoomCreated)
@@ -905,12 +965,14 @@ export default function ChatPage() {
       const targetUserId = payload?.targetUserId
       if (targetUserId) {
         const targetUser = usersRef.current.find((existingUser) => existingUser.id === targetUserId)
-        const directTitle = targetUser?.nickname ?? targetUser?.username ?? "Личный чат"
+        const directTitle = targetUser?.nickname ?? targetUser?.username ?? payload?.targetUsername ?? ""
+        const titleLoading = !targetUser && !payload?.targetUsername
 
         setRooms((prev) =>
           prependDirectRoomIfMissing(prev, {
             userId: targetUserId,
             title: directTitle,
+            titleLoading,
             isOnline: onlineUserIdsRef.current.has(targetUserId),
             avatarUrl: targetUser?.avatarUrl,
           }),
@@ -945,7 +1007,7 @@ export default function ChatPage() {
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("removeSelfFromRoomResult", onRemoveSelfFromRoomResult)
     }
-  }, [queryClient, refreshUnreadSummary, router, socket, syncOnlinePresence, user?.id, user?.username])
+  }, [queryClient, refreshUnreadSummary, requestMyRooms, router, socket, syncOnlinePresence, user?.id, user?.username])
 
   const handleCreateChat = useCallback(
     (targetUserId: string) => {
@@ -993,7 +1055,7 @@ export default function ChatPage() {
       const serverRoomId = directUserIdToRoomIdRef.current.get(listItemId)
       if (!serverRoomId) {
         window.alert("Не удалось определить комнату. Попробуй обновить список.")
-        socket?.emit("getMyRooms")
+        requestMyRooms(socket)
         return
       }
 
@@ -1004,7 +1066,7 @@ export default function ChatPage() {
 
       socket.emit("removeSelfFromRoom", { roomId: serverRoomId })
     },
-    [socket],
+    [requestMyRooms, socket],
   )
 
   const handlePrefetchChat = useCallback(
@@ -1052,6 +1114,12 @@ export default function ChatPage() {
     }))
   }, [rooms])
 
+  const verseNotesVisible = useMemo(
+    () => canSeeVerseNotesNav(user?.username),
+    [user?.username],
+  )
+  const isChatListLoading = loading || !hasReceivedMyRooms
+
   return (
     <ChatList
       items={chatItems}
@@ -1059,6 +1127,8 @@ export default function ChatPage() {
       chatCandidates={chatCreateCandidates}
       onDeleteChat={handleDeleteChat}
       onPrefetchChat={handlePrefetchChat}
+      verseNotesVisible={verseNotesVisible}
+      isLoading={isChatListLoading}
     />
   )
 }
