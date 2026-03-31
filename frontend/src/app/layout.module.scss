@@ -4,7 +4,7 @@
   box-sizing: border-box;
   width: 100%;
   height: calc(100svh - 40px);
-  height: calc(100dvh - 40px);
+  height: calc(100dvh - 0px);
   display: flex;
   flex-direction: column;
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
@@ -17,8 +17,8 @@
 
 /* Когда открыт ввод в чате, нижний таб скрыт — не резервируем под него место. */
 .mainComposerFocused {
-  height: calc(100svh - 40px);
-  height: calc(100dvh - 40px);
+  height: calc(100svh - 0px);
+  height: calc(100dvh - 0px);
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 }
 

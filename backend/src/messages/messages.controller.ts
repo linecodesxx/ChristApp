@@ -73,6 +73,37 @@ export class MessagesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('room')
+  async getRoomMessages(
+    @Req() req: AuthenticatedRequest,
+    @Query('roomId') roomId?: string,
+    @Query('limit') limit?: string,
+    @Query('skip') skip?: string,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+
+    const rid = (roomId ?? '').trim();
+    if (!rid) {
+      throw new BadRequestException('roomId обязателен');
+    }
+
+    const mayAccess = await this.messagesService.userCanPostToRoom(userId, rid);
+    if (!mayAccess) {
+      throw new ForbiddenException('Нет доступа к комнате');
+    }
+
+    const parsedLimit = Math.min(
+      Math.max(parseInt(limit ?? '250', 10) || 250, 1),
+      500,
+    );
+    const parsedSkip = Math.max(parseInt(skip ?? '0', 10) || 0, 0);
+    return this.messagesService.getRoomMessages(rid, parsedLimit, parsedSkip);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body('content') content: string, @Req() req: AuthenticatedRequest) {
     const userId = req.user?.id;

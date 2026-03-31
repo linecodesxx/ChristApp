@@ -118,7 +118,12 @@ export class MessagesService {
   async getRoomMessages(roomId: string, limit = 50, skip = 0) {
     const rows = await this.prisma.message.findMany({
       where: { roomId },
-      include: { sender: true },
+      include: {
+        sender: true,
+        reactions: {
+          orderBy: { createdAt: 'asc' },
+        },
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip,
@@ -202,7 +207,6 @@ export class MessagesService {
   async deleteOwnGlobalMessage(
     messageId: string,
     userId: string,
-    _globalRoomId = this.GLOBAL_ROOM,
   ): Promise<DeleteOwnMessageResult> {
     return this.deleteOwnMessage(messageId, userId);
   }

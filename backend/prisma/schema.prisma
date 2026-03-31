@@ -28,6 +28,7 @@ model User {
   memberships       RoomMember[]
   roomReadStates    RoomReadState[]
   savedVerses       SavedVerse[]
+  reactions         Reaction[]
 }
 
 enum MessageType {
@@ -47,8 +48,22 @@ model Message {
   roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
   room      Room        @relation(fields: [roomId], references: [id])
   sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
 
   @@index([roomId, createdAt])
+}
+
+model Reaction {
+  id        String   @id @default(uuid())
+  userId    String
+  messageId String
+  type      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, messageId, type])
+  @@index([messageId, createdAt])
 }
 
 model Room {

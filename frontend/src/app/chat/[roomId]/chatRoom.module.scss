@@ -233,11 +233,61 @@
   .messagesSkeleton {
     flex: 1 1 auto;
     min-height: 0;
-    padding: 6px 2px 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    padding: 8px 2px 14px;
+    display: block;
     overflow: hidden;
+  }
+
+  .messagesSkeletonList {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 6px 0 12px;
+  }
+
+  .messagesSkeletonRow {
+    width: 100%;
+    display: flex;
+  }
+
+  .messagesSkeletonRowLeft {
+    justify-content: flex-start;
+  }
+
+  .messagesSkeletonRowRight {
+    justify-content: flex-end;
+  }
+
+  .messagesSkeletonBubble {
+    display: inline-block;
+    height: 44px;
+    max-width: 82%;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
+    background:
+      linear-gradient(
+        100deg,
+        color-mix(in srgb, var(--surface-elevated) 88%, transparent) 25%,
+        color-mix(in srgb, var(--accent-soft) 35%, var(--surface-elevated)) 50%,
+        color-mix(in srgb, var(--surface-elevated) 88%, transparent) 75%
+      );
+    background-size: 220% 100%;
+    animation: message-skeleton-shimmer 1.3s ease-in-out infinite;
+  }
+
+  .messagesSkeletonBubbleWide {
+    width: min(280px, 82%);
+  }
+
+  .messagesSkeletonBubbleMedium {
+    width: min(220px, 72%);
+  }
+
+  .messagesSkeletonBubbleNarrow {
+    width: min(165px, 58%);
   }
 }
 
@@ -303,5 +353,27 @@ html[data-theme="dark"] .chat {
     background: color-mix(in srgb, var(--surface-elevated) 88%, #111 12%);
     color: color-mix(in srgb, var(--foreground) 78%, var(--text-muted) 22%);
     box-shadow: 0 12px 24px -26px rgba(196, 162, 101, 0.55);
+  }
+
+  .messagesSkeletonBubble {
+    border-color: color-mix(in srgb, var(--accent) 20%, var(--line-soft));
+    background:
+      linear-gradient(
+        100deg,
+        color-mix(in srgb, var(--surface) 86%, transparent) 25%,
+        color-mix(in srgb, var(--my-bubble-dark-bg) 42%, var(--surface)) 50%,
+        color-mix(in srgb, var(--surface) 86%, transparent) 75%
+      );
+    background-size: 220% 100%;
+  }
+}
+
+@keyframes message-skeleton-shimmer {
+  0% {
+    background-position: 110% 0;
+  }
+
+  100% {
+    background-position: -110% 0;
   }
 }

@@ -1,4 +1,5 @@
 export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE"
+export type AppReactionType = "🤍" | "😂" | "❤️"
 
 export type MessageReply = {
   id: string
@@ -21,6 +22,12 @@ export type Message = {
   fileUrl?: string | null
   createdAt: string
   replyTo?: MessageReply
+  reactions?: Array<{
+    id: string
+    userId: string
+    type: AppReactionType
+    createdAt: string
+  }>
 }
 
 type ChatUser = { id: string; username: string; nickname?: string }

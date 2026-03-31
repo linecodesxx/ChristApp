@@ -1,6 +1,7 @@
 "use client"
 
-import { useRef, type MouseEvent, type TouchEvent } from "react"
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
+import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useHydrated } from "@/hooks/useHydrated"
@@ -8,6 +9,7 @@ import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
+import { parseStickerMessagePayload } from "@/lib/stickerMessage"
 
 type MessageBubbleProps = {
   message: Message
@@ -18,6 +20,10 @@ type MessageBubbleProps = {
   onReply?: (message: Message) => void
   onDelete?: (message: Message) => void
   canDeleteOwnMessage?: boolean
+  showReadReceipt?: boolean
+  readReceiptAvatarSrc?: string
+  readReceiptLabel?: string
+  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️") => void
 }
 
 const SWIPE_REPLY_THRESHOLD = 56
@@ -32,10 +38,17 @@ export default function MessageBubble({
   onReply,
   onDelete,
   canDeleteOwnMessage = false,
+  showReadReceipt = false,
+  readReceiptAvatarSrc,
+  readReceiptLabel = "Просмотрено",
+  onToggleReaction,
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
+  const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
+  const reactionOptions: Array<"🤍" | "😂" | "❤️"> = ["🤍", "😂", "❤️"]
 
   const date = new Date(message.createdAt)
   const formattedDate = hydrated
@@ -48,9 +61,61 @@ export default function MessageBubble({
       (Boolean(currentUsername) && message.username === currentUsername) ||
       message.username === "Ты"
 
-  const bubble = isOwnMessage ? `${styles.bubble} ${styles.myBubble}` : styles.bubble
+  const stickerPayload = parseStickerMessagePayload(message.content)
+  const stickerImagePath = stickerPayload?.path ?? null
+  const bubble =
+    isOwnMessage
+      ? `${styles.bubble} ${styles.myBubble} ${stickerPayload ? styles.stickerBubble : ""}`
+      : `${styles.bubble} ${stickerPayload ? styles.stickerBubble : ""}`
 
   const showAvatar = Boolean(avatarSrc || (onAvatarClick && message.senderId && !isOwnMessage))
+
+  const reactionGroups = useMemo(() => {
+    const grouped = new Map<
+      "🤍" | "😂" | "❤️",
+      { emoji: "🤍" | "😂" | "❤️"; count: number; reactedByMe: boolean }
+    >()
+    const currentUserId = currentUser?.id
+    const allowed = new Set(reactionOptions)
+    for (const reaction of message.reactions ?? []) {
+      if (!allowed.has(reaction.type)) continue
+      const emoji = reaction.type as "🤍" | "😂" | "❤️"
+      const existing = grouped.get(emoji)
+      if (existing) {
+        existing.count += 1
+        if (currentUserId && reaction.userId === currentUserId) {
+          existing.reactedByMe = true
+        }
+        continue
+      }
+      grouped.set(emoji, {
+        emoji,
+        count: 1,
+        reactedByMe: Boolean(currentUserId && reaction.userId === currentUserId),
+      })
+    }
+    return reactionOptions.map((emoji) => grouped.get(emoji)).filter(Boolean) as Array<{
+      emoji: "🤍" | "😂" | "❤️"
+      count: number
+      reactedByMe: boolean
+    }>
+  }, [currentUser?.id, message.reactions, reactionOptions])
+
+  useEffect(() => {
+    if (!isReactionPickerOpen) return
+    const handlePointerDownOutside = (event: MouseEvent | globalThis.MouseEvent | TouchEvent | globalThis.TouchEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (reactionPickerRef.current?.contains(target)) return
+      setIsReactionPickerOpen(false)
+    }
+    document.addEventListener("mousedown", handlePointerDownOutside)
+    document.addEventListener("touchstart", handlePointerDownOutside)
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside)
+      document.removeEventListener("touchstart", handlePointerDownOutside)
+    }
+  }, [isReactionPickerOpen])
 
   const handleReplyIntent = () => {
     onReply?.(message)
@@ -95,6 +160,17 @@ export default function MessageBubble({
     onDelete?.(message)
   }
 
+  const handleReactionPickerToggle = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    setIsReactionPickerOpen((prev) => !prev)
+  }
+
+  const handleReactionClick = (event: MouseEvent<HTMLButtonElement>, reaction: "🤍" | "😂" | "❤️") => {
+    event.stopPropagation()
+    onToggleReaction?.(message, reaction)
+    setIsReactionPickerOpen(false)
+  }
+
   const handleAvatarClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     if (!isOwnMessage && message.senderId) {
@@ -112,6 +188,27 @@ export default function MessageBubble({
       ) : null}
 
       {(() => {
+        if (stickerPayload) {
+          return (
+            <div className={styles.stickerMessage}>
+              {stickerImagePath ? (
+                <Image
+                  src={stickerImagePath}
+                  alt="Стикер"
+                  width={120}
+                  height={120}
+                  className={styles.stickerImage}
+                  loading="lazy"
+                />
+              ) : (
+                <span className={styles.stickerFallback} aria-label="Стикер">
+                  🙂
+                </span>
+              )}
+            </div>
+          )
+        }
+
         const imgUrl = message.fileUrl?.trim()
         if (message.type === "IMAGE" && imgUrl) {
           return (
@@ -186,7 +283,67 @@ export default function MessageBubble({
         ) : null}
 
         <span className={styles.date}>{formattedDate}</span>
+        {onToggleReaction ? (
+          <div className={styles.reactionAnchor} ref={reactionPickerRef}>
+            <button
+              type="button"
+              className={styles.reactionTrigger}
+              onClick={handleReactionPickerToggle}
+              aria-label="Добавить реакцию"
+              title="Добавить реакцию"
+            >
+              +
+            </button>
+            {isReactionPickerOpen ? (
+              <div className={styles.reactionPicker}>
+                {reactionOptions.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={styles.emojiButton}
+                    onClick={(event) => handleReactionClick(event, emoji)}
+                    aria-label={`Реакция ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+      {reactionGroups.length > 0 ? (
+        <div className={styles.messageReactions}>
+          {reactionGroups.map((reaction) => (
+            <button
+              key={reaction.emoji}
+              type="button"
+              className={`${styles.reactionBadge} ${reaction.reactedByMe ? styles.reactionBadgeActive : ""}`}
+              onClick={(event) => handleReactionClick(event, reaction.emoji)}
+              aria-label={`Реакция ${reaction.emoji} (${reaction.count})`}
+            >
+              {reaction.emoji}
+              <span>{reaction.count}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {isOwnMessage && showReadReceipt ? (
+        <div className={styles.readReceiptRow} aria-label={readReceiptLabel}>
+          <AvatarWithFallback
+            src={readReceiptAvatarSrc}
+            initials="•"
+            colorSeed={message.id}
+            width={12}
+            height={12}
+            imageClassName={styles.readReceiptAvatarImg}
+            fallbackClassName={styles.readReceiptAvatarFallback}
+            fallbackTag="span"
+            fallbackTint="onError"
+          />
+          <span className={styles.readReceiptText}>{readReceiptLabel}</span>
+        </div>
+      ) : null}
     </>
   )
 

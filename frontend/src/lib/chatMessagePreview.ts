@@ -1,4 +1,5 @@
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
+import { parseStickerMessagePayload } from "@/lib/stickerMessage"
 
 export type ChatMessagePreviewInput = {
   content: string
@@ -16,6 +17,9 @@ export function chatMessagePreview(m: ChatMessagePreviewInput): string {
     return "Фото"
   }
   const t = (m.content ?? "").trim()
+  if (parseStickerMessagePayload(t)) {
+    return "Стикер"
+  }
   if (parseVoiceMessageUrl(t)) {
     return "Голосовое сообщение"
   }

@@ -8,6 +8,8 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import { GLOBAL_ROOM_ID } from "@/lib/chatRooms"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { canSeeVerseNotesNav } from "@/lib/verseNotesNav"
+import { getAuthToken } from "@/lib/auth"
 
 export type ChatListItem = {
   id: string
@@ -43,13 +45,15 @@ type ChatListProps = {
   onCreateChat?: (targetUserId: string) => void
   chatCandidates?: ChatCreateCandidate[]
   onDeleteChat?: (listItemId: string) => void
+  onPrefetchChat?: (listItemId: string) => void
 }
 
-const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: ChatListProps) => {
+const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPrefetchChat }: ChatListProps) => {
   const list: ChatListItem[] = items
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [verseNotesVisible, setVerseNotesVisible] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
 
@@ -114,6 +118,36 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [isUserPickerOpen])
+
+  useEffect(() => {
+    const refreshVerseNotesVisibility = async () => {
+      const token = getAuthToken()
+      const API_URL = process.env.NEXT_PUBLIC_API_URL
+      if (!token || !API_URL) {
+        setVerseNotesVisible(false)
+        return
+      }
+      try {
+        const response = await fetch(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if (!response.ok) {
+          setVerseNotesVisible(false)
+          return
+        }
+        const data = (await response.json()) as { username?: string }
+        setVerseNotesVisible(canSeeVerseNotesNav(data?.username))
+      } catch {
+        setVerseNotesVisible(false)
+      }
+    }
+
+    void refreshVerseNotesVisibility()
+    window.addEventListener("focus", refreshVerseNotesVisibility)
+    return () => {
+      window.removeEventListener("focus", refreshVerseNotesVisibility)
+    }
+  }, [])
 
   useEffect(() => {
     if (!openMenuId) {
@@ -249,15 +283,27 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
       <div className={styles.chatListWrapper}>
         <div className={styles.header}>
           <h2>ChristApp</h2>
-          <button
-            className={styles.newChatButton}
-            onClick={openUserPicker}
-            type="button"
-            aria-label="Создать новый чат"
-            title="Новый чат"
-          >
-            <Image src="/icon-newChat.svg" alt="New Chat" width={24} height={24} className={styles.newChatIcon} />
-          </button>
+          <div className={styles.headerActions}>
+            <Link
+              href="/verse-notes"
+              className={`${styles.verseNotesButton} ${!verseNotesVisible ? styles.headerActionHidden : ""}`}
+              aria-label="Заметки по стихам"
+              title="Заметки по стихам"
+              aria-hidden={!verseNotesVisible}
+              tabIndex={verseNotesVisible ? 0 : -1}
+            >
+              <Image src="/icon-verse-notes.svg" alt="" width={22} height={22} className={styles.newChatIcon} />
+            </Link>
+            <button
+              className={styles.newChatButton}
+              onClick={openUserPicker}
+              type="button"
+              aria-label="Создать новый чат"
+              title="Новый чат"
+            >
+              <Image src="/icon-newChat.svg" alt="New Chat" width={24} height={24} className={styles.newChatIcon} />
+            </button>
+          </div>
         </div>
         <div className={styles.searchBar}>{renderSearchField("chat-list-search")}</div>
 
@@ -325,7 +371,13 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat }: Ch
 
                 const linkOrStatic =
                   chat.href != null && chat.href !== "" ? (
-                    <Link href={chat.href} className={styles.chatItemMainLink}>
+                    <Link
+                      href={chat.href}
+                      className={styles.chatItemMainLink}
+                      onMouseEnter={() => onPrefetchChat?.(chat.id)}
+                      onFocus={() => onPrefetchChat?.(chat.id)}
+                      onTouchStart={() => onPrefetchChat?.(chat.id)}
+                    >
                       {mainInner}
                     </Link>
                   ) : (

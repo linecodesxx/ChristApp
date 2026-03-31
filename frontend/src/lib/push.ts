@@ -105,6 +105,14 @@ export async function fetchUnreadSummary(token: string): Promise<UnreadSummaryRe
   }
 }
 
+export async function fetchUnreadSummaryOrThrow(token: string): Promise<UnreadSummaryResponse> {
+  const summary = await fetchUnreadSummary(token)
+  if (!summary) {
+    throw new Error("Не удалось получить unread-summary")
+  }
+  return summary
+}
+
 export function getPushSyncErrorMessage(reason: PushSyncFailureReason) {
   switch (reason) {
     case 'unsupported':

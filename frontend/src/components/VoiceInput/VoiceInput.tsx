@@ -9,6 +9,7 @@ type VoiceInputProps = {
   disabled?: boolean
   /** Встроено в одну строку с полем ввода (без отдельной карточки) */
   embedded?: boolean
+  onRecordingActivity?: (active: boolean) => void
 }
 
 /** Лимит записи: 1 минута */
@@ -170,7 +171,12 @@ function RecordingWaveform({ stream }: RecordingWaveformProps) {
   )
 }
 
-export default function VoiceInput({ onSend, disabled = false, embedded = false }: VoiceInputProps) {
+export default function VoiceInput({
+  onSend,
+  disabled = false,
+  embedded = false,
+  onRecordingActivity,
+}: VoiceInputProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [seconds, setSeconds] = useState(0)
   const [micError, setMicError] = useState<string | null>(null)
@@ -183,8 +189,12 @@ export default function VoiceInput({ onSend, disabled = false, embedded = false 
   const tickRef = useRef<number | null>(null)
   const disabledRef = useRef(disabled)
   const onSendRef = useRef(onSend)
-  disabledRef.current = disabled
-  onSendRef.current = onSend
+  const onRecordingActivityRef = useRef(onRecordingActivity)
+  useEffect(() => {
+    disabledRef.current = disabled
+    onSendRef.current = onSend
+    onRecordingActivityRef.current = onRecordingActivity
+  }, [disabled, onSend, onRecordingActivity])
 
   const clearTimers = useCallback(() => {
     if (maxTimerRef.current) {
@@ -208,6 +218,7 @@ export default function VoiceInput({ onSend, disabled = false, embedded = false 
     mediaRecorderRef.current = null
     clearTimers()
     setIsRecording(false)
+    onRecordingActivityRef.current?.(false)
     setSeconds(0)
     setRecordingStream(null)
 
@@ -285,6 +296,7 @@ export default function VoiceInput({ onSend, disabled = false, embedded = false 
       mediaRecorderRef.current = recorder
       recorder.start(200)
       setIsRecording(true)
+      onRecordingActivityRef.current?.(true)
       setSeconds(0)
 
       tickRef.current = window.setInterval(() => {
@@ -304,6 +316,7 @@ export default function VoiceInput({ onSend, disabled = false, embedded = false 
     const mr = mediaRecorderRef.current
     clearTimers()
     setIsRecording(false)
+    onRecordingActivityRef.current?.(false)
     setSeconds(0)
     setRecordingStream(null)
 
