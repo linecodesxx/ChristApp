@@ -199,6 +199,7 @@ type NewMessageSocketEvent = {
 type DirectRoomOpenedSocketEvent = {
   roomId: string
   targetUserId?: string
+  targetUsername?: string
 }
 
 type OnlineUsersSocketPayload = {
