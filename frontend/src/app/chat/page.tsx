@@ -199,6 +199,7 @@ type NewMessageSocketEvent = {
 type DirectRoomOpenedSocketEvent = {
   roomId: string
   targetUserId?: string
+  targetUsername?: string
 }
 
 type OnlineUsersSocketPayload = {
@@ -304,7 +305,6 @@ export default function ChatPage() {
   const queryClient = useQueryClient()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const [hasReceivedMyRooms, setHasReceivedMyRooms] = useState(false)
-  const [hasUnresolvedDirectNames, setHasUnresolvedDirectNames] = useState(true)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
   // Эти refs нужны socket listeners, чтобы всегда читать актуальное состояние между рендерами.
   const roomsRef = useRef<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
@@ -509,14 +509,6 @@ export default function ChatPage() {
   }, [rooms])
 
   useEffect(() => {
-    if (!hasReceivedMyRooms) return
-    const hasFallbackDirectTitles = rooms.some(
-      (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
-    )
-    setHasUnresolvedDirectNames((prev) => (prev === hasFallbackDirectTitles ? prev : hasFallbackDirectTitles))
-  }, [hasReceivedMyRooms, rooms])
-
-  useEffect(() => {
     if (!chatListRuntimeCache) {
       return
     }
@@ -539,10 +531,6 @@ export default function ChatPage() {
     setRooms(chatListRuntimeCache.rooms.length ? chatListRuntimeCache.rooms : [BASE_GLOBAL_CHAT_ITEM])
     if (chatListRuntimeCache.rooms.length > 0) {
       setHasReceivedMyRooms(true)
-      const hasFallbackDirectTitles = chatListRuntimeCache.rooms.some(
-        (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
-      )
-      setHasUnresolvedDirectNames(hasFallbackDirectTitles)
     }
   }, [])
 
@@ -656,12 +644,6 @@ export default function ChatPage() {
 
       return hasUpdates ? nextRooms : prev
     })
-    setHasUnresolvedDirectNames((prev) => {
-      const hasFallbackDirectTitles = roomsRef.current.some(
-        (room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID && room.titleLoading,
-      )
-      return prev === hasFallbackDirectTitles ? prev : hasFallbackDirectTitles
-    })
   }, [requestMyRooms, socket, users])
 
   useEffect(() => {
@@ -715,7 +697,6 @@ export default function ChatPage() {
 
       const directChatsByUserId = new Map<string, ChatListItem>()
       let shareWithJesusRoom: ChatListItem | undefined
-      let unresolvedDirectNamesFound = false
 
       const resolvedCurrentUserId = user?.id ?? currentUserIdRef.current
 
@@ -738,9 +719,6 @@ export default function ChatPage() {
           const directTitle = targetUser?.nickname ?? targetUser?.username ?? directPeer?.nickname ?? directPeer?.username ?? ""
           const resolvedAvatarUrl = targetUser?.avatarUrl ?? directPeer?.avatarUrl
           const titleLoading = !targetUser && !directPeer
-          if (!targetUser && !directPeer) {
-            unresolvedDirectNamesFound = true
-          }
 
           nextRoomToUser.set(room.id, targetUserId)
           nextUserToRoom.set(targetUserId, room.id)
@@ -772,7 +750,6 @@ export default function ChatPage() {
           ...Array.from(directChatsByUserId.values()),
         ]),
       )
-      setHasUnresolvedDirectNames(unresolvedDirectNamesFound)
       void refreshUnreadSummary()
     }
     socket.on("myRooms", onMyRooms)
