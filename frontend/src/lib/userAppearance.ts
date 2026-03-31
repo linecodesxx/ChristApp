@@ -1,6 +1,6 @@
 /** Примеры из настроек (можно сохранить в профиле). */
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF"
-export const SUGGESTED_THEME_BACKGROUND = "#99D0EE"
+export const SUGGESTED_THEME_BACKGROUND = "#2E2D2D"
 
 export const THEME_FONT_KEYS = ["inter", "pastah", "achiko", "bodoni-moda", "plus-jakarta-sans", "cinzel"] as const
 export type ThemeFontKey = (typeof THEME_FONT_KEYS)[number]

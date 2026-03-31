@@ -11,7 +11,6 @@ import { fetchUnreadSummary } from "@/lib/push"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
-import { canSeeVerseNotesNav } from "@/lib/verseNotesNav"
 
 const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
@@ -21,7 +20,6 @@ export default function TabBar() {
   const tabBarOverlay = useTabBarOverlayOptional()
   const narrowForChatComposer = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const [unreadCount, setUnreadCount] = useState(0)
-  const [verseNotesNavVisible, setVerseNotesNavVisible] = useState(false)
   const hiddenRoutes = ["/", "/register"]
   /** Список чатов — таб виден; открытая комната — таб скрыт, больше места под переписку. */
   const hideOnActiveChatRoom = pathname.startsWith("/chat/")
@@ -42,34 +40,6 @@ export default function TabBar() {
     setUnreadCount(Number(unreadSummary?.totalUnread ?? 0))
   }, [])
 
-  const refreshVerseNotesNavVisibility = useCallback(async () => {
-    const token = getAuthToken()
-    if (!token) {
-      setVerseNotesNavVisible(false)
-      return
-    }
-
-    const API_URL = process.env.NEXT_PUBLIC_API_URL
-    if (!API_URL) {
-      setVerseNotesNavVisible(false)
-      return
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-      if (!res.ok) {
-        setVerseNotesNavVisible(false)
-        return
-      }
-      const data = (await res.json()) as { username?: string }
-      setVerseNotesNavVisible(canSeeVerseNotesNav(data?.username))
-    } catch {
-      setVerseNotesNavVisible(false)
-    }
-  }, [])
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       void refreshUnreadCount()
@@ -79,18 +49,6 @@ export default function TabBar() {
       window.clearTimeout(timeoutId)
     }
   }, [pathname, refreshUnreadCount])
-
-  useEffect(() => {
-    void refreshVerseNotesNavVisibility()
-  }, [pathname, refreshVerseNotesNavVisibility])
-
-  useEffect(() => {
-    const onFocus = () => {
-      void refreshVerseNotesNavVisibility()
-    }
-    window.addEventListener("focus", onFocus)
-    return () => window.removeEventListener("focus", onFocus)
-  }, [refreshVerseNotesNavVisibility])
 
   useEffect(() => {
     let cancelled = false
@@ -165,13 +123,6 @@ export default function TabBar() {
           <Image src="/icon-bible.svg" alt="Библия" width={24} height={24} />
         </span>
       </Link>
-      {verseNotesNavVisible ? (
-        <Link className={styles.tabLink} href="/verse-notes">
-          <span className={`${styles.iconWrap} ${isRouteActive("/verse-notes") ? styles.activeIcon : ""}`}>
-            <Image src="/icon-verse-notes.svg" alt="Заметки по стихам" width={24} height={24} />
-          </span>
-        </Link>
-      ) : null}
       <Link className={styles.tabLink} href="/chat">
         <span className={`${styles.iconWrap} ${isRouteActive("/chat") ? styles.activeIcon : ""}`}>
           <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} loading="eager" />

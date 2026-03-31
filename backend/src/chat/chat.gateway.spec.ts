@@ -201,6 +201,7 @@ describe('ChatGateway', () => {
       senderId: 'u1',
       createdAt: savedMessage.createdAt,
       roomId: 'room-1',
+      reactions: [],
     });
 
     expect(pushService.sendChatMessagePush).toHaveBeenCalledWith({

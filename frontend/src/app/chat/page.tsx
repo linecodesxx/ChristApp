@@ -1,12 +1,16 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import ChatList, { type ChatCreateCandidate, type ChatListItem } from "@/components/ChatList/ChatList"
 import { getInitials } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
-import { fetchUnreadSummary, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
+import { fetchUnreadSummaryOrThrow, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
+import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
+import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
+import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
@@ -18,7 +22,6 @@ import {
   GLOBAL_ROOM_SLUG,
   SHARE_WITH_JESUS_CHAT_ID,
   SHARE_WITH_JESUS_CHAT_TITLE,
-  SHARE_WITH_JESUS_ROOM_PREFIX,
   SHARE_WITH_JESUS_SLUG,
   getDirectTargetUserId,
   isShareWithJesusRoomTitle,
@@ -284,6 +287,7 @@ function formatRoomPreviewFromLastMessage(
 export default function ChatPage() {
   const { user, users } = useAuth()
   const { socket } = usePresenceSocket()
+  const queryClient = useQueryClient()
   const [rooms, setRooms] = useState<ChatListItem[]>([BASE_GLOBAL_CHAT_ITEM])
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
   // Эти refs нужны socket listeners, чтобы всегда читать актуальное состояние между рендерами.
@@ -298,9 +302,6 @@ export default function ChatPage() {
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
   const router = useRouter()
-
-  /** На каждом рендере — чтобы обработчик `myRooms` не читал устаревший пустой список до useEffect. */
-  usersRef.current = users
 
   const activeRoomIdPath = pathname?.startsWith("/chat/") ? pathname.replace("/chat/", "") : null
   const activeRoomId =
@@ -413,14 +414,29 @@ export default function ChatPage() {
     if (!token) {
       return
     }
+    await queryClient.invalidateQueries({
+      queryKey: ["push", "unread-summary", user?.id ?? "anonymous"],
+    })
+  }, [queryClient, user?.id])
 
-    const unreadSummary = await fetchUnreadSummary(token)
-    if (!unreadSummary) {
-      return
+  const unreadSummaryQuery = useQuery({
+    queryKey: ["push", "unread-summary", user?.id ?? "anonymous"],
+    enabled: Boolean(user?.id),
+    queryFn: async () => {
+      const token = getAuthToken()
+      if (!token) {
+        throw new Error("Нет токена авторизации")
+      }
+      return fetchUnreadSummaryOrThrow(token)
+    },
+    staleTime: 20_000,
+  })
+
+  useEffect(() => {
+    if (unreadSummaryQuery.data) {
+      applyUnreadSummary(unreadSummaryQuery.data)
     }
-
-    applyUnreadSummary(unreadSummary)
-  }, [applyUnreadSummary])
+  }, [applyUnreadSummary, unreadSummaryQuery.data])
 
   const usersById = useMemo(() => {
     return new Map(users.map((existingUser) => [existingUser.id, existingUser]))
@@ -628,6 +644,7 @@ export default function ChatPage() {
 
     const onMyRooms = (data: { rooms: RoomSocketItem[] }) => {
       const socketRooms = data.rooms ?? []
+      queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), socketRooms)
       const previousRooms = roomsRef.current
 
       if (!socketRooms.length) {
@@ -928,7 +945,7 @@ export default function ChatPage() {
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("removeSelfFromRoomResult", onRemoveSelfFromRoomResult)
     }
-  }, [refreshUnreadSummary, router, socket, syncOnlinePresence, user?.id, user?.username])
+  }, [queryClient, refreshUnreadSummary, router, socket, syncOnlinePresence, user?.id, user?.username])
 
   const handleCreateChat = useCallback(
     (targetUserId: string) => {
@@ -965,6 +982,7 @@ export default function ChatPage() {
         }),
       )
 
+      router.push(`/chat/${targetUser.id}`)
       socket.emit("openDirectRoom", { targetUserId: targetUser.id })
     },
     [router, socket, user, usersById],
@@ -987,6 +1005,32 @@ export default function ChatPage() {
       socket.emit("removeSelfFromRoom", { roomId: serverRoomId })
     },
     [socket],
+  )
+
+  const handlePrefetchChat = useCallback(
+    (listItemId: string) => {
+      const token = getAuthToken()
+      if (!token) return
+
+      const roomId =
+        listItemId === GLOBAL_ROOM_ID
+          ? GLOBAL_ROOM_ID
+          : directUserIdToRoomIdRef.current.get(listItemId)
+      if (!roomId) return
+
+      void queryClient.prefetchQuery({
+        queryKey: chatRoomHistoryQueryKey(roomId),
+        queryFn: () =>
+          fetchRoomMessagesOrThrow({
+            token,
+            roomId,
+            limit: 250,
+            skip: 0,
+          }),
+        staleTime: 20_000,
+      })
+    },
+    [queryClient],
   )
 
   const chatItems = useMemo(() => {
@@ -1014,6 +1058,7 @@ export default function ChatPage() {
       onCreateChat={handleCreateChat}
       chatCandidates={chatCreateCandidates}
       onDeleteChat={handleDeleteChat}
+      onPrefetchChat={handlePrefetchChat}
     />
   )
 }

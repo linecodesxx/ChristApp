@@ -7,6 +7,7 @@ import styles from "./WelcomeJesusOverlay.module.scss"
 const STORAGE_KEY = "christapp-welcome-jesus-shown"
 /** Показ только после логина: таймер стартует после успешного `/auth/me`, не с загрузки гостевой страницы. */
 const WELCOME_OVERLAY_DELAY_MS = 30_000
+const AUTO_DISMISS_MS = 10_000
 
 type MeUser = {
   username?: string
@@ -151,6 +152,16 @@ export default function WelcomeJesusOverlay() {
     return () => window.removeEventListener("keydown", onKey)
   }, [open, dismiss])
 
+  useEffect(() => {
+    if (!open) {
+      return
+    }
+    const timerId = window.setTimeout(() => {
+      dismiss()
+    }, AUTO_DISMISS_MS)
+    return () => window.clearTimeout(timerId)
+  }, [open, dismiss])
+
   if (!open || !displayUser) {
     return null
   }
@@ -161,20 +172,14 @@ export default function WelcomeJesusOverlay() {
     "друг"
 
   return (
-    <div
-      className={styles.overlay}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="welcome-jesus-title"
-      onClick={dismiss}
-    >
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.toast} role="status" aria-live="polite" aria-label="Приветствие">
+      <div className={styles.panel}>
         <button type="button" className={styles.closeButton} onClick={dismiss} aria-label="Закрыть">
           ×
         </button>
         <div className={styles.jesusWrap}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- large inline SVG asset */}
-          <img className={styles.jesusImg} src="/JesusText.svg" alt="" width={400} height={320} />
+          {/* eslint-disable-next-line @next/next/no-img-element -- inline SVG asset */}
+          <img className={styles.jesusImg} src="/JesusText.svg" alt="" width={160} height={128} />
         </div>
         <div className={styles.sign}>
           <p id="welcome-jesus-title" className={styles.signUsername}>

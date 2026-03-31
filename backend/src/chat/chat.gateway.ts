@@ -33,6 +33,12 @@ interface SocketWithUser extends Socket {
   };
 }
 
+type ReactionEventBody = {
+  messageId: string;
+  type: string;
+  chatId: string;
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -44,6 +50,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
+  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️']);
 
   constructor(
     private jwt: JwtService,
@@ -179,7 +186,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
 
       if (previousConnections === 0) {
-        this.server.emit('userPresenceChanged', { userId, isOnline: true });
+        this.server.emit('userPresenceChanged', { userId, isOnline: true, lastSeenAt: null });
       }
 
       // Рассылаем глобальный онлайн
@@ -232,7 +239,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         if (this.onlineUsers.get(userId) === 1) {
           this.onlineUsers.delete(userId);
-          this.server.emit('userPresenceChanged', { userId, isOnline: false });
+          this.server.emit('userPresenceChanged', {
+            userId,
+            isOnline: false,
+            lastSeenAt: new Date().toISOString(),
+          });
           this.emitOnlinePresence();
         }
       }, ChatGateway.DISCONNECT_GRACE_MS);
@@ -285,7 +296,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       );
 
       // Комната открыта у пользователя: считаем текущий срез прочитанным.
-      await this.messagesService.markRoomAsRead(roomId, user.id, new Date());
+      const readAt = new Date();
+      await this.messagesService.markRoomAsRead(roomId, user.id, readAt);
+      client.to(roomId).emit('roomReadUpdated', {
+        roomId,
+        userId: user.id,
+        lastReadAt: readAt.toISOString(),
+      });
 
       client.emit('roomHistory', {
         roomId,
@@ -330,12 +347,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    await this.messagesService.markRoomAsRead(roomId, user.id, new Date());
+    const readAt = new Date();
+    await this.messagesService.markRoomAsRead(roomId, user.id, readAt);
+    client.to(roomId).emit('roomReadUpdated', {
+      roomId,
+      userId: user.id,
+      lastReadAt: readAt.toISOString(),
+    });
   }
 
   @SubscribeMessage('roomTyping')
   async handleRoomTyping(
-    @MessageBody() body: { roomId: string; isTyping: boolean },
+    @MessageBody()
+    body: { roomId: string; isTyping: boolean; activity?: 'text' | 'voice' },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
@@ -353,6 +377,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       username: user.nickname || user.username,
       handle: user.username,
       isTyping: Boolean(body?.isTyping),
+      activity: body?.activity === 'voice' ? 'voice' : 'text',
     });
   }
 
@@ -861,6 +886,77 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('toggle-reaction')
+  async handleReaction(
+    @ConnectedSocket() client: SocketWithUser,
+    @MessageBody() data: ReactionEventBody,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('error', 'Не авторизован');
+      return;
+    }
+
+    const messageId = typeof data?.messageId === 'string' ? data.messageId.trim() : '';
+    const chatId = typeof data?.chatId === 'string' ? data.chatId.trim() : '';
+    const type = typeof data?.type === 'string' ? data.type.trim() : '';
+
+    if (!messageId || !chatId || !type) {
+      client.emit('error', 'messageId, chatId и type обязательны');
+      return;
+    }
+
+    if (!ChatGateway.ALLOWED_REACTIONS.has(type)) {
+      client.emit('error', 'Неподдерживаемая реакция');
+      return;
+    }
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, chatId);
+    if (!hasAccess) {
+      client.emit('error', 'Нет доступа');
+      return;
+    }
+
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, roomId: true },
+    });
+
+    if (!message || message.roomId !== chatId) {
+      client.emit('error', 'Сообщение не найдено');
+      return;
+    }
+
+    const existing = await this.prisma.reaction.findFirst({
+      where: { userId: user.id, messageId, type },
+      select: { id: true },
+    });
+
+    if (existing) {
+      await this.prisma.reaction.delete({ where: { id: existing.id } });
+    } else {
+      await this.prisma.reaction.create({
+        data: { userId: user.id, messageId, type },
+      });
+    }
+
+    const updatedReactions = await this.prisma.reaction.findMany({
+      where: { messageId },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        userId: true,
+        type: true,
+        createdAt: true,
+      },
+    });
+
+    this.server.to(chatId).emit('update-message-reactions', {
+      messageId,
+      reactions: updatedReactions,
+    });
+  }
+
   /**
    * После сохранения сообщения в БД: read receipt, сокет и push (как при sendMessage).
    */
@@ -892,6 +988,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       senderId: message.senderId,
       createdAt: message.createdAt,
       roomId,
+      reactions: [],
     });
 
     void this.pushService

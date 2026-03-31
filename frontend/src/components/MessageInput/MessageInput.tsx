@@ -8,6 +8,7 @@ import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
 import type { Message } from "@/types/message"
 import VoiceInput from "@/components/VoiceInput/VoiceInput"
+import StickerPicker, { type StickerItem } from "@/components/StickerPicker/StickerPicker"
 
 type ComposerMode = "text" | "voice"
 
@@ -26,6 +27,8 @@ type MessageInputProps = {
   onSendVoice?: (blob: Blob) => void | Promise<boolean>
   /** Картинка в чат (кнопка скрепки слева). */
   onSendImage?: (file: File) => void | Promise<boolean>
+  onSendSticker?: (sticker: StickerItem) => void | Promise<boolean>
+  onVoiceRecordingActivity?: (active: boolean) => void
 }
 
 const MAX_MESSAGE_LENGTH = 2000
@@ -40,6 +43,8 @@ export default function MessageInput({
   onTypingActivity,
   onSendVoice,
   onSendImage,
+  onSendSticker,
+  onVoiceRecordingActivity,
 }: MessageInputProps) {
   const tabBarOverlay = useTabBarOverlayOptional()
   const tabBarOverlayRef = useRef(tabBarOverlay)
@@ -47,8 +52,10 @@ export default function MessageInput({
   const [value, setValue] = useState("")
   const [isSending, setIsSending] = useState(false)
   const [mode, setMode] = useState<ComposerMode>("text")
+  const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const imageFileInputRef = useRef<HTMLInputElement | null>(null)
+  const stickerDockRef = useRef<HTMLDivElement | null>(null)
   const typingSentRef = useRef(false)
   const onTypingActivityRef = useRef(onTypingActivity)
   onTypingActivityRef.current = onTypingActivity
@@ -57,6 +64,7 @@ export default function MessageInput({
   const sendOnEnter = !narrowViewport
   const voiceEnabled = Boolean(onSendVoice)
   const imageEnabled = Boolean(onSendImage)
+  const stickerEnabled = Boolean(onSendSticker)
 
   useEffect(() => {
     return () => {
@@ -76,6 +84,7 @@ export default function MessageInput({
   useEffect(() => {
     if (disabled) {
       setMode("text")
+      setIsStickerPickerOpen(false)
     }
   }, [disabled])
 
@@ -84,6 +93,44 @@ export default function MessageInput({
       setMode("text")
     }
   }, [voiceEnabled])
+
+  useEffect(() => {
+    if (mode === "voice") {
+      setIsStickerPickerOpen(false)
+    }
+  }, [mode])
+
+  useEffect(() => {
+    if (!onVoiceRecordingActivity) {
+      return
+    }
+    onVoiceRecordingActivity(mode === "voice")
+    return () => {
+      onVoiceRecordingActivity(false)
+    }
+  }, [mode, onVoiceRecordingActivity])
+
+  useEffect(() => {
+    if (!isStickerPickerOpen) {
+      return
+    }
+
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null
+      if (!target) return
+      if (stickerDockRef.current?.contains(target)) {
+        return
+      }
+      setIsStickerPickerOpen(false)
+    }
+
+    document.addEventListener("mousedown", handlePointerDownOutside)
+    document.addEventListener("touchstart", handlePointerDownOutside)
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside)
+      document.removeEventListener("touchstart", handlePointerDownOutside)
+    }
+  }, [isStickerPickerOpen])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -171,6 +218,18 @@ export default function MessageInput({
     }
   }
 
+  const handleStickerSelect = async (sticker: StickerItem) => {
+    if (!onSendSticker || disabled) return
+    try {
+      const result = await Promise.resolve(onSendSticker(sticker))
+      if (result !== false) {
+        setIsStickerPickerOpen(false)
+      }
+    } catch {
+      // ошибку показываем снаружи
+    }
+  }
+
   const replyText = replyToMessage
     ? chatMessagePreview({
         content: replyToMessage.content,
@@ -206,7 +265,8 @@ export default function MessageInput({
         </div>
       ) : null}
 
-      <div className={messageRowClass}>
+      <div className={styles.composerRow}>
+        <div className={messageRowClass}>
         <input
           ref={imageFileInputRef}
           type="file"
@@ -224,11 +284,16 @@ export default function MessageInput({
           disabled={disabled || mode === "voice" || !imageEnabled}
           onClick={() => imageFileInputRef.current?.click()}
         >
-          <Image src="/icon-attachment.svg" alt="" width={24} height={24} className={styles.attachmentButton} />
+          <Image src="/icon-attachment.svg" alt="" width={20} height={20} className={styles.iconGraphic} />
         </button>
 
         {mode === "voice" && voiceEnabled ? (
-          <VoiceInput embedded onSend={handleVoiceComplete} disabled={disabled} />
+          <VoiceInput
+            embedded
+            onSend={handleVoiceComplete}
+            disabled={disabled}
+            onRecordingActivity={onVoiceRecordingActivity}
+          />
         ) : (
           <textarea
             ref={textareaRef}
@@ -271,13 +336,7 @@ export default function MessageInput({
             onClick={backToTextMode}
             disabled={disabled}
           >
-            <Image
-              src="/icon-keyboard.svg"
-              alt=""
-              width={26}
-              height={26}
-              className={styles.keyboardButton}
-            />
+            <Image src="/icon-msg.svg" alt="" width={20} height={20} className={styles.iconGraphic} />
           </button>
         ) : hasText ? (
           <button
@@ -287,7 +346,7 @@ export default function MessageInput({
             onClick={() => void submit()}
             disabled={disabled || isSending}
           >
-            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={22} height={22} />
+            <Image src="/icon-send.svg" className={styles.iconGraphic} alt="" width={20} height={20} />
           </button>
         ) : voiceEnabled ? (
           <button
@@ -298,7 +357,7 @@ export default function MessageInput({
             onClick={openVoiceMode}
             disabled={disabled}
           >
-            <Image src="/icon-micro.svg" alt="" width={34} height={34} className={styles.microButton} />
+            <Image src="/icon-micro.svg" alt="" width={40} height={40} className={styles.microIconGraphic} />
           </button>
         ) : (
           <button
@@ -308,9 +367,35 @@ export default function MessageInput({
             onClick={() => void submit()}
             disabled={disabled || !hasText || isSending}
           >
-            <Image src="/icon-send.svg" className={styles.sendButton} alt="" width={22} height={22} />
+            <Image src="/icon-send.svg" className={styles.iconGraphic} alt="" width={20} height={20} />
           </button>
         )}
+        </div>
+        {stickerEnabled ? (
+          <div className={styles.stickerDock} ref={stickerDockRef}>
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="Открыть стикеры"
+              title="Стикеры"
+              onClick={() => setIsStickerPickerOpen((prev) => !prev)}
+              disabled={disabled || mode === "voice"}
+            >
+              <Image
+                src="/stickers/icon-stick.png"
+                alt=""
+                width={24}
+                height={24}
+                className={styles.stickerIconGraphic}
+              />
+            </button>
+            {isStickerPickerOpen ? (
+              <div className={styles.stickerPickerWrap}>
+                <StickerPicker onSelect={(sticker) => void handleStickerSelect(sticker)} />
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </div>
   )

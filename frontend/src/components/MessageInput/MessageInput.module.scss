@@ -5,6 +5,14 @@
   flex-shrink: 0;
 }
 
+.composerRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  position: relative;
+  width: 100%;
+}
+
 .visuallyHidden {
   position: absolute;
   width: 1px;
@@ -75,6 +83,8 @@
 
 .message {
   display: flex;
+  flex: 1;
+  min-width: 0;
   justify-content: flex-start;
   align-items: center;
   position: relative;
@@ -89,36 +99,11 @@
   box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
 
   &.messageVoice {
-    align-items: stretch;
+    align-items: center;
     max-height: none;
     min-height: auto;
     padding-top: 12px;
     padding-bottom: 12px;
-  }
-
-  .iconButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 42px;
-    padding: 0;
-    border: 0;
-    border-radius: 9999px;
-    background: transparent;
-    color: inherit;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background-color 0.2s ease;
-
-    &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--foreground) 10%, transparent);
-    }
-
-    &:disabled {
-      cursor: not-allowed;
-      opacity: 0.72;
-    }
   }
 
   .input {
@@ -143,20 +128,68 @@
     }
   }
 
-  .sendButton,
-  .attachmentButton,
-  .microButton,
-  .keyboardButton {
-    display: block;
+}
+
+.iconButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background-color 0.2s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--foreground) 10%, transparent);
   }
 
-  .attachmentButton,
-  .sendButton,
-  .microButton,
-  .keyboardButton {
-    filter: brightness(0) saturate(100%) invert(16%);
-    transition: filter 0.25s ease;
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.72;
   }
+}
+
+.iconGraphic {
+  display: block;
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%) invert(16%);
+  transition: filter 0.25s ease;
+}
+
+.microIconGraphic {
+  display: block;
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  filter: brightness(0) saturate(100%) invert(16%);
+  transition: filter 0.25s ease;
+}
+
+.stickerIconGraphic {
+  display: block;
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  filter: none !important;
+}
+
+.stickerDock {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.stickerPickerWrap {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 20;
 }
 
 html[data-theme="dark"] .message {
@@ -171,17 +204,23 @@ html[data-theme="dark"] .message {
     }
   }
 
-  .attachmentButton,
-  .sendButton,
-  .microButton,
-  .keyboardButton {
-    filter: brightness(0) saturate(100%) invert(100%);
-  }
+}
 
-  .iconButton {
-    &:hover:not(:disabled) {
-      background: color-mix(in srgb, var(--foreground) 16%, transparent);
-    }
+html[data-theme="dark"] .iconGraphic {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+html[data-theme="dark"] .microIconGraphic {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+html[data-theme="dark"] .stickerIconGraphic {
+  filter: none !important;
+}
+
+html[data-theme="dark"] .iconButton {
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--foreground) 16%, transparent);
   }
 }
 

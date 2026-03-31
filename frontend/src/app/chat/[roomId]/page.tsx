@@ -1,11 +1,11 @@
 "use client"
 
 import ChatWindow from "@/components/ChatWindow/ChatWindow"
-import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import styles from "./chatRoom.module.scss"
 import MessageInput from "@/components/MessageInput/MessageInput"
-import { isMessageFromCurrentUser, type Message, type MessageReply } from "@/types/message"
+import { isMessageFromCurrentUser, type AppReactionType, type Message, type MessageReply } from "@/types/message"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { io, type Socket } from "socket.io-client"
 import { useParams, useRouter } from "next/navigation"
 import { getInitials } from "@/lib/utils"
@@ -25,6 +25,11 @@ import {
   SHARE_WITH_JESUS_SLUG,
 } from "@/lib/chatRooms"
 import { chatMessagePreview } from "@/lib/chatMessagePreview"
+import { buildStickerMessagePayload } from "@/lib/stickerMessage"
+import { type StickerItem } from "@/components/StickerPicker/StickerPicker"
+import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
+import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
+import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 
 const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
 const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
@@ -50,6 +55,12 @@ type IncomingSocketMessage = {
     username?: string
     nickname?: string
   }
+  reactions?: Array<{
+    id?: string
+    userId?: string
+    type?: string
+    createdAt?: string | Date
+  }>
 }
 
 type MyRoomItem = {
@@ -78,6 +89,7 @@ type OnlineUsersPayload = {
 type UserPresencePayload = {
   userId: string
   isOnline: boolean
+  lastSeenAt?: string | null
 }
 
 type MessageDeletedSocketEvent = {
@@ -97,6 +109,16 @@ type ShareWithJesusRoomIdResolvedPayload = {
   roomId?: string
   roomTitle?: string
   error?: string
+}
+
+type UpdateMessageReactionsPayload = {
+  messageId?: string
+  reactions?: Array<{
+    id?: string
+    userId?: string
+    type?: string
+    createdAt?: string | Date
+  }>
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -243,6 +265,18 @@ function normalizeIncomingMessage(
       ? raw.type
       : undefined
   const fileUrl = raw?.fileUrl?.trim() ? raw.fileUrl.trim() : undefined
+  const reactions = (raw?.reactions ?? [])
+    .map((reaction) => {
+      if (!reaction?.id || !reaction.userId) return null
+      if (reaction.type !== "🤍" && reaction.type !== "😂" && reaction.type !== "❤️") return null
+      return {
+        id: String(reaction.id),
+        userId: String(reaction.userId),
+        type: reaction.type as AppReactionType,
+        createdAt: String(reaction.createdAt ?? new Date().toISOString()),
+      }
+    })
+    .filter(Boolean) as Message["reactions"]
 
   const legacyMe =
     Boolean(currentUsername) &&
@@ -261,6 +295,7 @@ function normalizeIncomingMessage(
     senderId,
     sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
+    reactions,
   }
 }
 
@@ -288,8 +323,22 @@ function getReadableRoomTitle(
   return rawTitle
 }
 
+function findDirectRoomByUserId(
+  rooms: MyRoomItem[],
+  currentUserId: string | undefined,
+  targetUserId: string,
+) {
+  if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
+    return undefined
+  }
+  const [idA, idB] = [currentUserId, targetUserId].sort()
+  const dmTitle = `dm:${idA}:${idB}`
+  return rooms.find((room) => room.title === dmTitle)
+}
+
 export default function ChatPageDetails() {
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
+  const queryClient = useQueryClient()
   // Runtime refs нужны для socket callbacks, чтобы избежать stale state внутри listeners.
   const socketRef = useRef<Socket | null>(null)
   const usersRef = useRef(users)
@@ -311,9 +360,15 @@ export default function ChatPageDetails() {
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null)
   const [onlineCount, setOnlineCount] = useState(0)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
-  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(() => new Map())
+  const [lastSeenByUserId, setLastSeenByUserId] = useState<Map<string, string>>(() => new Map())
+  const [nowTs, setNowTs] = useState(() => Date.now())
+  const [typingUsers, setTypingUsers] = useState<Map<string, { username: string; activity: "text" | "voice" }>>(
+    () => new Map(),
+  )
+  const [peerLastReadAt, setPeerLastReadAt] = useState<string | null>(null)
   const userIdRef = useRef<string | undefined>(undefined)
-  const typingEmitRef = useRef(false)
+  const typingTextEmitRef = useRef(false)
+  const typingVoiceEmitRef = useRef(false)
 
   const params = useParams<{ roomId: string }>()
   const router = useRouter()
@@ -327,7 +382,9 @@ export default function ChatPageDetails() {
 
   const [resolvedShareJesusRoomId, setResolvedShareJesusRoomId] = useState<string | null>(null)
   const routeRoomIdRef = useRef(routeRoomId)
-  routeRoomIdRef.current = routeRoomId
+  useEffect(() => {
+    routeRoomIdRef.current = routeRoomId
+  }, [routeRoomId])
 
   const effectiveSocketRoomId = useMemo(() => {
     if (!routeRoomId) return null
@@ -335,6 +392,24 @@ export default function ChatPageDetails() {
     if (routeRoomId === SHARE_WITH_JESUS_SLUG) return resolvedShareJesusRoomId
     return routeRoomId
   }, [routeRoomId, resolvedShareJesusRoomId])
+
+  const roomHistoryQuery = useQuery({
+    queryKey: chatRoomHistoryQueryKey(effectiveSocketRoomId),
+    enabled: Boolean(user?.id && effectiveSocketRoomId),
+    queryFn: async () => {
+      const token = getAuthToken()
+      if (!token || !effectiveSocketRoomId) {
+        throw new Error("Нет токена или roomId")
+      }
+      return fetchRoomMessagesOrThrow({
+        token,
+        roomId: effectiveSocketRoomId,
+        limit: HISTORY_PAGE_SIZE,
+        skip: 0,
+      })
+    },
+    staleTime: 20_000,
+  })
 
   const markRoomAsRead = useCallback(() => {
     const target = effectiveSocketRoomId
@@ -355,9 +430,18 @@ export default function ChatPageDetails() {
     const socket = socketRef.current
     const joinedId = joinedRoomRef.current
     if (!socket?.connected || !joinedId) return
-    if (typingEmitRef.current === active) return
-    typingEmitRef.current = active
-    socket.emit("roomTyping", { roomId: joinedId, isTyping: active })
+    if (typingTextEmitRef.current === active) return
+    typingTextEmitRef.current = active
+    socket.emit("roomTyping", { roomId: joinedId, isTyping: active, activity: "text" })
+  }, [])
+
+  const handleVoiceRecordingActivity = useCallback((active: boolean) => {
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) return
+    if (typingVoiceEmitRef.current === active) return
+    typingVoiceEmitRef.current = active
+    socket.emit("roomTyping", { roomId: joinedId, isTyping: active, activity: "voice" })
   }, [])
 
   const joinRoom = useCallback((socket: Socket, targetRoomId: string, opts?: { skipLoadingSpinner?: boolean }) => {
@@ -379,9 +463,13 @@ export default function ChatPageDetails() {
       return
     }
 
-    if (typingEmitRef.current) {
-      typingEmitRef.current = false
-      socket.emit("roomTyping", { roomId: joinedRoomId, isTyping: false })
+    if (typingTextEmitRef.current) {
+      typingTextEmitRef.current = false
+      socket.emit("roomTyping", { roomId: joinedRoomId, isTyping: false, activity: "text" })
+    }
+    if (typingVoiceEmitRef.current) {
+      typingVoiceEmitRef.current = false
+      socket.emit("roomTyping", { roomId: joinedRoomId, isTyping: false, activity: "voice" })
     }
 
     socket.emit("leaveRoom", joinedRoomId)
@@ -414,9 +502,35 @@ export default function ChatPageDetails() {
   }, [roomId, routeRoomId, user])
 
   useEffect(() => {
+    if (!roomHistoryQuery.data || !effectiveSocketRoomId) {
+      return
+    }
+
+    const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(
+      roomHistoryQuery.data as IncomingSocketMessage[],
+      user?.username,
+    )
+
+    messageIdsRef.current = nextMessageIds
+    setMessages(uniqueHistory)
+    setIsHistoryLoading(false)
+    awaitingRoomHistoryRef.current = false
+  }, [effectiveSocketRoomId, roomHistoryQuery.data, user?.username])
+
+  useEffect(() => {
     setTypingUsers(new Map())
-    typingEmitRef.current = false
+    typingTextEmitRef.current = false
+    typingVoiceEmitRef.current = false
+    setPeerLastReadAt(null)
+    setLastSeenByUserId(new Map())
   }, [roomId, routeRoomId, effectiveSocketRoomId])
+
+  useEffect(() => {
+    const tickId = window.setInterval(() => {
+      setNowTs(Date.now())
+    }, 1000)
+    return () => window.clearInterval(tickId)
+  }, [])
 
   useEffect(() => {
     currentRoomRef.current = effectiveSocketRoomId ?? undefined
@@ -467,6 +581,18 @@ export default function ChatPageDetails() {
         joinRoom(socket, GLOBAL_ROOM_ID)
       }
 
+      const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(
+        chatMyRoomsQueryKey(user?.id),
+      )
+      if (cachedRooms?.length && rr && rr !== GLOBAL_ROOM_SLUG && rr !== SHARE_WITH_JESUS_SLUG) {
+        const directRoom = findDirectRoomByUserId(cachedRooms, user?.id, rr)
+        if (directRoom) {
+          joinRoom(socket, directRoom.id)
+          setRoomRawTitle(directRoom.title)
+          setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user?.id, usersRef.current))
+        }
+      }
+
       socket.emit("getMyRooms")
     }
     socket.on("connect", onConnect)
@@ -476,8 +602,10 @@ export default function ChatPageDetails() {
       setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
       setOnlineCount(0)
       setOnlineUserIds(new Set())
+      setLastSeenByUserId(new Map())
       setTypingUsers(new Map())
-      typingEmitRef.current = false
+      typingTextEmitRef.current = false
+      typingVoiceEmitRef.current = false
       joinedRoomRef.current = undefined
     }
     socket.on("disconnect", onDisconnect)
@@ -608,10 +736,12 @@ export default function ChatPageDetails() {
 
       setMessages(uniqueHistory)
       setIsHistoryLoading(false)
+      void queryClient.setQueryData(chatRoomHistoryQueryKey(historyRoomId), history)
     }
     socket.on("roomHistory", onRoomHistory)
 
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
+      queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), rooms)
       availableRoomIdsRef.current = new Set(rooms.map((room) => room.id))
 
       const rr = routeRoomIdRef.current
@@ -633,6 +763,9 @@ export default function ChatPageDetails() {
         roomForRoute = shareRoom
       } else if (rr) {
         roomForRoute = rooms.find((room) => room.id === rr)
+        if (!roomForRoute) {
+          roomForRoute = findDirectRoomByUserId(rooms, uid, rr)
+        }
       }
 
       if (roomForRoute?.title && rr !== SHARE_WITH_JESUS_SLUG && rr !== shareRoom?.id) {
@@ -719,6 +852,14 @@ export default function ChatPageDetails() {
         }
         return next
       })
+
+      if (!payload.isOnline && payload.lastSeenAt) {
+        setLastSeenByUserId((prev) => {
+          const next = new Map(prev)
+          next.set(payload.userId, payload.lastSeenAt as string)
+          return next
+        })
+      }
     }
     socket.on("userPresenceChanged", onUserPresenceChanged)
 
@@ -727,6 +868,7 @@ export default function ChatPageDetails() {
       userId?: string
       username?: string
       isTyping?: boolean
+      activity?: "text" | "voice"
     }) => {
       const joinedId = joinedRoomRef.current
       if (!joinedId || payload.roomId !== joinedId) return
@@ -737,7 +879,10 @@ export default function ChatPageDetails() {
         const uid = payload.userId
         if (!uid) return prev
         if (payload.isTyping && payload.username) {
-          next.set(uid, payload.username)
+          next.set(uid, {
+            username: payload.username,
+            activity: payload.activity === "voice" ? "voice" : "text",
+          })
         } else {
           next.delete(uid)
         }
@@ -745,6 +890,56 @@ export default function ChatPageDetails() {
       })
     }
     socket.on("userTyping", onUserTyping)
+
+    const onUserJoinedRoom = (payload: { roomId?: string; userId?: string }) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload.roomId !== joinedId) return
+      if (!payload.userId || payload.userId === userIdRef.current) return
+      setPeerLastReadAt(new Date().toISOString())
+    }
+    socket.on("userJoinedRoom", onUserJoinedRoom)
+
+    const onRoomReadUpdated = (payload: { roomId?: string; userId?: string; lastReadAt?: string }) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload.roomId !== joinedId) return
+      if (!payload.userId || payload.userId === userIdRef.current) return
+      if (!payload.lastReadAt) return
+      const nextLastReadAt = payload.lastReadAt
+      setPeerLastReadAt((prev) => {
+        if (!prev) return nextLastReadAt
+        return new Date(nextLastReadAt).getTime() >= new Date(prev).getTime() ? nextLastReadAt : prev
+      })
+    }
+    socket.on("roomReadUpdated", onRoomReadUpdated)
+
+    const onUpdateMessageReactions = (payload: UpdateMessageReactionsPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || !payload?.messageId) return
+      const normalizedReactions = (payload.reactions ?? [])
+        .map((reaction) => {
+          if (!reaction?.id || !reaction.userId) return null
+          if (reaction.type !== "🤍" && reaction.type !== "😂" && reaction.type !== "❤️") return null
+          return {
+            id: String(reaction.id),
+            userId: String(reaction.userId),
+            type: reaction.type as AppReactionType,
+            createdAt: String(reaction.createdAt ?? new Date().toISOString()),
+          }
+        })
+        .filter(Boolean) as NonNullable<Message["reactions"]>
+
+      setMessages((prev) =>
+        prev.map((messageItem) =>
+          messageItem.id === payload.messageId
+            ? {
+                ...messageItem,
+                reactions: normalizedReactions,
+              }
+            : messageItem,
+        ),
+      )
+    }
+    socket.on("update-message-reactions", onUpdateMessageReactions)
 
     const onInvitedToRoom = () => {
       socket.emit("getMyRooms")
@@ -767,11 +962,14 @@ export default function ChatPageDetails() {
       socket.off("onlineUsers", onOnlineUsers)
       socket.off("userPresenceChanged", onUserPresenceChanged)
       socket.off("userTyping", onUserTyping)
+      socket.off("userJoinedRoom", onUserJoinedRoom)
+      socket.off("roomReadUpdated", onRoomReadUpdated)
+      socket.off("update-message-reactions", onUpdateMessageReactions)
       leaveCurrentRoom(socket)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, router, user])
+  }, [joinRoom, leaveCurrentRoom, loading, queryClient, router, user])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
@@ -804,8 +1002,21 @@ export default function ChatPageDetails() {
       return
     }
 
+    const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(
+      chatMyRoomsQueryKey(user?.id),
+    )
+    if (cachedRooms?.length && user?.id) {
+      const directRoom = findDirectRoomByUserId(cachedRooms, user.id, routeRoomId)
+      if (directRoom) {
+        joinRoom(socket, directRoom.id)
+        setRoomRawTitle(directRoom.title)
+        setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user.id, usersRef.current))
+        return
+      }
+    }
+
     socket.emit("getMyRooms")
-  }, [routeRoomId, loading, joinRoom, leaveCurrentRoom])
+  }, [queryClient, routeRoomId, loading, joinRoom, leaveCurrentRoom, user?.id])
 
   // Быстрое подключение «Поделись с Иисусом» без ожидания `myRooms`.
   useEffect(() => {
@@ -914,12 +1125,34 @@ export default function ChatPageDetails() {
 
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
+  const directTargetLastSeenAt = directChatTargetUserId ? lastSeenByUserId.get(directChatTargetUserId) : undefined
+  const voiceRecordingStatusLine = (() => {
+    for (const value of typingUsers.values()) {
+      if (value.activity === "voice") {
+        return `${value.username} записывает голосовое`
+      }
+    }
+    return null
+  })()
+
+  const formatLastSeenAgo = (lastSeenIso: string | undefined) => {
+    if (!lastSeenIso) return "не в сети"
+    const diffMs = Math.max(0, nowTs - new Date(lastSeenIso).getTime())
+    const sec = Math.floor(diffMs / 1000)
+    if (sec < 60) return `был(а) в сети ${sec} сек назад`
+    const min = Math.floor(sec / 60)
+    if (min < 60) return `был(а) в сети ${min} мин назад`
+    const hours = Math.floor(min / 60)
+    return `был(а) в сети ${hours} ч назад`
+  }
 
   const statusLine =
     isHistoryLoading
       ? "Загрузка сообщений..."
       : !isSocketConnected
         ? "Подключение..."
+        : voiceRecordingStatusLine
+          ? voiceRecordingStatusLine
         : roomId === GLOBAL_ROOM_ID
           ? `${globalOnlineCount} пользователей онлайн`
           : routeRoomId === SHARE_WITH_JESUS_SLUG || roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
@@ -927,7 +1160,7 @@ export default function ChatPageDetails() {
             : directChatTargetUser
               ? isDirectTargetOnline
                 ? "онлайн"
-                : "не в сети"
+                : formatLastSeenAgo(directTargetLastSeenAt)
               : ""
 
   const headerPresenceClass =
@@ -941,7 +1174,26 @@ export default function ChatPageDetails() {
   const globalOnlineStatusHighlight =
     roomId === GLOBAL_ROOM_ID && !isHistoryLoading && isSocketConnected
 
-  const typingUsernames = useMemo(() => Array.from(typingUsers.values()), [typingUsers])
+  const typingStatuses = useMemo(() => Array.from(typingUsers.values()), [typingUsers])
+
+  const readReceiptMessageId = useMemo(() => {
+    const isEligibleDirectChat =
+      Boolean(directChatTargetUserId) && effectiveSocketRoomId !== GLOBAL_ROOM_ID && !isShareWithJesusView
+    if (!peerLastReadAt || !user || !isEligibleDirectChat) {
+      return null
+    }
+    const readTs = new Date(peerLastReadAt).getTime()
+    let lastOwnReadMessageId: string | null = null
+    for (const messageItem of messages) {
+      const isOwn = isMessageFromCurrentUser(messageItem, user)
+      if (!isOwn) continue
+      const messageTs = new Date(messageItem.createdAt).getTime()
+      if (messageTs <= readTs) {
+        lastOwnReadMessageId = messageItem.id
+      }
+    }
+    return lastOwnReadMessageId
+  }, [messages, peerLastReadAt, user, directChatTargetUserId, effectiveSocketRoomId, isShareWithJesusView])
 
   const handleReplyMessage = (message: Message) => {
     if (isMessageFromCurrentUser(message, user)) {
@@ -993,6 +1245,22 @@ export default function ChatPageDetails() {
       router.push(`/chat/${message.senderId}`)
     },
     [router, user?.id],
+  )
+
+  const handleToggleReaction = useCallback(
+    (message: Message, reaction: "🤍" | "😂" | "❤️") => {
+      const targetRoomId = effectiveSocketRoomId
+      const socket = socketRef.current
+      if (!socket || !socket.connected || !targetRoomId) {
+        return
+      }
+      socket.emit("toggle-reaction", {
+        messageId: message.id,
+        type: reaction,
+        chatId: targetRoomId,
+      })
+    },
+    [effectiveSocketRoomId],
   )
 
   async function handleSend(text: string, replyTarget?: Message | null) {
@@ -1162,6 +1430,41 @@ export default function ChatPageDetails() {
     [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId],
   )
 
+  const handleSendSticker = useCallback(
+    async (sticker: StickerItem): Promise<boolean> => {
+      const targetRoomId = effectiveSocketRoomId
+      const socket = socketRef.current
+      if (!socket || !targetRoomId) {
+        return false
+      }
+      if (!socket.connected) {
+        setSendNotice("Стикер не отправлен — ждём подключения к серверу.")
+        return false
+      }
+      if (routeRoomId === user?.id) {
+        return false
+      }
+      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+        socket.emit("getMyRooms")
+        return false
+      }
+      if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+          openingDirectRoomRef.current.add(routeRoomId)
+          socket.emit("openDirectRoom", { targetUserId: routeRoomId })
+        }
+        return false
+      }
+
+      const payload = buildStickerMessagePayload(sticker.id, sticker.path)
+      setSendNotice(null)
+      persistLastSentPreview(targetRoomId, "Стикер", directChatTargetUserId)
+      socket.emit("sendMessage", { roomId: targetRoomId, content: payload })
+      return true
+    },
+    [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId, directChatTargetUserId],
+  )
+
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
@@ -1195,7 +1498,26 @@ export default function ChatPageDetails() {
         <p className={styles.stateMessage}>{authError}</p>
       ) : isHistoryLoading ? (
         <div className={styles.messagesSkeleton}>
-          <CrossLoader label="Загрузка сообщений" variant="inline" />
+          <div className={styles.messagesSkeletonList} aria-hidden>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleWide}`} />
+            </div>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleMedium}`} />
+            </div>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleNarrow}`} />
+            </div>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleWide}`} />
+            </div>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleMedium}`} />
+            </div>
+            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
+              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleNarrow}`} />
+            </div>
+          </div>
         </div>
       ) : (
         <ChatWindow
@@ -1211,7 +1533,12 @@ export default function ChatPageDetails() {
           onDeleteMessage={handleDeleteOwnMessage}
           canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
           topBanner={shareJesusParchmentBanner}
-          typingUsernames={typingUsernames}
+          typingStatuses={typingStatuses}
+          readReceiptMessageId={readReceiptMessageId}
+          readReceiptAvatarSrc={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
+          readReceiptLabel="Просмотрено"
+          onToggleReaction={handleToggleReaction}
+          roomKey={effectiveSocketRoomId ?? routeRoomId}
         />
       )}
 
@@ -1226,6 +1553,7 @@ export default function ChatPageDetails() {
             : "Напиши сообщение…"
         }
         onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
+        onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
         onSendVoice={
           authError || routeRoomId === user?.id
             ? undefined
@@ -1235,6 +1563,11 @@ export default function ChatPageDetails() {
           authError || routeRoomId === user?.id
             ? undefined
             : handleSendImage
+        }
+        onSendSticker={
+          authError || routeRoomId === user?.id
+            ? undefined
+            : handleSendSticker
         }
       />
       {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
