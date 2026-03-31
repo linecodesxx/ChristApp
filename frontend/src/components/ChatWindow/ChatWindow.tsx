@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from "react"
+import { memo, useEffect, useRef, type ReactNode } from "react"
 import type { Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
 import MessageBubble from "@/components/MessageBubble/MessageBubble"
@@ -36,7 +36,7 @@ function formatTypingLine(statuses: Array<{ username: string; activity: "text" |
   return `${names.slice(0, -1).join(", ")} и ${names[names.length - 1]} печатают`
 }
 
-export default function ChatWindow({
+function ChatWindow({
   messages,
   currentUsername,
   currentUser,
@@ -120,3 +120,5 @@ export default function ChatWindow({
     </div>
   )
 }
+
+export default memo(ChatWindow)

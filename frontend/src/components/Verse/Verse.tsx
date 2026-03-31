@@ -294,6 +294,7 @@ function Verse({
 
   const showSelectionRing = isSelected && !selectedColor
   const showPainted = Boolean(selectedColor)
+  const selectedFromPreset = Boolean(selectedColor && colors.includes(selectedColor))
   const showActionBar =
     showInlineActions &&
     isActionsVisible &&
@@ -351,7 +352,10 @@ function Verse({
                   aria-pressed={selectedColor === color}
                 />
               ))}
-              <label className={styles.customColorInputWrap} aria-label="Выбрать свой цвет подсветки">
+              <label
+                className={`${styles.customColorInputWrap} ${selectedColor && !selectedFromPreset ? styles.customColorInputWrapActive : ""}`}
+                aria-label="Выбрать свой цвет подсветки"
+              >
                 <input
                   type="color"
                   className={styles.customColorInput}

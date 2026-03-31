@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
+import { memo } from "react"
 import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type Message, isMessageFromCurrentUser } from "@/types/message"
@@ -28,8 +29,9 @@ type MessageBubbleProps = {
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
+const REACTION_OPTIONS: Array<"🤍" | "😂" | "❤️"> = ["🤍", "😂", "❤️"]
 
-export default function MessageBubble({
+function MessageBubble({
   message,
   currentUsername,
   currentUser,
@@ -48,7 +50,6 @@ export default function MessageBubble({
   const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
-  const reactionOptions: Array<"🤍" | "😂" | "❤️"> = ["🤍", "😂", "❤️"]
 
   const date = new Date(message.createdAt)
   const formattedDate = hydrated
@@ -76,7 +77,7 @@ export default function MessageBubble({
       { emoji: "🤍" | "😂" | "❤️"; count: number; reactedByMe: boolean }
     >()
     const currentUserId = currentUser?.id
-    const allowed = new Set(reactionOptions)
+    const allowed = new Set(REACTION_OPTIONS)
     for (const reaction of message.reactions ?? []) {
       if (!allowed.has(reaction.type)) continue
       const emoji = reaction.type as "🤍" | "😂" | "❤️"
@@ -94,12 +95,12 @@ export default function MessageBubble({
         reactedByMe: Boolean(currentUserId && reaction.userId === currentUserId),
       })
     }
-    return reactionOptions.map((emoji) => grouped.get(emoji)).filter(Boolean) as Array<{
+    return REACTION_OPTIONS.map((emoji) => grouped.get(emoji)).filter(Boolean) as Array<{
       emoji: "🤍" | "😂" | "❤️"
       count: number
       reactedByMe: boolean
     }>
-  }, [currentUser?.id, message.reactions, reactionOptions])
+  }, [currentUser?.id, message.reactions])
 
   useEffect(() => {
     if (!isReactionPickerOpen) return
@@ -296,7 +297,7 @@ export default function MessageBubble({
             </button>
             {isReactionPickerOpen ? (
               <div className={styles.reactionPicker}>
-                {reactionOptions.map((emoji) => (
+                {REACTION_OPTIONS.map((emoji) => (
                   <button
                     key={emoji}
                     type="button"
@@ -387,3 +388,5 @@ export default function MessageBubble({
     </article>
   )
 }
+
+export default memo(MessageBubble)

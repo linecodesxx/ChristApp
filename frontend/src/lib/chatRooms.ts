@@ -94,7 +94,7 @@ export function createShareTargetsFromRooms(input: {
     }
 
     const matchedUser = usersById.get(targetUserId)
-    const title = matchedUser?.nickname ?? matchedUser?.username ?? "Личный чат"
+    const title = matchedUser?.nickname ?? matchedUser?.username ?? "Чат"
     targets.push({
       id: targetUserId,
       roomId: room.id,

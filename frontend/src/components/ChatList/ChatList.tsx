@@ -8,12 +8,11 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import { GLOBAL_ROOM_ID } from "@/lib/chatRooms"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
-import { canSeeVerseNotesNav } from "@/lib/verseNotesNav"
-import { getAuthToken } from "@/lib/auth"
 
 export type ChatListItem = {
   id: string
   title: string
+  titleLoading?: boolean
   preview?: string
   timeLabel?: string
   /** ISO-время последней активности — для сортировки личных чатов (новые сверху под общим чатом). */
@@ -46,14 +45,23 @@ type ChatListProps = {
   chatCandidates?: ChatCreateCandidate[]
   onDeleteChat?: (listItemId: string) => void
   onPrefetchChat?: (listItemId: string) => void
+  verseNotesVisible?: boolean
+  isLoading?: boolean
 }
 
-const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPrefetchChat }: ChatListProps) => {
+const ChatList = ({
+  items,
+  onCreateChat,
+  chatCandidates = [],
+  onDeleteChat,
+  onPrefetchChat,
+  verseNotesVisible = false,
+  isLoading = false,
+}: ChatListProps) => {
   const list: ChatListItem[] = items
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
-  const [verseNotesVisible, setVerseNotesVisible] = useState(false)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
 
@@ -118,36 +126,6 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPr
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [isUserPickerOpen])
-
-  useEffect(() => {
-    const refreshVerseNotesVisibility = async () => {
-      const token = getAuthToken()
-      const API_URL = process.env.NEXT_PUBLIC_API_URL
-      if (!token || !API_URL) {
-        setVerseNotesVisible(false)
-        return
-      }
-      try {
-        const response = await fetch(`${API_URL}/auth/me`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if (!response.ok) {
-          setVerseNotesVisible(false)
-          return
-        }
-        const data = (await response.json()) as { username?: string }
-        setVerseNotesVisible(canSeeVerseNotesNav(data?.username))
-      } catch {
-        setVerseNotesVisible(false)
-      }
-    }
-
-    void refreshVerseNotesVisibility()
-    window.addEventListener("focus", refreshVerseNotesVisibility)
-    return () => {
-      window.removeEventListener("focus", refreshVerseNotesVisibility)
-    }
-  }, [])
 
   useEffect(() => {
     if (!openMenuId) {
@@ -308,11 +286,24 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPr
         <div className={styles.searchBar}>{renderSearchField("chat-list-search")}</div>
 
         <ul className={styles.chatList}>
-          {filteredChatList.length === 0 && normalizedSearch ? (
+          {isLoading
+            ? Array.from({ length: 6 }, (_, index) => (
+                <li key={`chat-skeleton-${index}`} className={styles.chatItemSkeleton} aria-hidden>
+                  <span className={styles.chatItemSkeletonAvatar} />
+                  <div className={styles.chatItemSkeletonBody}>
+                    <span className={styles.chatItemSkeletonTitle} />
+                    <span className={styles.chatItemSkeletonPreview} />
+                  </div>
+                </li>
+              ))
+            : null}
+
+          {!isLoading && filteredChatList.length === 0 && normalizedSearch ? (
             <li className={styles.chatListNoResults}>Нет чатов по запросу</li>
           ) : null}
 
-          {filteredChatList.map((chat) => (
+          {!isLoading &&
+            filteredChatList.map((chat) => (
             <li key={chat.id} className={styles.chatItem} data-menu-open={openMenuId === chat.id ? "" : undefined}>
               {(() => {
                 const unreadCount = typeof chat.unread === "number" ? chat.unread : chat.unread ? 1 : 0
@@ -348,21 +339,25 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPr
                     <div className={styles.chatInfo}>
                       <div className={styles.flex}>
                         <div className={styles.titleRow}>
-                          <h3 className={styles.title}>{chat.title}</h3>
+                          {chat.titleLoading ? <span className={styles.chatInlineSkeletonTitle} aria-hidden /> : <h3 className={styles.title}>{chat.title}</h3>}
                         </div>
                         <span className={styles.chatTime}>{chat.timeLabel ?? ""}</span>
                       </div>
 
                       <div className={styles.flex}>
-                        <p
-                          className={
-                            isCompactPreviewRow
-                              ? `${styles.chatPreview} ${styles.chatPreviewDirect}`
-                              : styles.chatPreview
-                          }
-                        >
-                          {chat.preview ?? ""}
-                        </p>
+                        {chat.titleLoading ? (
+                          <span className={styles.chatInlineSkeletonPreview} aria-hidden />
+                        ) : (
+                          <p
+                            className={
+                              isCompactPreviewRow
+                                ? `${styles.chatPreview} ${styles.chatPreviewDirect}`
+                                : styles.chatPreview
+                            }
+                          >
+                            {chat.preview ?? ""}
+                          </p>
+                        )}
                         {unreadCount > 0 ? <span className={styles.unreadBadge}>{unreadCount}</span> : null}
                       </div>
                     </div>
@@ -435,7 +430,7 @@ const ChatList = ({ items, onCreateChat, chatCandidates = [], onDeleteChat, onPr
                 )
               })()}
             </li>
-          ))}
+            ))}
         </ul>
       </div>
     </section>

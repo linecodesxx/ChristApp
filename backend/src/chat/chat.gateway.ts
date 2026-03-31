@@ -1037,14 +1037,51 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
           id: true,
           title: true,
           createdAt: true,
+          members: {
+            where: {
+              userId: {
+                not: userId,
+              },
+            },
+            select: {
+              user: {
+                select: {
+                  id: true,
+                  username: true,
+                  nickname: true,
+                  avatarUrl: true,
+                },
+              },
+            },
+            take: 1,
+          },
         },
       });
 
-      return rooms.filter(
-        (room) =>
-          room.id === this.GLOBAL_ROOM ||
-          userMayAccessRoomByTitle(userId, room.title),
-      );
+      return rooms
+        .filter(
+          (room) =>
+            room.id === this.GLOBAL_ROOM ||
+            userMayAccessRoomByTitle(userId, room.title),
+        )
+        .map((room) => {
+          const directPeer = room.members[0]?.user;
+          return {
+            id: room.id,
+            title: room.title,
+            createdAt: room.createdAt,
+            ...(directPeer
+              ? {
+                  directPeer: {
+                    id: directPeer.id,
+                    username: directPeer.username,
+                    nickname: directPeer.nickname,
+                    avatarUrl: directPeer.avatarUrl,
+                  },
+                }
+              : {}),
+          };
+        });
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
       console.error('[WS] emitMyRooms failed:', reason);

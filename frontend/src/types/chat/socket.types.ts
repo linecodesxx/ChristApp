@@ -15,6 +15,12 @@ export type MyRoomItem = {
   id: string
   title: string
   createdAt: string
+  directPeer?: {
+    id: string
+    username: string
+    nickname?: string | null
+    avatarUrl?: string | null
+  }
 }
 
 export type DirectRoomOpenedPayload = {
