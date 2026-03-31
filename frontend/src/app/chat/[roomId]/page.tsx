@@ -1490,6 +1490,23 @@ export default function ChatPageDetails() {
     [directChatTargetUserId, effectiveSocketRoomId, requestMyRooms, resolvedShareJesusRoomId, routeRoomId, user?.id],
   )
 
+  const skeletonRows = [
+    { side: "left", width: "wide" },
+    { side: "right", width: "medium" },
+    { side: "left", width: "narrow" },
+    { side: "right", width: "wide" },
+    { side: "left", width: "medium" },
+    { side: "right", width: "narrow" },
+    { side: "left", width: "wide" },
+    { side: "right", width: "medium" },
+    { side: "left", width: "narrow" },
+    { side: "right", width: "wide" },
+    { side: "left", width: "medium" },
+    { side: "right", width: "narrow" },
+    { side: "left", width: "wide" },
+    { side: "right", width: "medium" },
+  ] as const
+
   return (
     <section className={`${styles.chat} container`}>
       <div className={styles.header}>
@@ -1524,24 +1541,22 @@ export default function ChatPageDetails() {
       ) : isHistoryLoading ? (
         <div className={styles.messagesSkeleton}>
           <div className={styles.messagesSkeletonList} aria-hidden>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleWide}`} />
-            </div>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleMedium}`} />
-            </div>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleNarrow}`} />
-            </div>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleWide}`} />
-            </div>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowLeft}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleMedium}`} />
-            </div>
-            <div className={`${styles.messagesSkeletonRow} ${styles.messagesSkeletonRowRight}`}>
-              <span className={`${styles.messagesSkeletonBubble} ${styles.messagesSkeletonBubbleNarrow}`} />
-            </div>
+            {skeletonRows.map((row, index) => (
+              <div
+                key={`chat-message-skeleton-${index}`}
+                className={`${styles.messagesSkeletonRow} ${row.side === "left" ? styles.messagesSkeletonRowLeft : styles.messagesSkeletonRowRight}`}
+              >
+                <span
+                  className={`${styles.messagesSkeletonBubble} ${
+                    row.width === "wide"
+                      ? styles.messagesSkeletonBubbleWide
+                      : row.width === "medium"
+                        ? styles.messagesSkeletonBubbleMedium
+                        : styles.messagesSkeletonBubbleNarrow
+                  }`}
+                />
+              </div>
+            ))}
           </div>
         </div>
       ) : (

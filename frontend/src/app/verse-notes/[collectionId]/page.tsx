@@ -32,7 +32,9 @@ export default function VerseNotesCollectionPage() {
   const [noteSceneOpen, setNoteSceneOpen] = useState(false)
   const [noteSceneDraft, setNoteSceneDraft] = useState("")
   const noteSceneDraftRef = useRef(noteSceneDraft)
-  noteSceneDraftRef.current = noteSceneDraft
+  useEffect(() => {
+    noteSceneDraftRef.current = noteSceneDraft
+  }, [noteSceneDraft])
   const [parchmentAppend, setParchmentAppend] = useState<string | null>(null)
 
   const reload = useCallback(() => {
@@ -40,7 +42,7 @@ export default function VerseNotesCollectionPage() {
       return
     }
     setNotes(loadVerseNotes(user.id, collectionId))
-  }, [user?.id, collectionId])
+  }, [user, collectionId])
 
   useEffect(() => {
     if (loading) {
@@ -65,7 +67,7 @@ export default function VerseNotesCollectionPage() {
       appendVerseNote(user.id, collectionId, source, response)
       reload()
     },
-    [user?.id, collectionId, reload],
+    [user, collectionId, reload],
   )
 
   const saveNoteScene = useCallback(() => {

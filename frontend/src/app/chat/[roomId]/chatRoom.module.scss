@@ -232,7 +232,7 @@
 
   .messagesSkeleton {
     flex: 1 1 auto;
-    min-height: 0;
+    min-height: clamp(420px, 56vh, 760px);
     padding: 8px 2px 14px;
     display: block;
     overflow: hidden;
@@ -243,8 +243,8 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 12px;
     padding: 6px 0 12px;
   }
 

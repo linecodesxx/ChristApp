@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import Verse from "@/components/Verse/Verse"
 
 import styles from "./ChapterViewer.module.scss"
@@ -29,14 +29,14 @@ export default function ChapterViewer({ book }: Props) {
   }
 
   // Swipe
-  let touchStartX = 0
+  const touchStartXRef = useRef(0)
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX = e.touches[0].clientX
+    touchStartXRef.current = e.touches[0].clientX
   }
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = e.changedTouches[0].clientX - touchStartX
+    const diff = e.changedTouches[0].clientX - touchStartXRef.current
     if (diff > 70) prevChapter()
     if (diff < -70) nextChapter()
   }

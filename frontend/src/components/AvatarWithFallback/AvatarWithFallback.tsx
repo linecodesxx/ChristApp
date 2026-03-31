@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { getAvatarColor } from "@/lib/avatarColor"
 
 type FallbackTag = "div" | "span"
@@ -42,19 +42,15 @@ export default function AvatarWithFallback({
   loading = "lazy",
   fallbackTint = "always",
 }: AvatarWithFallbackProps) {
-  const [broken, setBroken] = useState(false)
+  const [brokenSrc, setBrokenSrc] = useState<string | null>(null)
   const trimmed = src?.trim() ?? ""
-  const showImage = Boolean(trimmed) && !broken
-
-  useEffect(() => {
-    setBroken(false)
-  }, [trimmed])
+  const showImage = Boolean(trimmed) && brokenSrc !== trimmed
 
   const onError = useCallback(() => {
-    setBroken(true)
-  }, [])
+    setBrokenSrc(trimmed)
+  }, [trimmed])
 
-  const useSeedBackground = fallbackTint === "always" || (fallbackTint === "onError" && broken)
+  const useSeedBackground = fallbackTint === "always" || (fallbackTint === "onError" && brokenSrc === trimmed)
   const bg = useSeedBackground ? getAvatarColor(colorSeed || initials || "?") : undefined
 
   if (!showImage) {
