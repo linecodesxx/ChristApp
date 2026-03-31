@@ -58,8 +58,9 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (err) {
+    const details = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json(
-      { error: "Proxy failed", details: (err as any).message },
+      { error: "Proxy failed", details },
       { status: 500 },
     );
   }

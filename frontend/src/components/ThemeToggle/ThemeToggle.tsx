@@ -12,17 +12,16 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>("dark")
-  const pathname = usePathname()
-
-  useEffect(() => {
+  const [theme, setTheme] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "dark"
     try {
       const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-      if (savedTheme === "light" || savedTheme === "dark") {
-        setTheme(savedTheme)
-      }
-    } catch {}
-  }, [])
+      return savedTheme === "light" || savedTheme === "dark" ? savedTheme : "dark"
+    } catch {
+      return "dark"
+    }
+  })
+  const pathname = usePathname()
 
   useEffect(() => {
     applyTheme(theme)

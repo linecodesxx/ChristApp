@@ -63,6 +63,10 @@ function serviceWorkerConnectSrc(): string {
 }
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: process.cwd(),
+  turbopack: {
+    root: process.cwd(),
+  },
   images: {
     remotePatterns: uploadsRemotePatterns(),
   },
