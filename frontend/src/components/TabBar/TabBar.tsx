@@ -5,21 +5,55 @@ import Link from "next/link"
 import styles from "@/components/TabBar/TabBar.module.scss"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
-import { getAuthToken } from "@/lib/auth"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { CHAT_UNREAD_CHANGED_EVENT } from "@/lib/chatUnreadEvents"
-import { fetchUnreadSummary } from "@/lib/push"
+import {
+  fetchUnreadSummaryForQuery,
+  pushUnreadSummaryQueryKey,
+} from "@/lib/queries/pushQueries"
+import { getUserIdFromJwt } from "@/lib/jwtUser"
+import {
+  prefetchTabBibleChapter,
+  prefetchTabChatData,
+  prefetchTabProfileData,
+} from "@/lib/tabPrefetch"
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
+import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge"
 
 const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
 export default function TabBar() {
   const pathname = usePathname()
+  const queryClient = useQueryClient()
   const { socket } = usePresenceSocket()
   const tabBarOverlay = useTabBarOverlayOptional()
   const narrowForChatComposer = useMediaQuery(chatComposerTabLayoutMediaQuery())
-  const [unreadCount, setUnreadCount] = useState(0)
+  const [authEpoch, setAuthEpoch] = useState(0)
+
+  const token = getAuthToken()
+  const userId = token ? getUserIdFromJwt(token) : undefined
+
+  const unreadQuery = useQuery({
+    queryKey: pushUnreadSummaryQueryKey(userId),
+    queryFn: fetchUnreadSummaryForQuery,
+    enabled: Boolean(userId),
+    staleTime: 20_000,
+    refetchInterval: UNREAD_REFRESH_INTERVAL_MS,
+  })
+
+  const unreadCount = Number(unreadQuery.data?.totalUnread ?? 0)
+
+  useEffect(() => {
+    void syncAppBadgeFromUnreadCount(unreadCount)
+  }, [unreadCount])
+
+  const refetchUnread = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: pushUnreadSummaryQueryKey(userId) })
+  }, [queryClient, userId])
+
   const hiddenRoutes = ["/", "/register"]
   /** Список чатов — таб виден; открытая комната — таб скрыт, больше места под переписку. */
   const hideOnActiveChatRoom = pathname.startsWith("/chat/")
@@ -29,88 +63,52 @@ export default function TabBar() {
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
 
-  const refreshUnreadCount = useCallback(async () => {
-    const token = getAuthToken()
-    if (!token) {
-      setUnreadCount(0)
-      return
-    }
-
-    const unreadSummary = await fetchUnreadSummary(token)
-    setUnreadCount(Number(unreadSummary?.totalUnread ?? 0))
+  useEffect(() => {
+    const bump = () => setAuthEpoch((n) => n + 1)
+    window.addEventListener(AUTH_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, bump)
   }, [])
 
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      void refreshUnreadCount()
-    }, 0)
-
-    return () => {
-      window.clearTimeout(timeoutId)
-    }
-  }, [pathname, refreshUnreadCount])
+    refetchUnread()
+  }, [pathname, authEpoch, refetchUnread])
 
   useEffect(() => {
-    let cancelled = false
-
-    const runRefresh = async () => {
-      if (cancelled) {
-        return
-      }
-
-      await refreshUnreadCount()
-    }
-
-    void runRefresh()
-
-    const intervalId = window.setInterval(() => {
-      void refreshUnreadCount()
-    }, UNREAD_REFRESH_INTERVAL_MS)
-
-    const handleVisibilityRefresh = () => {
+    const onFocus = () => refetchUnread()
+    const onVisibility = () => {
       if (document.visibilityState === "visible") {
-        void refreshUnreadCount()
+        refetchUnread()
       }
     }
 
-    window.addEventListener("focus", refreshUnreadCount)
-    document.addEventListener("visibilitychange", handleVisibilityRefresh)
+    window.addEventListener("focus", onFocus)
+    document.addEventListener("visibilitychange", onVisibility)
 
     return () => {
-      cancelled = true
-      window.clearInterval(intervalId)
-      window.removeEventListener("focus", refreshUnreadCount)
-      document.removeEventListener("visibilitychange", handleVisibilityRefresh)
+      window.removeEventListener("focus", onFocus)
+      document.removeEventListener("visibilitychange", onVisibility)
     }
-  }, [refreshUnreadCount])
+  }, [refetchUnread])
 
   useEffect(() => {
     if (!socket) {
       return
     }
 
-    const handleMessageEvent = () => {
-      void refreshUnreadCount()
-    }
-
-    socket.on("newMessage", handleMessageEvent)
+    socket.on("newMessage", refetchUnread)
 
     return () => {
-      socket.off("newMessage", handleMessageEvent)
+      socket.off("newMessage", refetchUnread)
     }
-  }, [refreshUnreadCount, socket])
+  }, [socket, refetchUnread])
 
   useEffect(() => {
-    const handleUnreadChanged = () => {
-      void refreshUnreadCount()
-    }
-
-    window.addEventListener(CHAT_UNREAD_CHANGED_EVENT, handleUnreadChanged)
+    window.addEventListener(CHAT_UNREAD_CHANGED_EVENT, refetchUnread)
 
     return () => {
-      window.removeEventListener(CHAT_UNREAD_CHANGED_EVENT, handleUnreadChanged)
+      window.removeEventListener(CHAT_UNREAD_CHANGED_EVENT, refetchUnread)
     }
-  }, [refreshUnreadCount])
+  }, [refetchUnread])
 
   if (shouldHideTabBar || hideForChatComposer) {
     return null
@@ -118,12 +116,25 @@ export default function TabBar() {
 
   return (
     <nav className={styles.nav}>
-      <Link className={styles.tabLink} href="/bible">
+      <Link
+        className={styles.tabLink}
+        href="/bible"
+        prefetch
+        onPointerEnter={() => prefetchTabBibleChapter(queryClient)}
+        onFocus={() => prefetchTabBibleChapter(queryClient)}
+      >
         <span className={`${styles.iconWrap} ${isRouteActive("/bible") ? styles.activeIcon : ""}`}>
           <Image src="/icon-bible.svg" alt="Библия" width={24} height={24} />
         </span>
       </Link>
-      <Link className={styles.tabLink} href="/chat">
+      <Link
+        className={styles.tabLink}
+        href="/chat"
+        prefetch
+        onPointerEnter={() => prefetchTabChatData(queryClient)}
+        onFocus={() => prefetchTabChatData(queryClient)}
+        onTouchStart={() => prefetchTabChatData(queryClient)}
+      >
         <span className={`${styles.iconWrap} ${isRouteActive("/chat") ? styles.activeIcon : ""}`}>
           <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} loading="eager" />
           {unreadCount > 0 ? (
@@ -133,7 +144,14 @@ export default function TabBar() {
           ) : null}
         </span>
       </Link>
-      <Link className={styles.tabLink} href="/profile">
+      <Link
+        className={styles.tabLink}
+        href="/profile"
+        prefetch
+        onPointerEnter={() => prefetchTabProfileData(queryClient)}
+        onFocus={() => prefetchTabProfileData(queryClient)}
+        onTouchStart={() => prefetchTabProfileData(queryClient)}
+      >
         <span className={`${styles.iconWrap} ${isRouteActive("/profile") ? styles.activeIcon : ""}`}>
           <Image src="/icon-profile.svg" alt="Профиль" width={24} height={24} />
         </span>

@@ -1,8 +1,4 @@
-import CrossLoader from "@/components/CrossLoader/CrossLoader"
-
-/**
- * UI при переходах между маршрутами (Suspense boundary для сегмента app).
- */
+/** Без полноэкранного фолбэка при переходах (табы навбара остаются на предыдущем экране до готовности страницы). */
 export default function Loading() {
-  return <CrossLoader variant="fullscreen" />
+  return null
 }

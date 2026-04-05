@@ -19,9 +19,15 @@ import { JwtStrategy } from './jwt.strategy';
           throw new Error('JWT_SECRET is not defined');
         }
 
+        const expiresIn =
+          configService.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
+
         return {
           secret: jwtSecret,
-          signOptions: { expiresIn: '7d' },
+          signOptions: {
+            expiresIn:
+              expiresIn as import('jsonwebtoken').SignOptions['expiresIn'],
+          },
         };
       },
     }),

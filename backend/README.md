@@ -72,6 +72,10 @@ $ npx prisma migrate deploy
 $ npx prisma generate
 ```
 
+## PWA / iOS: устойчивая сессия (HttpOnly refresh cookie)
+
+Рекомендации по access/refresh токенам, кукам и Next.js: [docs/auth-pwa-ios.md](../docs/auth-pwa-ios.md).
+
 ## Run tests
 
 ```bash

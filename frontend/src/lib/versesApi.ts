@@ -1,6 +1,8 @@
-import { getAuthToken } from "@/lib/auth";
+import { getHttpApiBase } from "@/lib/apiBase"
+import { getAuthToken } from "@/lib/auth"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = getHttpApiBase()
 
 export async function saveVerse(
   book: string,
@@ -11,11 +13,11 @@ export async function saveVerse(
 ) {
   const token = getAuthToken();
 
-  if (!token || !API_URL) {
-    throw new Error("Not authenticated or API URL not set");
+  if (!token) {
+    throw new Error("Not authenticated");
   }
 
-  const res = await fetch(`${API_URL}/verses/save`, {
+  const res = await apiFetch(`${API_URL}/verses/save`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -41,12 +43,12 @@ export async function saveVerse(
 export async function getSavedVerses() {
   const token = getAuthToken();
 
-  if (!token || !API_URL) {
+  if (!token) {
     return [];
   }
 
   try {
-    const res = await fetch(`${API_URL}/verses/saved`, {
+    const res = await apiFetch(`${API_URL}/verses/saved`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -66,11 +68,11 @@ export async function getSavedVerses() {
 export async function getSavedVersesByBook(book: string) {
   const token = getAuthToken();
 
-  if (!token || !API_URL) {
-    throw new Error("Not authenticated or API URL not set");
+  if (!token) {
+    throw new Error("Not authenticated");
   }
 
-  const res = await fetch(`${API_URL}/verses/saved/book/${encodeURIComponent(book)}`, {
+  const res = await apiFetch(`${API_URL}/verses/saved/book/${encodeURIComponent(book)}`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -91,7 +93,7 @@ export async function isVerseSaved(
 ) {
   const token = getAuthToken();
 
-  if (!token || !API_URL) {
+  if (!token) {
     return false;
   }
 
@@ -103,7 +105,7 @@ export async function isVerseSaved(
       translation,
     });
 
-    const res = await fetch(`${API_URL}/verses/saved/check?${params}`, {
+    const res = await apiFetch(`${API_URL}/verses/saved/check?${params}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -123,11 +125,11 @@ export async function isVerseSaved(
 export async function deleteSavedVerse(verseId: string) {
   const token = getAuthToken();
 
-  if (!token || !API_URL) {
-    throw new Error("Not authenticated or API URL not set");
+  if (!token) {
+    throw new Error("Not authenticated");
   }
 
-  const res = await fetch(`${API_URL}/verses/${verseId}`, {
+  const res = await apiFetch(`${API_URL}/verses/${verseId}`, {
     method: "DELETE",
     headers: {
       Authorization: `Bearer ${token}`,

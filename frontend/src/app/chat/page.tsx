@@ -7,7 +7,12 @@ import { getInitials } from "@/lib/utils"
 import { usePathname, useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
-import { fetchUnreadSummaryOrThrow, type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
+import { type UnreadSummaryResponse, type UnreadSummaryRoomLastMessage } from "@/lib/push"
+import {
+  fetchUnreadSummaryForQuery,
+  pushUnreadSummaryQueryKey,
+} from "@/lib/queries/pushQueries"
+import { getUserIdFromJwt } from "@/lib/jwtUser"
 import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
@@ -243,21 +248,6 @@ function sameLastActivityAt(a: string | null | undefined, b: string | null | und
   return ma === mb
 }
 
-function getUserIdFromJwt(token: string) {
-  try {
-    const [, payloadPart] = token.split(".")
-    if (!payloadPart) return undefined
-
-    const normalizedPayload = payloadPart.replace(/-/g, "+").replace(/_/g, "/")
-    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, "=")
-
-    const parsedPayload = JSON.parse(window.atob(paddedPayload)) as { sub?: unknown }
-    return typeof parsedPayload?.sub === "string" ? parsedPayload.sub : undefined
-  } catch {
-    return undefined
-  }
-}
-
 function isChatPath(path: string) {
   return path === "/chat" || path.startsWith("/chat/")
 }
@@ -278,25 +268,31 @@ function formatChatTimeLabel(createdAt: string) {
   })
 }
 
+/** Единый ключ для сопоставления roomId из API и ref (Postgres/Prisma иногда отдают UUID в другом регистре). */
+function summaryRoomKey(roomId: string): string {
+  return roomId.trim().toLowerCase()
+}
+
 function formatRoomPreviewFromLastMessage(
   roomId: string,
   lastMessage: UnreadSummaryRoomLastMessage,
   currentUsername?: string,
 ) {
-  const normalizedContent = normalizeNotificationBody(lastMessage.content) || lastMessage.content
-  if (!normalizedContent.trim()) {
+  const strippedMeta = normalizeNotificationBody(lastMessage.content) || lastMessage.content
+  const previewBody = chatMessagePreview({ content: strippedMeta }).trim()
+  if (!previewBody) {
     return ""
   }
 
   if (roomId === GLOBAL_ROOM_ID) {
-    return `${lastMessage.senderUsername}: ${normalizedContent}`
+    return `${lastMessage.senderUsername}: ${previewBody}`
   }
 
   if (lastMessage.senderUsername === currentUsername) {
-    return `Вы: ${normalizedContent}`
+    return `Вы: ${previewBody}`
   }
 
-  return normalizedContent
+  return previewBody
 }
 
 export default function ChatPage() {
@@ -364,24 +360,29 @@ export default function ChatPage() {
 
   const applyUnreadSummary = useCallback(
     (summary: UnreadSummaryResponse) => {
-      const summaryByRoomId = new Map(summary.rooms.map((roomSummary) => [roomSummary.roomId, roomSummary]))
+      const summaryByRoomId = new Map(
+        summary.rooms.map((roomSummary) => [summaryRoomKey(roomSummary.roomId), roomSummary]),
+      )
 
       setRooms((prev) => {
         let hasUpdates = false
 
         const nextRooms = prev.map((room) => {
-          const sourceRoomId =
+          const rawSourceId =
             room.id === GLOBAL_ROOM_ID ? GLOBAL_ROOM_ID : directUserIdToRoomIdRef.current.get(room.id)
 
-          if (!sourceRoomId) {
+          if (!rawSourceId) {
             return room
           }
 
+          const sourceRoomId = summaryRoomKey(rawSourceId)
           const summaryRoom = summaryByRoomId.get(sourceRoomId)
           const nextUnread = summaryRoom ? Math.max(0, Number(summaryRoom.unread) || 0) : 0
-          const nextPreview = summaryRoom?.lastMessage
-            ? formatRoomPreviewFromLastMessage(sourceRoomId, summaryRoom.lastMessage, user?.username)
-            : (room.preview ?? "")
+          const formattedPreview = summaryRoom?.lastMessage
+            ? formatRoomPreviewFromLastMessage(rawSourceId, summaryRoom.lastMessage, user?.username)
+            : ""
+          const nextPreview =
+            formattedPreview.trim() !== "" ? formattedPreview : (room.preview ?? "")
           const nextTimeLabel = summaryRoom?.lastMessage
             ? formatChatTimeLabel(summaryRoom.lastMessage.createdAt)
             : (room.timeLabel ?? "")
@@ -432,7 +433,7 @@ export default function ChatPage() {
       return
     }
     await queryClient.invalidateQueries({
-      queryKey: ["push", "unread-summary", user?.id ?? "anonymous"],
+      queryKey: pushUnreadSummaryQueryKey(user?.id),
     })
   }, [queryClient, user?.id])
 
@@ -447,23 +448,18 @@ export default function ChatPage() {
   }, [])
 
   const unreadSummaryQuery = useQuery({
-    queryKey: ["push", "unread-summary", user?.id ?? "anonymous"],
+    queryKey: pushUnreadSummaryQueryKey(user?.id),
     enabled: Boolean(user?.id),
-    queryFn: async () => {
-      const token = getAuthToken()
-      if (!token) {
-        throw new Error("Нет токена авторизации")
-      }
-      return fetchUnreadSummaryOrThrow(token)
-    },
+    queryFn: fetchUnreadSummaryForQuery,
     staleTime: 20_000,
   })
 
   useEffect(() => {
-    if (unreadSummaryQuery.data) {
-      applyUnreadSummary(unreadSummaryQuery.data)
+    if (!unreadSummaryQuery.data) {
+      return
     }
-  }, [applyUnreadSummary, unreadSummaryQuery.data])
+    applyUnreadSummary(unreadSummaryQuery.data)
+  }, [applyUnreadSummary, unreadSummaryQuery.data, hasReceivedMyRooms])
 
   const usersById = useMemo(() => {
     return new Map(users.map((existingUser) => [existingUser.id, existingUser]))

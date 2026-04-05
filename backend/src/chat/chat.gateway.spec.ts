@@ -205,6 +205,7 @@ describe('ChatGateway', () => {
     });
 
     expect(pushService.sendChatMessagePush).toHaveBeenCalledWith({
+      messageId: 'm3',
       roomId: 'room-1',
       senderId: 'u1',
       senderUsername: 'sender',

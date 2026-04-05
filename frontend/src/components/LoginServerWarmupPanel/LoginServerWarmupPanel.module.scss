@@ -1,0 +1,47 @@
+.panel {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.panelNeutral {
+  background: color-mix(in srgb, var(--surface-elevated) 88%, var(--accent-soft) 12%);
+  color: var(--foreground);
+}
+
+.panelWarning {
+  background: color-mix(in srgb, var(--login-error-bg) 55%, var(--surface-elevated) 45%);
+  border-color: color-mix(in srgb, var(--login-error-text) 28%, var(--line-soft) 72%);
+  color: var(--foreground);
+}
+
+.title {
+  margin: 0 0 6px;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.body {
+  margin: 0 0 8px;
+  color: color-mix(in srgb, var(--foreground) 82%, var(--login-muted) 18%);
+}
+
+.timer {
+  margin: 0 0 6px;
+  color: var(--foreground);
+  font-size: 12px;
+
+  strong {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.footer {
+  margin: 0;
+  font-size: 11px;
+  color: var(--login-muted);
+}

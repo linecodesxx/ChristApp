@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation"
 import CrossLoader from "@/components/CrossLoader/CrossLoader"
+import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel"
 import styles from "@/app/(login)/login.module.scss"
 
 export default function LoginPage() {
@@ -15,7 +16,6 @@ export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [fieldErrors, setFieldErrors] = useState<LoginFieldErrors>({})
-  const [submitError, setSubmitError] = useState<string | null>(null)
 
   const handleLoginSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -23,7 +23,6 @@ export default function LoginPage() {
     const normalizedEmail = email.trim()
     const nextErrors = validateLoginForm({ email: normalizedEmail, password })
     setFieldErrors(nextErrors)
-    setSubmitError(null)
 
     if (Object.keys(nextErrors).length > 0) {
       return
@@ -32,11 +31,6 @@ export default function LoginPage() {
     const success = await login(normalizedEmail, password)
     if (success) {
       router.push("/chat")
-      return
-    }
-
-    if (!error) {
-      setSubmitError("Не удалось войти. Проверьте email/username и пароль.")
     }
   }
 
@@ -48,6 +42,7 @@ export default function LoginPage() {
     return (
       <main className={styles.main}>
         <section className={styles.card}>
+          <LoginServerWarmupPanel />
           <CrossLoader className={styles.loaderInCard} label="Загрузка" variant="inline" />
         </section>
       </main>
@@ -65,15 +60,11 @@ export default function LoginPage() {
           <p className={styles.subtitle}>Read. Share. Stay connected.</p>
         </header>
 
+        <LoginServerWarmupPanel />
+
         {error && (
           <div className={styles.errorWrap}>
             <p className={styles.error}>{error}</p>
-          </div>
-        )}
-
-        {submitError && (
-          <div className={styles.errorWrap}>
-            <p className={styles.error}>{submitError}</p>
           </div>
         )}
 

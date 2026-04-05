@@ -12,7 +12,7 @@ import {
 import styles from "./BibleReader.module.scss";
 import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
-import CrossLoader from "@/components/CrossLoader/CrossLoader";
+import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
 import { createShareTargetsFromRooms, type RoomSocketItem, type ShareTarget } from "@/lib/chatRooms";
@@ -458,7 +458,7 @@ export default function BibleReader() {
   if (!isMounted || !currentBook || isLoading) {
     return (
       <div className={styles.loadingState}>
-        <CrossLoader label="Загрузка главы" variant="inline" />
+        <BibleReadingSkeleton variant="embedded" />
       </div>
     );
   }

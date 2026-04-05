@@ -1,23 +1,35 @@
 "use client"
 
 import styles from "@/app/profile/profile.module.scss"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, type AuthUser } from "@/hooks/useAuth"
 import { formatMemberSince, getInitials } from "@/lib/utils"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { getAppStreak } from "@/lib/appStreak"
-import { getSavedVerses, deleteSavedVerse } from "@/lib/versesApi"
+import PersistenceAchievements, {
+  countUnlockedPersistenceAchievements,
+} from "@/components/PersistenceAchievements/PersistenceAchievements"
+import { deleteSavedVerse } from "@/lib/versesApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 import { USERNAME_REGEX } from "@/lib/formValidation"
 import PushNotificationCenter from "@/components/PushNotificationCenter/PushNotificationCenter"
 import { getAuthToken } from "@/lib/auth"
+import { apiFetch } from "@/lib/apiFetch"
 import {
   SUGGESTED_THEME_BACKGROUND,
   SUGGESTED_THEME_FOREGROUND,
   normalizeThemeFontKey,
   type ThemeFontKey,
 } from "@/lib/userAppearance"
-import { fetchPushStatus, isPushSupportedInBrowser } from "@/lib/push"
+import { isPushSupportedInBrowser } from "@/lib/push"
+import {
+  fetchPushStatusForQuery,
+  pushStatusQueryKey,
+} from "@/lib/queries/pushQueries"
+import { getHttpApiBase } from "@/lib/apiBase"
+import { currentUserQueryKey } from "@/lib/queries/authQueries"
+import { fetchSavedVersesForQuery, savedVersesQueryKey } from "@/lib/queries/versesQueries"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { useHydrated } from "@/hooks/useHydrated"
 import Link from "next/link"
@@ -45,21 +57,19 @@ function getPushPermissionState(): PushPermissionState {
 
 export default function ProfilePage() {
   const hydrated = useHydrated()
-  const { user, logout, refreshSession } = useAuth({ redirectIfUnauthenticated: "/" })
-  const [savedVerses, setSavedVerses] = useState<SavedVerse[]>([])
-  const [versesLoading, setVersesLoading] = useState(false)
+  const queryClient = useQueryClient()
+  const { user, logout, refreshSession, patchUser, replaceUser } = useAuth({
+    redirectIfUnauthenticated: "/",
+  })
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [pushPermission, setPushPermission] = useState<PushPermissionState>("unsupported")
-  const [isPushConfigured, setIsPushConfigured] = useState(false)
-  const [hasPushSubscription, setHasPushSubscription] = useState(false)
   const [pushSyncErrorMessage, setPushSyncErrorMessage] = useState<string | null>(null)
   const settingsRef = useRef<HTMLDivElement | null>(null)
   const avatarFileRef = useRef<HTMLInputElement | null>(null)
   const [isAvatarUploading, setIsAvatarUploading] = useState(false)
   const [nickEdit, setNickEdit] = useState("")
   const [handleEdit, setHandleEdit] = useState("")
-  const [profileSaving, setProfileSaving] = useState(false)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [avatarCacheBust, setAvatarCacheBust] = useState(0)
@@ -67,7 +77,6 @@ export default function ProfilePage() {
   const [themeFgInput, setThemeFgInput] = useState(SUGGESTED_THEME_FOREGROUND)
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND)
   const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter")
-  const [appearanceSaving, setAppearanceSaving] = useState(false)
 
   useEffect(() => {
     setPushPermission(getPushPermissionState())
@@ -92,25 +101,43 @@ export default function ProfilePage() {
     if (!user) {
       return
     }
-    let cancelled = false
-    const load = async () => {
-      setVersesLoading(true)
-      try {
-        const verses = await getSavedVerses()
-        if (!cancelled) {
-          setSavedVerses(verses)
-        }
-      } finally {
-        if (!cancelled) {
-          setVersesLoading(false)
-        }
+    const sync = () => setDayStreak(getAppStreak())
+    const onVis = () => {
+      if (document.visibilityState === "visible") {
+        sync()
       }
     }
-    void load()
+    window.addEventListener("focus", sync)
+    document.addEventListener("visibilitychange", onVis)
     return () => {
-      cancelled = true
+      window.removeEventListener("focus", sync)
+      document.removeEventListener("visibilitychange", onVis)
     }
   }, [user])
+
+  const versesQuery = useQuery({
+    queryKey: savedVersesQueryKey(),
+    queryFn: fetchSavedVersesForQuery,
+    enabled: Boolean(user),
+    staleTime: 60_000,
+  })
+
+  const savedVerses = versesQuery.data ?? []
+
+  const persistenceRewardCount = useMemo(
+    () => countUnlockedPersistenceAchievements(dayStreak),
+    [dayStreak],
+  )
+
+  const pushStatusQuery = useQuery({
+    queryKey: pushStatusQueryKey(user?.id),
+    queryFn: fetchPushStatusForQuery,
+    enabled: Boolean(user?.id),
+    staleTime: 45_000,
+  })
+
+  const isPushConfigured = Boolean(pushStatusQuery.data?.enabled)
+  const hasPushSubscription = Boolean(pushStatusQuery.data?.hasSubscription)
 
   useEffect(() => {
     if (!user) {
@@ -165,21 +192,20 @@ export default function ProfilePage() {
     const permission = getPushPermissionState()
     setPushPermission(permission)
 
-    const token = getAuthToken()
-    if (!token || !isPushSupportedInBrowser()) {
-      setIsPushConfigured(false)
-      setHasPushSubscription(false)
+    if (!user?.id || !isPushSupportedInBrowser()) {
       setPushSyncErrorMessage(null)
       return
     }
 
-    const pushStatus = await fetchPushStatus(token)
-    setIsPushConfigured(Boolean(pushStatus?.enabled))
-    setHasPushSubscription(Boolean(pushStatus?.hasSubscription))
+    const pushStatus = await queryClient.fetchQuery({
+      queryKey: pushStatusQueryKey(user.id),
+      queryFn: fetchPushStatusForQuery,
+      staleTime: 45_000,
+    })
     if (pushStatus?.hasSubscription || !pushStatus?.enabled || permission !== "granted") {
       setPushSyncErrorMessage(null)
     }
-  }, [])
+  }, [queryClient, user?.id])
 
   useEffect(() => {
     if (!isSettingsOpen) {
@@ -189,9 +215,28 @@ export default function ProfilePage() {
     void refreshPushState()
   }, [isSettingsOpen, refreshPushState])
 
-  const handleDeleteVerse = async (verseId: string) => {
-    await deleteSavedVerse(verseId)
-    setSavedVerses((prev) => prev.filter((v) => v.id !== verseId))
+  const deleteVerseMutation = useMutation({
+    mutationFn: (verseId: string) => deleteSavedVerse(verseId),
+    onMutate: async (verseId) => {
+      await queryClient.cancelQueries({ queryKey: savedVersesQueryKey() })
+      const previous = queryClient.getQueryData<SavedVerse[]>(savedVersesQueryKey())
+      queryClient.setQueryData<SavedVerse[]>(savedVersesQueryKey(), (old) =>
+        (old ?? []).filter((v) => v.id !== verseId),
+      )
+      return { previous }
+    },
+    onError: (_err, _verseId, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(savedVersesQueryKey(), context.previous)
+      }
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
+    },
+  })
+
+  const handleDeleteVerse = (verseId: string) => {
+    deleteVerseMutation.mutate(verseId)
   }
 
   const formattedDate = formatMemberSince(user?.createdAt)
@@ -210,7 +255,7 @@ export default function ProfilePage() {
     return base
   }, [avatarPreviewUrl, user?.avatarUrl, avatarCacheBust])
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL
+  const API_URL = getHttpApiBase()
 
   const MAX_AVATAR_BYTES = 5 * 1024 * 1024
 
@@ -243,7 +288,7 @@ export default function ProfilePage() {
       const formData = new FormData()
       formData.append("avatar", file)
 
-      const response = await fetch(`${API_URL}/users/me/avatar`, {
+      const response = await apiFetch(`${API_URL}/users/me/avatar`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -270,6 +315,116 @@ export default function ProfilePage() {
   const closeProfileEdit = () => {
     setShowProfileEdit(false)
   }
+
+  type SaveProfileVars = {
+    body: Record<string, string>
+    optimisticPatch: Partial<AuthUser>
+  }
+
+  const saveProfileMutation = useMutation({
+    mutationFn: async ({ body }: SaveProfileVars) => {
+      const token = getAuthToken()
+      if (!token || !API_URL) {
+        throw new Error("Нет авторизации")
+      }
+      const res = await apiFetch(`${API_URL}/users/me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(getApiErrorMessage(errData, "Не удалось сохранить"))
+      }
+      return (await res.json()) as AuthUser
+    },
+    onMutate: async (variables: SaveProfileVars) => {
+      if (!user) {
+        return { previousUser: null as AuthUser | null }
+      }
+      await queryClient.cancelQueries({ queryKey: currentUserQueryKey(user.id) })
+      const previousUser = { ...user }
+      patchUser(variables.optimisticPatch)
+      return { previousUser }
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousUser) {
+        replaceUser(ctx.previousUser)
+      }
+      window.alert(err instanceof Error ? err.message : "Не удалось сохранить")
+    },
+    onSuccess: (serverUser) => {
+      replaceUser(serverUser)
+      closeProfileEdit()
+    },
+  })
+
+  const resetAppearanceMutation = useMutation({
+    mutationFn: async () => {
+      const token = getAuthToken()
+      if (!token || !API_URL) {
+        throw new Error("Нет авторизации")
+      }
+      const res = await apiFetch(`${API_URL}/users/me`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          themeForegroundHex: "",
+          themeBackgroundHex: "",
+          themeFontKey: "",
+        }),
+      })
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}))
+        throw new Error(getApiErrorMessage(errData, "Не удалось сбросить оформление"))
+      }
+      return (await res.json()) as AuthUser
+    },
+    onMutate: async () => {
+      if (!user) {
+        return { previousUser: null as AuthUser | null }
+      }
+      await queryClient.cancelQueries({ queryKey: currentUserQueryKey(user.id) })
+      const previousUser = { ...user }
+      patchUser({
+        themeForegroundHex: null,
+        themeBackgroundHex: null,
+        themeFontKey: null,
+      })
+      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
+      setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
+      setThemeFontInput("inter")
+      return { previousUser }
+    },
+    onError: (err, _vars, ctx) => {
+      if (ctx?.previousUser) {
+        replaceUser(ctx.previousUser)
+        setThemeFgInput(
+          ctx.previousUser.themeForegroundHex || SUGGESTED_THEME_FOREGROUND,
+        )
+        setThemeBgInput(
+          ctx.previousUser.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND,
+        )
+        setThemeFontInput(normalizeThemeFontKey(ctx.previousUser.themeFontKey))
+      }
+      window.alert(err instanceof Error ? err.message : "Не удалось сбросить оформление")
+    },
+    onSuccess: (serverUser) => {
+      replaceUser(serverUser)
+      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
+      setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
+      setThemeFontInput("inter")
+    },
+  })
+
+  const profileSaving = saveProfileMutation.isPending
+  const appearanceSaving = resetAppearanceMutation.isPending
 
   const openProfileEditFromSettings = () => {
     closeSettingsMenu()
@@ -319,7 +474,7 @@ export default function ProfilePage() {
     logout()
   }
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = () => {
     if (!API_URL || !user) {
       return
     }
@@ -379,67 +534,32 @@ export default function ProfilePage() {
       return
     }
 
-    setProfileSaving(true)
-    try {
-      const response = await fetch(`${API_URL}/users/me`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      })
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        window.alert(getApiErrorMessage(errData, "Не удалось сохранить"))
-        return
-      }
-
-      await refreshSession()
-      closeProfileEdit()
-    } finally {
-      setProfileSaving(false)
+    const optimisticPatch: Partial<AuthUser> = {
+      themeForegroundHex: hexFg,
+      themeBackgroundHex: hexBg,
+      themeFontKey: themeFontInput,
     }
+    if (!sameNick) {
+      optimisticPatch.nickname = nextNick
+    }
+    if (!sameHandle) {
+      optimisticPatch.username = nextHandle
+    }
+
+    saveProfileMutation.mutate({
+      body: body as Record<string, string>,
+      optimisticPatch,
+    })
   }
 
-  const handleResetAppearance = async () => {
+  const handleResetAppearance = () => {
     if (!API_URL || !user) {
       return
     }
-    const token = getAuthToken()
-    if (!token) {
+    if (!getAuthToken()) {
       return
     }
-
-    setAppearanceSaving(true)
-    try {
-      const response = await fetch(`${API_URL}/users/me`, {
-        method: "PATCH",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          themeForegroundHex: "",
-          themeBackgroundHex: "",
-          themeFontKey: "",
-        }),
-      })
-
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        window.alert(getApiErrorMessage(errData, "Не удалось сбросить оформление"))
-        return
-      }
-
-      await refreshSession()
-      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
-      setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
-      setThemeFontInput("inter")
-    } finally {
-      setAppearanceSaving(false)
-    }
+    resetAppearanceMutation.mutate()
   }
 
   return (
@@ -628,7 +748,7 @@ export default function ProfilePage() {
             <button
               type="button"
               className={styles.profileSave}
-              onClick={() => void handleSaveProfile()}
+              onClick={handleSaveProfile}
               disabled={profileSaving || appearanceSaving}
             >
               {profileSaving ? "Сохранение…" : "Сохранить"}
@@ -658,10 +778,12 @@ export default function ProfilePage() {
         </li>
         <li className={styles.item}>
           <Image className={styles.imgIcon} src={"/icon-badge.svg"} alt="Награды" width={16} height={16} />
-          <span>0</span>
+          <span>{persistenceRewardCount}</span>
           <p>Награды</p>
         </li>
       </ul>
+
+      <PersistenceAchievements dayStreak={dayStreak} />
 
       {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ */}
       <div className={styles.savedVersesSection}>
@@ -669,7 +791,7 @@ export default function ProfilePage() {
           <span>Сохранённые стихи ({savedVerses.length})</span>
         </div>
 
-        {versesLoading ? (
+        {versesQuery.isPending ? (
           <div className={styles.versesLoadingWrap}>
             Loading...
           </div>

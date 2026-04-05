@@ -78,11 +78,17 @@ export async function showChatNotification({
     return false
   }
 
-  const notificationOptions: NotificationOptions = {
+  const notificationOptions: NotificationOptions & {
+    renotify?: boolean
+    vibrate?: number[]
+  } = {
     body: normalizedBody,
     icon: "/icon-192x192.png",
     badge: "/icon-192x192.png",
     tag,
+    renotify: true,
+    vibrate: [160, 80, 160],
+    silent: false,
     data: {
       url: targetUrl,
     },

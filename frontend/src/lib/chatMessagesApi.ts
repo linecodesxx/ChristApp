@@ -1,4 +1,7 @@
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001").replace(/\/+$/, "")
+import { getHttpApiBase } from "@/lib/apiBase"
+import { apiFetch } from "@/lib/apiFetch"
+
+const API_URL = getHttpApiBase()
 
 type FetchRoomMessagesParams = {
   token: string
@@ -13,7 +16,7 @@ export async function fetchRoomMessagesOrThrow({
   limit = 250,
   skip = 0,
 }: FetchRoomMessagesParams) {
-  const response = await fetch(
+  const response = await apiFetch(
     `${API_URL}/messages/room?roomId=${encodeURIComponent(roomId)}&limit=${limit}&skip=${skip}`,
     {
       headers: {

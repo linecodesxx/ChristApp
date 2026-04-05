@@ -2,6 +2,7 @@ import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as webPush from 'web-push';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { MessagesService } from 'src/messages/messages.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 import { RegisterPushSubscriptionDto } from './dto/push-subscription.dto';
@@ -13,6 +14,7 @@ const VOICE_META_PREFIX = '[[voice:';
 const VOICE_META_SUFFIX = ']]';
 
 type ChatPushNotificationInput = {
+  messageId: string;
   roomId: string;
   senderId: string;
   senderUsername: string;
@@ -21,6 +23,12 @@ type ChatPushNotificationInput = {
   messageType?: MessageType;
   fileUrl?: string | null;
 };
+
+const PUSH_BODY_MAX_LEN = 220;
+/** Лимит тела JSON до шифрования web-push (запас до ~4 КБ после overhead). */
+const PUSH_JSON_UTF8_MAX_BYTES = 3600;
+/** Выше порога не считаем badge per-user (дорогой SQL на каждого получателя). */
+const MAX_BADGE_PREFETCH_RECIPIENTS = 40;
 
 type PushSubscriptionRecord = {
   id: string;
@@ -42,6 +50,7 @@ export class PushService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    private readonly messagesService: MessagesService,
   ) {
     const publicKey =
       this.configService.get<string>('WEB_PUSH_PUBLIC_KEY')?.trim() || '';
@@ -190,6 +199,34 @@ export class PushService {
     }
 
     const isGlobalRoom = input.roomId === this.GLOBAL_ROOM;
+    const displayBody = this.truncatePushText(normalizedBody, PUSH_BODY_MAX_LEN);
+    const { title, body } = this.resolveNotificationDisplay(
+      roomTitle ?? undefined,
+      isGlobalRoom,
+      input.senderUsername,
+      displayBody,
+    );
+
+    const uniqueRecipientIds = [
+      ...new Set(subscriptions.map((sub) => sub.userId)),
+    ];
+    const badgeByUserId = new Map<string, number>();
+    const shouldAttachBadge =
+      uniqueRecipientIds.length > 0 &&
+      uniqueRecipientIds.length <= MAX_BADGE_PREFETCH_RECIPIENTS;
+
+    if (shouldAttachBadge) {
+      await Promise.all(
+        uniqueRecipientIds.map(async (userId) => {
+          try {
+            const summary = await this.messagesService.getUnreadSummary(userId);
+            badgeByUserId.set(userId, summary.totalUnread);
+          } catch {
+            badgeByUserId.set(userId, 1);
+          }
+        }),
+      );
+    }
 
     await Promise.allSettled(
       subscriptions.map((subscription) => {
@@ -200,19 +237,19 @@ export class PushService {
           subscription.userId,
         );
 
-        const title = this.resolveNotificationTitle(
-          roomTitle ?? undefined,
-          isGlobalRoom,
-          input.senderUsername,
-        );
+        const badgeCount = shouldAttachBadge
+          ? (badgeByUserId.get(subscription.userId) ?? 1)
+          : undefined;
 
         return this.sendToSubscription(subscription, {
           title,
-          body: normalizedBody,
+          body,
           targetUrl,
           roomId: input.roomId,
           senderId: input.senderId,
           createdAt: input.createdAt.toISOString(),
+          messageId: input.messageId,
+          badgeCount,
         });
       }),
     );
@@ -267,24 +304,45 @@ export class PushService {
     return { recipientUserIds, roomTitle: room?.title ?? null };
   }
 
-  private resolveNotificationTitle(
+  /**
+   * Заголовок уведомления — имя отправителя; тело — контекст чата + текст сообщения.
+   */
+  private resolveNotificationDisplay(
     roomTitle: string | undefined,
     isGlobalRoom: boolean,
     senderUsername: string,
-  ) {
+    messagePreview: string,
+  ): { title: string; body: string } {
+    const title = senderUsername.trim() || 'ChristApp';
+
     if (isGlobalRoom) {
-      return 'Новое сообщение в общем чате';
+      return {
+        title,
+        body: `Общий чат · ${messagePreview}`,
+      };
     }
 
     if (roomTitle?.startsWith('dm:')) {
-      return `Новое сообщение от ${senderUsername}`;
+      return { title, body: messagePreview };
     }
 
-    if (roomTitle?.trim()) {
-      return `Новое сообщение в чате ${roomTitle.trim()}`;
+    const roomLabel = roomTitle?.trim();
+    if (roomLabel) {
+      return {
+        title,
+        body: `${roomLabel} · ${messagePreview}`,
+      };
     }
 
-    return `Новое сообщение от ${senderUsername}`;
+    return { title, body: messagePreview };
+  }
+
+  private truncatePushText(text: string, maxLen: number) {
+    const t = text.replace(/\s+/g, ' ').trim();
+    if (t.length <= maxLen) {
+      return t;
+    }
+    return `${t.slice(0, maxLen - 1)}…`;
   }
 
   private resolveTargetUrl(
@@ -347,6 +405,8 @@ export class PushService {
       roomId: string;
       senderId: string;
       createdAt: string;
+      messageId: string;
+      badgeCount?: number;
     },
   ) {
     const pushSubscription: webPush.PushSubscription = {
@@ -357,8 +417,12 @@ export class PushService {
       },
     };
 
+    const payloadString = this.serializePushPayload(
+      payload as unknown as Record<string, unknown>,
+    );
+
     try {
-      await webPush.sendNotification(pushSubscription, JSON.stringify(payload), {
+      await webPush.sendNotification(pushSubscription, payloadString, {
         TTL: 60 * 60,
         urgency: 'high',
       });
@@ -372,29 +436,113 @@ export class PushService {
         },
       });
     } catch (error: unknown) {
-      const statusCode = this.getStatusCode(error);
+      const statusCode = this.extractPushHttpStatus(error);
+
       if (statusCode === 404 || statusCode === 410) {
-        await this.prisma.pushSubscription.deleteMany({
-          where: {
-            endpoint: subscription.endpoint,
-          },
-        });
+        await this.removeInvalidPushSubscription(subscription, statusCode);
         return;
       }
 
+      if (statusCode === 401 || statusCode === 403) {
+        this.logger.warn(
+          `Push HTTP ${statusCode} (subscriptionId=${subscription.id}) — проверьте WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY и WEB_PUSH_SUBJECT; ключи должны совпадать с фронтом.`,
+        );
+        return;
+      }
+
+      const bodySnippet =
+        error &&
+        typeof error === 'object' &&
+        'body' in error &&
+        typeof (error as { body: unknown }).body === 'string'
+          ? ((error as { body: string }).body || '').slice(0, 180)
+          : '';
       const reason = error instanceof Error ? error.message : String(error);
       this.logger.warn(
-        `Failed to send push notification (subscriptionId=${subscription.id}): ${reason}`,
+        `Failed to send push (subscriptionId=${subscription.id}) HTTP=${statusCode ?? 'n/a'}: ${reason}${
+          bodySnippet ? ` | body: ${bodySnippet}` : ''
+        }`,
       );
     }
   }
 
-  private getStatusCode(error: unknown) {
-    if (!error || typeof error !== 'object') {
-      return undefined;
+  /** Сжимает JSON-строку уведомления под лимит провайдера (после шифрования лимит жёстче). */
+  private serializePushPayload(payload: Record<string, unknown>): string {
+    const maxBytes = PUSH_JSON_UTF8_MAX_BYTES;
+    const working: Record<string, unknown> = { ...payload };
+    let str = JSON.stringify(working);
+    let guard = 0;
+
+    while (Buffer.byteLength(str, 'utf8') > maxBytes && guard < 14) {
+      guard += 1;
+      const body = String(working.body ?? '');
+      if (body.length > 28) {
+        working.body = `${body.slice(0, Math.max(24, Math.floor(body.length * 0.82)))}…`;
+      } else {
+        const title = String(working.title ?? '');
+        working.title =
+          title.length > 12
+            ? `${title.slice(0, Math.max(8, Math.floor(title.length * 0.85)))}…`
+            : title;
+        working.body = 'Новое сообщение';
+      }
+      str = JSON.stringify(working);
     }
 
-    const value = (error as { statusCode?: unknown }).statusCode;
-    return typeof value === 'number' ? value : undefined;
+    if (Buffer.byteLength(str, 'utf8') > maxBytes) {
+      str = JSON.stringify({
+        title: 'ChristApp',
+        body: 'Новое сообщение',
+        targetUrl: working.targetUrl,
+        roomId: working.roomId,
+        messageId: working.messageId,
+        createdAt: working.createdAt,
+        senderId: working.senderId,
+        ...(typeof working.badgeCount === 'number'
+          ? { badgeCount: working.badgeCount }
+          : {}),
+      });
+    }
+
+    return str;
+  }
+
+  private extractPushHttpStatus(error: unknown): number | undefined {
+    const WebPushErrorCtor = (
+      webPush as {
+        WebPushError?: new (...args: never[]) => Error & { statusCode: number };
+      }
+    ).WebPushError;
+
+    if (WebPushErrorCtor && error instanceof WebPushErrorCtor) {
+      const sc = error.statusCode;
+      return typeof sc === 'number' && Number.isFinite(sc) ? sc : undefined;
+    }
+
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const sc = (error as { statusCode: unknown }).statusCode;
+      return typeof sc === 'number' && Number.isFinite(sc) ? sc : undefined;
+    }
+
+    return undefined;
+  }
+
+  private async removeInvalidPushSubscription(
+    subscription: PushSubscriptionRecord,
+    httpStatus: number,
+  ) {
+    try {
+      await this.prisma.pushSubscription.delete({
+        where: { id: subscription.id },
+      });
+    } catch {
+      await this.prisma.pushSubscription.deleteMany({
+        where: { endpoint: subscription.endpoint },
+      });
+    }
+
+    this.logger.log(
+      `Push subscription removed (HTTP ${httpStatus}, id=${subscription.id}) — подписка недействительна.`,
+    );
   }
 }
