@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { usePathname } from "next/navigation"
-import { getAuthToken } from "@/lib/auth"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { fetchPushStatus, isPushSupportedInBrowser, syncBrowserPushSubscription } from "@/lib/push"
 
 const AUTO_SYNC_INTERVAL_MS = 120_000
@@ -60,11 +60,13 @@ export default function PushAutoSync() {
 
     window.addEventListener("focus", syncToken)
     window.addEventListener("storage", syncToken)
+    window.addEventListener(AUTH_CHANGED_EVENT, syncToken)
     document.addEventListener("visibilitychange", syncToken)
 
     return () => {
       window.removeEventListener("focus", syncToken)
       window.removeEventListener("storage", syncToken)
+      window.removeEventListener(AUTH_CHANGED_EVENT, syncToken)
       document.removeEventListener("visibilitychange", syncToken)
     }
   }, [])

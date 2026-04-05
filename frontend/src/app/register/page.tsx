@@ -3,21 +3,25 @@
 import { useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/useAuth"
+import { useAuth, type AuthSessionPayload } from "@/hooks/useAuth"
+import { getHttpApiBase } from "@/lib/apiBase"
+import { apiFetch } from "@/lib/apiFetch"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
-import { getApiErrorMessage } from "@/lib/apiError"
+import { getNetworkFailureHint, messageFromApiResponseBody } from "@/lib/apiError"
 import { type RegisterFieldErrors, validateRegisterForm } from "@/lib/formValidation"
+import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel"
 import styles from "@/app/(login)/login.module.scss"
 
 export default function RegisterPage() {
   const router = useRouter()
-  const { login, error, isSubmitting } = useAuth()
+  const { error, applyAuthPayload } = useAuth()
 
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({})
   const [registerError, setRegisterError] = useState<string | null>(null)
+  const [registerSubmitting, setRegisterSubmitting] = useState(false)
 
   const handleNavigateToLogin = () => {
     router.push("/")
@@ -26,28 +30,25 @@ export default function RegisterPage() {
   const handleRegisterSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
+    const normalizedEmail = email.trim()
+    const normalizedUsername = username.trim()
+
+    const nextErrors = validateRegisterForm({
+      email: normalizedEmail,
+      username: normalizedUsername,
+      password,
+    })
+
+    setFieldErrors(nextErrors)
+    setRegisterError(null)
+
+    if (Object.keys(nextErrors).length > 0) {
+      return
+    }
+
+    setRegisterSubmitting(true)
     try {
-      const normalizedEmail = email.trim()
-      const normalizedUsername = username.trim()
-
-      const nextErrors = validateRegisterForm({
-        email: normalizedEmail,
-        username: normalizedUsername,
-        password,
-      })
-
-      setFieldErrors(nextErrors)
-      setRegisterError(null)
-
-      if (Object.keys(nextErrors).length > 0) {
-        return
-      }
-
-      if (!process.env.NEXT_PUBLIC_API_URL) {
-        throw new Error("Не задан NEXT_PUBLIC_API_URL")
-      }
-
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/register`, {
+      const res = await apiFetch(`${getHttpApiBase()}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -57,15 +58,13 @@ export default function RegisterPage() {
         }),
       })
 
+      const text = await res.text()
+
       if (!res.ok) {
-        const contentType = res.headers.get("content-type") || ""
-
-        if (contentType.includes("application/json")) {
-          const errData = await res.json()
-          throw new Error(getApiErrorMessage(errData, "Ошибка регистрации"))
-        }
-
-        throw new Error("Ошибка регистрации: сервер вернул не JSON")
+        setRegisterError(
+          messageFromApiResponseBody(text, res.status, "Регистрация не удалась. Попробуйте ещё раз."),
+        )
+        return
       }
 
       saveRecentAuthIdentity({
@@ -73,11 +72,13 @@ export default function RegisterPage() {
         username: normalizedUsername,
       })
 
-      const success = await login(normalizedEmail, password)
-      if (success) router.push("/chat")
+      const data = JSON.parse(text) as AuthSessionPayload
+      applyAuthPayload(data)
+      router.push("/chat")
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Ошибка регистрации"
-      setRegisterError(message)
+      setRegisterError(getNetworkFailureHint(err))
+    } finally {
+      setRegisterSubmitting(false)
     }
   }
 
@@ -91,6 +92,8 @@ export default function RegisterPage() {
           <h1 className={styles.title}>Create account</h1>
           <p className={styles.subtitle}>Join Christ App in a minute.</p>
         </header>
+
+        <LoginServerWarmupPanel />
 
         {registerError && (
           <div className={styles.errorWrap}>
@@ -165,8 +168,8 @@ export default function RegisterPage() {
           </div>
 
           <div className={styles.actions}>
-            <button type="submit" disabled={isSubmitting} className={styles.button}>
-              {isSubmitting ? "Signing up..." : "Sign up"}
+            <button type="submit" disabled={registerSubmitting} className={styles.button}>
+              {registerSubmitting ? "Signing up..." : "Sign up"}
             </button>
           </div>
         </form>

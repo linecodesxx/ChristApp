@@ -230,27 +230,50 @@
     text-align: center;
   }
 
+  /* Как у ChatWindow: занимает всё место между шапкой и полем ввода, клипает контент. */
   .messagesSkeleton {
     flex: 1 1 auto;
-    min-height: clamp(420px, 56vh, 760px);
-    padding: 8px 2px 14px;
-    display: block;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
+    background: var(--background);
+    position: relative;
+    z-index: 0;
+    padding: 8px 2px 0;
+    box-sizing: border-box;
   }
 
   .messagesSkeletonList {
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
-    height: 100%;
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     gap: 12px;
     padding: 6px 0 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .messagesSkeletonGrow {
+    flex: 1 1 auto;
+    min-height: 12px;
+    width: 100%;
+    min-width: 0;
   }
 
   .messagesSkeletonRow {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
     display: flex;
+    flex-shrink: 0;
   }
 
   .messagesSkeletonRowLeft {
@@ -265,6 +288,8 @@
     display: inline-block;
     height: 44px;
     max-width: 82%;
+    min-width: 0;
+    box-sizing: border-box;
     border-radius: 16px;
     border: 1px solid color-mix(in srgb, var(--line-soft) 78%, transparent);
     background:

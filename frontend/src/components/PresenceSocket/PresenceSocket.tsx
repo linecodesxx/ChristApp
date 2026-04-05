@@ -2,10 +2,11 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { io, type Socket } from "socket.io-client"
+import { getDirectApiOrigin } from "@/lib/apiBase"
 import { getAuthToken } from "@/lib/auth"
 import { usePathname } from "next/navigation"
 
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+const WS_URL = getDirectApiOrigin()
 const TOKEN_SYNC_INTERVAL_MS = 4000
 
 type PresenceSocketContextValue = {

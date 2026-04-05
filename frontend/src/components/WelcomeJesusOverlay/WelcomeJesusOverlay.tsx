@@ -1,7 +1,9 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import { getHttpApiBase } from "@/lib/apiBase"
 import { getAuthToken } from "@/lib/auth"
+import { apiFetch } from "@/lib/apiFetch"
 import styles from "./WelcomeJesusOverlay.module.scss"
 
 const STORAGE_KEY = "christapp-welcome-jesus-shown"
@@ -49,11 +51,7 @@ export default function WelcomeJesusOverlay() {
 
       sequenceStartedRef.current = true
 
-      const API_URL = process.env.NEXT_PUBLIC_API_URL
-      if (!API_URL) {
-        sequenceStartedRef.current = false
-        return
-      }
+      const API_URL = getHttpApiBase()
 
       const token = getAuthToken()
       if (!token) {
@@ -61,7 +59,7 @@ export default function WelcomeJesusOverlay() {
         return
       }
 
-      const res = await fetch(`${API_URL}/auth/me`, {
+      const res = await apiFetch(`${API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` },
       })
 

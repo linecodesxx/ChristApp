@@ -12,6 +12,7 @@ import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
+import { apiFetch } from "@/lib/apiFetch"
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
 import { showChatNotification } from "@/lib/notifications"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
@@ -30,8 +31,10 @@ import { type StickerItem } from "@/components/StickerPicker/StickerPicker"
 import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
+import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 
-const WS_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001"
+const CHAT_SOCKET_URL = getDirectApiOrigin()
+const CHAT_HTTP_API = getHttpApiBase()
 const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
 const SHARE_JESUS_PARCHMENT_TEXT =
   "Здесь затихает шум мира. Говори о том, что болит или радует"
@@ -422,6 +425,8 @@ export default function ChatPageDetails() {
   const roomHistoryQuery = useQuery({
     queryKey: chatRoomHistoryQueryKey(effectiveSocketRoomId),
     enabled: Boolean(user?.id && effectiveSocketRoomId),
+    /** Иначе глобальный placeholderData подставляет историю предыдущей комнаты при смене чата. */
+    placeholderData: undefined,
     queryFn: async () => {
       const token = getAuthToken()
       if (!token || !effectiveSocketRoomId) {
@@ -531,6 +536,9 @@ export default function ChatPageDetails() {
     if (!roomHistoryQuery.data || !effectiveSocketRoomId) {
       return
     }
+    if (roomHistoryQuery.isPlaceholderData) {
+      return
+    }
 
     const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(
       roomHistoryQuery.data as IncomingSocketMessage[],
@@ -541,7 +549,7 @@ export default function ChatPageDetails() {
     setMessages(uniqueHistory)
     setIsHistoryLoading(false)
     awaitingRoomHistoryRef.current = false
-  }, [effectiveSocketRoomId, roomHistoryQuery.data, user?.username])
+  }, [effectiveSocketRoomId, roomHistoryQuery.data, roomHistoryQuery.isPlaceholderData, user?.username])
 
   useEffect(() => {
     setTypingUsers(new Map())
@@ -585,7 +593,7 @@ export default function ChatPageDetails() {
       return
     }
 
-    const socket = io(WS_URL, {
+    const socket = io(CHAT_SOCKET_URL, {
       auth: { token },
       transports: ["websocket"],
       reconnection: true,
@@ -1373,7 +1381,7 @@ export default function ChatPageDetails() {
 
       setSendNotice(null)
       try {
-        const response = await fetch(`${WS_URL}/messages/voice`, {
+        const response = await apiFetch(`${CHAT_HTTP_API}/messages/voice`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -1435,7 +1443,7 @@ export default function ChatPageDetails() {
 
       setSendNotice(null)
       try {
-        const response = await fetch(`${WS_URL}/messages/image`, {
+        const response = await apiFetch(`${CHAT_HTTP_API}/messages/image`, {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
@@ -1557,6 +1565,7 @@ export default function ChatPageDetails() {
                 />
               </div>
             ))}
+            <div className={styles.messagesSkeletonGrow} />
           </div>
         </div>
       ) : (

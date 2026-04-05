@@ -993,6 +993,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     void this.pushService
       .sendChatMessagePush({
+        messageId: message.id,
         roomId,
         senderId: message.senderId,
         senderUsername: message.sender.nickname || message.sender.username,

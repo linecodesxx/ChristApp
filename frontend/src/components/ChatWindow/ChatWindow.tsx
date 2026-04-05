@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, type ReactNode } from "react"
+import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
 import type { Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
 import MessageBubble from "@/components/MessageBubble/MessageBubble"
@@ -23,7 +23,13 @@ type ChatWindowProps = {
   readReceiptLabel?: string
   onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️") => void
   roomKey?: string
+  /** Сколько последних сообщений считать «recent» (ниже разделителя). */
+  recentMessagesCount?: number
 }
+
+/** Минимум сообщений в комнате, чтобы показать линию Recent. */
+const MIN_MESSAGES_FOR_RECENT_LINE = 14
+const DEFAULT_RECENT_MESSAGES_COUNT = 12
 
 function formatTypingLine(statuses: Array<{ username: string; activity: "text" | "voice" }>) {
   if (statuses.length === 0) return ""
@@ -53,9 +59,19 @@ function ChatWindow({
   readReceiptLabel,
   onToggleReaction,
   roomKey,
+  recentMessagesCount = DEFAULT_RECENT_MESSAGES_COUNT,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const didInitialScrollRef = useRef(false)
+
+  const recentSplitIndex = useMemo(() => {
+    const n = messages.length
+    const tail = Math.max(1, Math.min(recentMessagesCount, n - 1))
+    if (n < MIN_MESSAGES_FOR_RECENT_LINE || tail >= n) {
+      return null
+    }
+    return n - tail
+  }, [messages.length, recentMessagesCount])
 
   useEffect(() => {
     didInitialScrollRef.current = false
@@ -81,6 +97,26 @@ function ChatWindow({
       </div>
     ) : null
 
+  const renderBubble = (message: Message) => (
+    <MessageBubble
+      key={message.id}
+      message={message}
+      currentUsername={currentUsername}
+      currentUser={currentUser}
+      avatarSrc={
+        withSenderAvatars && message.senderId ? resolveAvatarUrl?.(message.senderId) : undefined
+      }
+      onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
+      onReply={onReplyMessage}
+      onDelete={onDeleteMessage}
+      canDeleteOwnMessage={canDeleteOwnMessages}
+      showReadReceipt={Boolean(readReceiptMessageId && readReceiptMessageId === message.id)}
+      readReceiptAvatarSrc={readReceiptAvatarSrc}
+      readReceiptLabel={readReceiptLabel}
+      onToggleReaction={onToggleReaction}
+    />
+  )
+
   return (
     <div className={styles.chatWindow}>
       {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
@@ -92,27 +128,23 @@ function ChatWindow({
         </>
       ) : (
         <>
-          {messages.map((message) => (
-            <MessageBubble
-              key={message.id}
-              message={message}
-              currentUsername={currentUsername}
-              currentUser={currentUser}
-              avatarSrc={
-                withSenderAvatars && message.senderId
-                  ? resolveAvatarUrl?.(message.senderId)
-                  : undefined
-              }
-              onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
-              onReply={onReplyMessage}
-              onDelete={onDeleteMessage}
-              canDeleteOwnMessage={canDeleteOwnMessages}
-              showReadReceipt={Boolean(readReceiptMessageId && readReceiptMessageId === message.id)}
-              readReceiptAvatarSrc={readReceiptAvatarSrc}
-              readReceiptLabel={readReceiptLabel}
-              onToggleReaction={onToggleReaction}
-            />
-          ))}
+          {recentSplitIndex == null ? (
+            messages.map((message) => renderBubble(message))
+          ) : (
+            <>
+              {messages.slice(0, recentSplitIndex).map((message) => renderBubble(message))}
+              <div
+                className={styles.recentDivider}
+                role="separator"
+                aria-label="Недавние сообщения ниже"
+              >
+                <span className={styles.recentDividerLine} aria-hidden />
+                <span className={styles.recentDividerLabel}>Recent</span>
+                <span className={styles.recentDividerLine} aria-hidden />
+              </div>
+              {messages.slice(recentSplitIndex).map((message) => renderBubble(message))}
+            </>
+          )}
           {typingBlock}
           <div ref={bottomRef} />
         </>

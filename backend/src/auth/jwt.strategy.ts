@@ -24,8 +24,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  async validate(payload: any) {
-    return this.prisma.user.findUnique({
+  async validate(payload: { sub?: string }) {
+    if (!payload?.sub) {
+      return null;
+    }
+
+    const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
       select: {
         id: true,
@@ -40,5 +44,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         themeFontKey: true,
       },
     });
+
+    if (!user?.isActive) {
+      return null;
+    }
+
+    return user;
   }
 }

@@ -1,12 +1,18 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
-import { getAuthToken } from "@/lib/auth"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { getUserIdFromJwt } from "@/lib/jwtUser"
 import { requestNotificationPermissionIfNeeded } from "@/lib/notifications"
 import {
-  fetchPushStatus,
-  fetchUnreadSummary,
+  fetchPushStatusForQuery,
+  fetchUnreadSummaryForQuery,
+  pushStatusQueryKey,
+  pushUnreadSummaryQueryKey,
+} from "@/lib/queries/pushQueries"
+import {
   getPushSyncErrorMessage,
   isPushSupportedInBrowser,
   syncBrowserPushSubscription,
@@ -48,75 +54,81 @@ function formatUnreadMessage(count: number) {
 
 export default function PushNotificationCenter() {
   const pathname = usePathname()
-  const [token, setToken] = useState<string | null>(() => getAuthToken())
+  const queryClient = useQueryClient()
+  const [authEpoch, setAuthEpoch] = useState(0)
   const [permissionState, setPermissionState] = useState<PermissionState>(getPermissionState)
-  const [isPushConfigured, setIsPushConfigured] = useState(false)
-  const [hasServerSubscription, setHasServerSubscription] = useState(false)
-  const [unreadTotal, setUnreadTotal] = useState(0)
   const [syncErrorMessage, setSyncErrorMessage] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
 
-  const refreshSeqRef = useRef(0)
+  useEffect(() => {
+    const bump = () => setAuthEpoch((n) => n + 1)
+    window.addEventListener(AUTH_CHANGED_EVENT, bump)
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, bump)
+  }, [])
 
-  const isPublicRoute = pathname === "/" || pathname === "/register" || pathname === "/offline"
-  const isProfileRoute = pathname === "/profile" || pathname.startsWith("/profile/")
+  const token = getAuthToken()
+  const userId = token ? getUserIdFromJwt(token) : undefined
+
+  const pushStatusQuery = useQuery({
+    queryKey: pushStatusQueryKey(userId),
+    queryFn: fetchPushStatusForQuery,
+    enabled: Boolean(token && userId),
+    staleTime: 45_000,
+    refetchInterval: REFRESH_INTERVAL_MS,
+  })
+
+  const unreadQuery = useQuery({
+    queryKey: pushUnreadSummaryQueryKey(userId),
+    queryFn: fetchUnreadSummaryForQuery,
+    enabled: Boolean(token && userId),
+    staleTime: 20_000,
+    refetchInterval: REFRESH_INTERVAL_MS,
+  })
+
+  const isPushConfigured = Boolean(pushStatusQuery.data?.enabled)
+  const hasServerSubscription = Boolean(pushStatusQuery.data?.hasSubscription)
+  const unreadTotal = Number(unreadQuery.data?.totalUnread ?? 0)
 
   const refreshState = useCallback(
     async (options?: { syncSubscription?: boolean }) => {
-      const seq = ++refreshSeqRef.current
+      const nextPermission = getPermissionState()
+      setPermissionState(nextPermission)
 
-      if (!token) {
-        setIsPushConfigured(false)
-        setHasServerSubscription(false)
-        setUnreadTotal(0)
+      if (!token || !userId) {
         setSyncErrorMessage(null)
-        setPermissionState(getPermissionState())
-        if (seq !== refreshSeqRef.current) return
-        setIsLoading(false)
         return
       }
 
-      const nextPermission = getPermissionState()
-      if (seq !== refreshSeqRef.current) return
-      setPermissionState(nextPermission)
+      const pushStatus = await queryClient.fetchQuery({
+        queryKey: pushStatusQueryKey(userId),
+        queryFn: fetchPushStatusForQuery,
+        staleTime: 45_000,
+      })
 
-      const [pushStatus, unreadSummary] = await Promise.all([
-        fetchPushStatus(token),
-        fetchUnreadSummary(token),
-      ])
-
-      if (seq !== refreshSeqRef.current) return
-
-      setIsPushConfigured(Boolean(pushStatus?.enabled))
-      setHasServerSubscription(Boolean(pushStatus?.hasSubscription))
-      setUnreadTotal(Number(unreadSummary?.totalUnread ?? 0))
+      await queryClient.fetchQuery({
+        queryKey: pushUnreadSummaryQueryKey(userId),
+        queryFn: fetchUnreadSummaryForQuery,
+        staleTime: 20_000,
+      })
 
       if (pushStatus?.hasSubscription || nextPermission !== "granted" || !pushStatus?.enabled) {
         setSyncErrorMessage(null)
       }
 
-      // Автосинхронизация: если разрешение уже выдано, пробуем
-      // в фоне зарегистрировать (или обновить) подписку браузера.
       if (options?.syncSubscription && nextPermission === "granted" && pushStatus?.enabled) {
         const syncResult = await syncBrowserPushSubscription(token)
-        if (seq !== refreshSeqRef.current) return
         setSyncErrorMessage(syncResult.success ? null : getPushSyncErrorMessage(syncResult.reason))
 
-        const refreshedStatus = await fetchPushStatus(token)
-        if (seq !== refreshSeqRef.current) return
-        if (refreshedStatus) {
-          setIsPushConfigured(Boolean(refreshedStatus.enabled))
-          setHasServerSubscription(Boolean(refreshedStatus.hasSubscription))
-          if (refreshedStatus.hasSubscription) {
-            setSyncErrorMessage(null)
-          }
+        const refreshedStatus = await queryClient.fetchQuery({
+          queryKey: pushStatusQueryKey(userId),
+          queryFn: fetchPushStatusForQuery,
+          staleTime: 45_000,
+        })
+        if (refreshedStatus?.hasSubscription) {
+          setSyncErrorMessage(null)
         }
       }
-
-      if (seq !== refreshSeqRef.current) return
-      setIsLoading(false)
     },
-    [token],
+    [queryClient, token, userId],
   )
 
   useEffect(() => {
@@ -124,10 +136,7 @@ export default function PushNotificationCenter() {
       return
     }
 
-    const syncToken = () => {
-      const newToken = getAuthToken()
-      setToken((prev) => (prev !== newToken ? newToken : prev))
-    }
+    const syncToken = () => setAuthEpoch((n) => n + 1)
 
     window.addEventListener("focus", syncToken)
     window.addEventListener("storage", syncToken)
@@ -145,18 +154,7 @@ export default function PushNotificationCenter() {
       return
     }
 
-    let isCancelled = false
-
-    const runRefresh = async () => {
-      if (isCancelled) return
-      await refreshState({ syncSubscription: true })
-    }
-
-    void runRefresh()
-
-    const intervalId = window.setInterval(() => {
-      void refreshState()
-    }, REFRESH_INTERVAL_MS)
+    void refreshState({ syncSubscription: true })
 
     const handleFocusRefresh = () => {
       void refreshState()
@@ -166,12 +164,10 @@ export default function PushNotificationCenter() {
     document.addEventListener("visibilitychange", handleFocusRefresh)
 
     return () => {
-      isCancelled = true
-      window.clearInterval(intervalId)
       window.removeEventListener("focus", handleFocusRefresh)
       document.removeEventListener("visibilitychange", handleFocusRefresh)
     }
-  }, [refreshState, token])
+  }, [refreshState, token, authEpoch])
 
   const permissionLabel = useMemo(() => {
     if (!isPushSupportedInBrowser()) {
@@ -209,6 +205,12 @@ export default function PushNotificationCenter() {
     return hasServerSubscription ? "Активно" : "Не подключено"
   }, [hasServerSubscription, isPushConfigured, permissionState])
 
+  const isPublicRoute = pathname === "/" || pathname === "/register" || pathname === "/offline"
+  const isProfileRoute = pathname === "/profile" || pathname.startsWith("/profile/")
+
+  const isBootstrapping =
+    Boolean(token && userId) && !pushStatusQuery.data && pushStatusQuery.isPending
+
   // После выдачи разрешения управление push отображаем только в профиле.
   const shouldShowBanner = permissionState !== "granted" || isProfileRoute
 
@@ -235,7 +237,7 @@ export default function PushNotificationCenter() {
     return null
   }
 
-  if (isLoading) {
+  if (isBootstrapping) {
     return (
       <section
         className={styles.banner}

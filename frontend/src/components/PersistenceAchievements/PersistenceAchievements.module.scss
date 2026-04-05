@@ -1,0 +1,265 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--foreground);
+  letter-spacing: -0.02em;
+}
+
+.sectionSubtitle {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (min-width: 420px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+.cardMotion {
+  position: relative;
+  width: 100%;
+  min-height: 132px;
+}
+
+.cardShell {
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 85%, transparent);
+  background: var(--surface-elevated);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 12px 10px 10px;
+  transition:
+    border-color 0.45s ease,
+    box-shadow 0.45s ease;
+
+  &.inactive {
+    opacity: 0.72;
+  }
+
+  &.active {
+    border-color: rgba(255, 215, 0, 0.35);
+    box-shadow:
+      0 0 0 1px rgba(255, 215, 0, 0.08),
+      0 0 24px rgba(255, 215, 0, 0.12),
+      0 4px 20px rgba(0, 0, 0, 0.06);
+  }
+
+  &.prestige.active {
+    border-color: rgba(255, 200, 80, 0.55);
+    box-shadow:
+      0 0 0 1px rgba(255, 215, 0, 0.12),
+      0 0 32px rgba(255, 190, 60, 0.18),
+      0 6px 28px rgba(0, 0, 0, 0.08);
+  }
+}
+
+/* Вращающийся «зайчик» по периметру (только активная карточка) */
+.ringSpin {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0deg,
+      transparent 240deg,
+      rgba(255, 215, 0, 0.95) 268deg,
+      rgba(255, 236, 160, 0.75) 292deg,
+      rgba(255, 215, 0, 0.5) 310deg,
+      transparent 328deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: persistBorderSpin 3.2s linear infinite;
+    box-sizing: border-box;
+  }
+}
+
+.cardShell.active .ringSpin {
+  opacity: 1;
+}
+
+.cardShell.prestige.active .ringSpin::before {
+  animation-duration: 5s;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    transparent 220deg,
+    rgba(255, 220, 100, 1) 260deg,
+    rgba(255, 248, 200, 0.9) 285deg,
+    rgba(255, 200, 60, 0.65) 305deg,
+    transparent 325deg,
+    transparent 360deg
+  );
+}
+
+@keyframes persistBorderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.cardInner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  flex: 1;
+}
+
+/* Мягкое свечение из центра при разблокировке */
+.glowBirth {
+  position: absolute;
+  left: 50%;
+  top: 38%;
+  width: 140%;
+  height: 140%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    circle closest-side,
+    rgba(255, 215, 0, 0.42) 0%,
+    rgba(255, 200, 80, 0.12) 38%,
+    transparent 72%
+  );
+  filter: blur(2px);
+}
+
+.iconWrap {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--foreground) 6%, transparent);
+  color: var(--text-muted);
+  transition:
+    color 0.45s ease,
+    filter 0.45s ease,
+    background 0.45s ease;
+
+  .cardShell.active & {
+    color: #e6bc2f;
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.45));
+    background: rgba(255, 215, 0, 0.1);
+  }
+
+  .cardShell.inactive & {
+    filter: grayscale(0.35);
+  }
+}
+
+.dayDigit {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-inter, "Inter"), system-ui, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--book-title-color, var(--foreground));
+  font-variant-numeric: tabular-nums;
+
+  .cardShell.active & {
+    color: #ffd700;
+    text-shadow: 0 0 20px rgba(255, 215, 0, 0.25);
+  }
+
+  .cardShell.inactive & {
+    opacity: 0.45;
+  }
+}
+
+.cardTitle {
+  position: relative;
+  z-index: 2;
+  margin: 2px 0 0;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--foreground);
+
+  .cardShell.inactive & {
+    color: var(--text-muted);
+  }
+}
+
+.cardDesc {
+  position: relative;
+  z-index: 2;
+  margin: 0;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text-muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+
+  .cardShell.inactive & {
+    opacity: 0.75;
+  }
+}
+
+.lockHint {
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-dim, var(--text-muted));
+}

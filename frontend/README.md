@@ -1,5 +1,20 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## PWA / iOS: аутентификация
+
+Схема с HttpOnly refresh-cookie и silent refresh: [docs/auth-pwa-ios.md](../docs/auth-pwa-ios.md).
+
+## API URL (локально и production)
+
+Обычный вариант — **разные значения `NEXT_PUBLIC_API_URL` в разных средах** (см. [.env.example](./.env.example)):
+
+| Среда        | `NEXT_PUBLIC_API_URL`        | Бэкенд `CORS_ORIGIN`      |
+|-------------|------------------------------|----------------------------|
+| Локально    | `http://localhost:3001`      | `http://localhost:3000`    |
+| Production  | `https://ваш-api...`         | `https://ваш-фронт...`     |
+
+Звёздочку `*` в CORS с cookies использовать нельзя — только точный origin фронта.
+
 ## Getting Started
 
 First, run the development server:

@@ -1,5 +1,8 @@
+import { getHttpApiBase } from "@/lib/apiBase"
+import { apiFetch } from "@/lib/apiFetch"
+
 /** Без завершающего `/`, иначе получится `//push/...` и часть прокси отдаёт 404/500. */
-const API_URL = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001').replace(/\/+$/, '')
+const API_URL = getHttpApiBase().replace(/\/+$/, "")
 
 export type PushServerStatus = {
   enabled: boolean
@@ -69,7 +72,7 @@ export async function hasActivePushSubscription() {
 
 export async function fetchPushStatus(token: string): Promise<PushServerStatus | null> {
   try {
-    const response = await fetch(`${API_URL}/push/status`, {
+    const response = await apiFetch(`${API_URL}/push/status`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -88,7 +91,7 @@ export async function fetchPushStatus(token: string): Promise<PushServerStatus |
 
 export async function fetchUnreadSummary(token: string): Promise<UnreadSummaryResponse | null> {
   try {
-    const response = await fetch(`${API_URL}/push/unread-summary`, {
+    const response = await apiFetch(`${API_URL}/push/unread-summary`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -146,7 +149,7 @@ export async function syncBrowserPushSubscription(token: string): Promise<PushSy
     let subscription = await registration.pushManager.getSubscription()
 
     if (!subscription) {
-      const publicKeyResponse = await fetch(`${API_URL}/push/public-key`, {
+      const publicKeyResponse = await apiFetch(`${API_URL}/push/public-key`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -173,7 +176,7 @@ export async function syncBrowserPushSubscription(token: string): Promise<PushSy
       return { success: false, reason: 'invalid-subscription' }
     }
 
-    const subscribeResponse = await fetch(`${API_URL}/push/subscribe`, {
+    const subscribeResponse = await apiFetch(`${API_URL}/push/subscribe`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

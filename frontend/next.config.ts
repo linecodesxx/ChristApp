@@ -8,7 +8,7 @@ function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>[
     { protocol: "https", hostname: "res.cloudinary.com", pathname: "/**" },
   ]
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.BACKEND_PROXY_TARGET?.trim()
   if (!apiUrl) {
     return patterns
   }
@@ -49,7 +49,7 @@ function serviceWorkerConnectSrc(): string {
     "http://127.0.0.1:3001",
   ])
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL?.trim() || process.env.BACKEND_PROXY_TARGET?.trim()
   if (apiUrl) {
     try {
       const parsed = new URL(apiUrl)
@@ -66,6 +66,16 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: process.cwd(),
   turbopack: {
     root: process.cwd(),
+  },
+  /** HTTP к Nest без CORS: браузер бьёт в тот же origin, Next проксирует на бэкенд. */
+  async rewrites() {
+    const target = (process.env.BACKEND_PROXY_TARGET?.trim() || "http://127.0.0.1:3001").replace(/\/+$/, "")
+    return [
+      {
+        source: "/api/nest/:path*",
+        destination: `${target}/:path*`,
+      },
+    ]
   },
   images: {
     remotePatterns: uploadsRemotePatterns(),
