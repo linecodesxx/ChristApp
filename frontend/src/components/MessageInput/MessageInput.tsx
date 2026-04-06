@@ -14,8 +14,11 @@ type ComposerMode = "text" | "voice"
 
 type MessageInputProps = {
   onSend: (text: string, replyToMessage?: Message | null) => Promise<boolean>
+  onSaveEdit?: (messageId: string, text: string) => Promise<boolean>
+  editingMessage?: Message | null
   replyToMessage?: Message | null
   onCancelReply?: () => void
+  onCancelEdit?: () => void
   disabled?: boolean
   placeholder?: string
   /** Сигнал для индикатора «печатает» (debounce внутри). */
@@ -27,22 +30,28 @@ type MessageInputProps = {
   onSendVoice?: (blob: Blob) => void | Promise<boolean>
   /** Картинка в чат (кнопка скрепки слева). */
   onSendImage?: (file: File) => void | Promise<boolean>
+  onSelectFiles?: (files: File[]) => void | Promise<void>
   onSendSticker?: (sticker: StickerItem) => void | Promise<boolean>
   onVoiceRecordingActivity?: (active: boolean) => void
 }
 
 const MAX_MESSAGE_LENGTH = 2000
 const MAX_TEXTAREA_HEIGHT = 140
+const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
 
 export default function MessageInput({
   onSend,
+  onSaveEdit,
+  editingMessage,
   replyToMessage,
   onCancelReply,
+  onCancelEdit,
   disabled = false,
   placeholder = "Напиши сообщение...",
   onTypingActivity,
   onSendVoice,
   onSendImage,
+  onSelectFiles,
   onSendSticker,
   onVoiceRecordingActivity,
 }: MessageInputProps) {
@@ -64,6 +73,7 @@ export default function MessageInput({
   const sendOnEnter = !narrowViewport
   const voiceEnabled = Boolean(onSendVoice)
   const imageEnabled = Boolean(onSendImage)
+  const filesEnabled = Boolean(onSelectFiles)
   const stickerEnabled = Boolean(onSendSticker)
 
   useEffect(() => {
@@ -109,6 +119,18 @@ export default function MessageInput({
       onVoiceRecordingActivity(false)
     }
   }, [mode, onVoiceRecordingActivity])
+
+  useEffect(() => {
+    if (!editingMessage) {
+      return
+    }
+    setMode("text")
+    setIsStickerPickerOpen(false)
+    setValue(editingMessage.content)
+    requestAnimationFrame(() => {
+      textareaRef.current?.focus()
+    })
+  }, [editingMessage])
 
   useEffect(() => {
     if (!isStickerPickerOpen) {
@@ -172,10 +194,16 @@ export default function MessageInput({
 
     setIsSending(true)
     try {
-      const isSent = await onSend(text, replyToMessage)
+      const isSent = editingMessage
+        ? await onSaveEdit?.(editingMessage.id, text)
+        : await onSend(text, replyToMessage)
       if (isSent) {
         setValue("")
-        onCancelReply?.()
+        if (editingMessage) {
+          onCancelEdit?.()
+        } else {
+          onCancelReply?.()
+        }
       }
     } finally {
       setIsSending(false)
@@ -204,15 +232,32 @@ export default function MessageInput({
   }
 
   const handleImageFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const selectedFiles = event.target.files ? Array.from(event.target.files) : []
     event.target.value = ""
-    if (!file || !onSendImage || disabled) return
-    if (!file.type.startsWith("image/")) {
+    if (!selectedFiles.length || disabled) return
+
+    const tooLarge = selectedFiles.find((file) => file.size > MAX_ATTACHMENT_SIZE_BYTES)
+    if (tooLarge) {
+      window.alert(`Файл "${tooLarge.name}" превышает лимит 50MB.`)
+      return
+    }
+
+    if (onSelectFiles) {
+      try {
+        await Promise.resolve(onSelectFiles(selectedFiles))
+      } catch {
+        // onSelectFiles показывает ошибку снаружи
+      }
+      return
+    }
+
+    const firstImageFile = selectedFiles.find((file) => file.type.startsWith("image/"))
+    if (!firstImageFile || !onSendImage) {
       window.alert("Выберите файл изображения.")
       return
     }
     try {
-      await Promise.resolve(onSendImage(file))
+      await Promise.resolve(onSendImage(firstImageFile))
     } catch {
       // onSendImage показывает ошибку снаружи
     }
@@ -248,6 +293,28 @@ export default function MessageInput({
 
   return (
     <div className={styles.messageComposer}>
+      {editingMessage ? (
+        <div className={styles.replyingTo}>
+          <div className={styles.replyingToMeta}>
+            <span className={styles.replyingToLabel}>Редактирование сообщения</span>
+            <span className={styles.replyingToText}>
+              {chatMessagePreview({
+                content: editingMessage.content,
+                type: editingMessage.type,
+                fileUrl: editingMessage.fileUrl,
+              })}
+            </span>
+          </div>
+          <button
+            type="button"
+            className={styles.replyingToClose}
+            aria-label="Отменить редактирование"
+            onClick={onCancelEdit}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       {replyToMessage ? (
         <div className={styles.replyingTo}>
           <div className={styles.replyingToMeta}>
@@ -270,7 +337,8 @@ export default function MessageInput({
         <input
           ref={imageFileInputRef}
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp,video/*,audio/*,.pdf,.zip,.doc,.docx,.txt"
+          multiple
           className={styles.visuallyHidden}
           tabIndex={-1}
           aria-hidden
@@ -279,9 +347,9 @@ export default function MessageInput({
         <button
           type="button"
           className={styles.iconButton}
-          aria-label="Прикрепить изображение"
-          title={imageEnabled ? "Отправить фото" : "Скоро доступно"}
-          disabled={disabled || mode === "voice" || !imageEnabled}
+          aria-label="Прикрепить файл"
+          title={filesEnabled || imageEnabled ? "Прикрепить файлы" : "Скоро доступно"}
+          disabled={disabled || mode === "voice" || (!imageEnabled && !filesEnabled)}
           onClick={() => imageFileInputRef.current?.click()}
         >
           <Image src="/icon-attachment.svg" alt="" width={20} height={20} className={styles.iconGraphic} />

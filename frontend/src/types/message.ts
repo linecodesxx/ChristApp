@@ -1,5 +1,5 @@
 export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE"
-export type AppReactionType = "🤍" | "😂" | "❤️"
+export type AppReactionType = "🤍" | "😂" | "❤️" | "🔥" | "😊"
 
 export type MessageReply = {
   id: string
@@ -21,6 +21,7 @@ export type Message = {
   type?: AppMessageType
   fileUrl?: string | null
   createdAt: string
+  isEdited?: boolean
   replyTo?: MessageReply
   reactions?: Array<{
     id: string

@@ -20,6 +20,9 @@ export type UserAppearanceFields = {
   themeFontKey?: string | null
 }
 
+/** Последнее состояние для повторного применения при смене light/dark (см. ThemeToggle). */
+let cachedAppearanceUser: UserAppearanceFields | null | undefined
+
 function normalizeHex(input: string | null | undefined): string | undefined {
   if (input == null || typeof input !== "string") {
     return undefined
@@ -32,6 +35,14 @@ function normalizeHex(input: string | null | undefined): string | undefined {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash : undefined
 }
 
+/** Повторно применить внешний вид после смены `data-theme` (inline --foreground не должен ломать светлую палитру). */
+export function reapplyUserAppearanceForCurrentTheme(): void {
+  if (typeof document === "undefined" || cachedAppearanceUser === undefined) {
+    return
+  }
+  applyUserAppearanceToDocument(cachedAppearanceUser)
+}
+
 /** Применить кастомные цвета/шрифт поверх data-theme (light/dark). */
 export function applyUserAppearanceToDocument(user: UserAppearanceFields | null | undefined): void {
   if (typeof document === "undefined") {
@@ -39,6 +50,7 @@ export function applyUserAppearanceToDocument(user: UserAppearanceFields | null 
   }
 
   const root = document.documentElement
+  cachedAppearanceUser = user ?? null
 
   if (!user) {
     root.style.removeProperty("--foreground")
@@ -48,10 +60,19 @@ export function applyUserAppearanceToDocument(user: UserAppearanceFields | null 
     return
   }
 
+  const theme = root.getAttribute("data-theme") ?? "dark"
+  const isLight = theme === "light"
+
   const fg = normalizeHex(user.themeForegroundHex ?? undefined)
   const bg = normalizeHex(user.themeBackgroundHex ?? undefined)
 
-  if (fg) {
+  // Кастомные hex из профиля рассчитаны на тёмный фон (часто белый текст). В светлой теме inline-переменные
+  // перебивают палитру из globals.scss — убираем их, чтобы работали --foreground / --surface из [data-theme="light"].
+  if (isLight) {
+    root.style.removeProperty("--foreground")
+    root.style.removeProperty("--book-title-color")
+    root.style.removeProperty("--background")
+  } else if (fg) {
     root.style.setProperty("--foreground", fg)
     root.style.setProperty("--book-title-color", fg)
   } else {
@@ -59,10 +80,12 @@ export function applyUserAppearanceToDocument(user: UserAppearanceFields | null 
     root.style.removeProperty("--book-title-color")
   }
 
-  if (bg) {
-    root.style.setProperty("--background", bg)
-  } else {
-    root.style.removeProperty("--background")
+  if (!isLight) {
+    if (bg) {
+      root.style.setProperty("--background", bg)
+    } else {
+      root.style.removeProperty("--background")
+    }
   }
 
   const fontKey = user.themeFontKey

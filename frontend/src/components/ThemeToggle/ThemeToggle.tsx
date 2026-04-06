@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { usePathname } from "next/navigation"
+import { reapplyUserAppearanceForCurrentTheme } from "@/lib/userAppearance"
 import styles from "./ThemeToggle.module.scss"
 
 type ThemeMode = "light" | "dark"
@@ -12,24 +13,34 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export default function ThemeToggle() {
-  const [theme, setTheme] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "dark"
-    try {
-      const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY)
-      return savedTheme === "light" || savedTheme === "dark" ? savedTheme : "dark"
-    } catch {
-      return "dark"
-    }
-  })
+  // Совпадает с SSR и с <html data-theme="dark"> в layout — иначе гидрация ругается,
+  // если в localStorage уже light (клиент читал стор до первого paint).
+  const [theme, setTheme] = useState<ThemeMode>("dark")
+  const [hasHydratedTheme, setHasHydratedTheme] = useState(false)
   const pathname = usePathname()
 
   useEffect(() => {
-    applyTheme(theme)
+    try {
+      const saved = window.localStorage.getItem(THEME_STORAGE_KEY)
+      if (saved === "light" || saved === "dark") {
+        setTheme(saved)
+      }
+    } catch {
+      // ignore
+    }
+    setHasHydratedTheme(true)
+  }, [])
 
+  useEffect(() => {
+    if (!hasHydratedTheme) {
+      return
+    }
+    applyTheme(theme)
+    reapplyUserAppearanceForCurrentTheme()
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, theme)
     } catch {}
-  }, [theme])
+  }, [theme, hasHydratedTheme])
 
   const handleToggle = () => {
     setTheme((currentTheme: ThemeMode) => (currentTheme === "light" ? "dark" : "light"))

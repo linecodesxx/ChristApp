@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, type ReactNode } from "react"
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import type { Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
 import MessageBubble from "@/components/MessageBubble/MessageBubble"
@@ -13,6 +13,7 @@ type ChatWindowProps = {
   onAvatarClick?: (message: Message) => void
   onReplyMessage?: (message: Message) => void
   onDeleteMessage?: (message: Message) => void
+  onEditMessage?: (message: Message) => void
   canDeleteOwnMessages?: boolean
   /** Контент над списком сообщений (например приветствие в особом чате). */
   topBanner?: ReactNode
@@ -21,7 +22,10 @@ type ChatWindowProps = {
   readReceiptMessageId?: string | null
   readReceiptAvatarSrc?: string
   readReceiptLabel?: string
-  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️") => void
+  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => void
+  resolveReactionAvatarUrl?: (userId: string) => string | undefined
+  resolveReactionUserLabel?: (userId: string) => string | undefined
+  onMissingReferencedMessage?: (messageId: string) => void
   roomKey?: string
   /** Сколько последних сообщений считать «recent» (ниже разделителя). */
   recentMessagesCount?: number
@@ -51,6 +55,7 @@ function ChatWindow({
   onAvatarClick,
   onReplyMessage,
   onDeleteMessage,
+  onEditMessage,
   canDeleteOwnMessages = false,
   topBanner,
   typingStatuses = [],
@@ -58,11 +63,17 @@ function ChatWindow({
   readReceiptAvatarSrc,
   readReceiptLabel,
   onToggleReaction,
+  resolveReactionAvatarUrl,
+  resolveReactionUserLabel,
+  onMissingReferencedMessage,
   roomKey,
   recentMessagesCount = DEFAULT_RECENT_MESSAGES_COUNT,
 }: ChatWindowProps) {
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const didInitialScrollRef = useRef(false)
+  const messageRefs = useRef<Map<string, HTMLElement>>(new Map())
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const highlightTimerRef = useRef<number | null>(null)
 
   const recentSplitIndex = useMemo(() => {
     const n = messages.length
@@ -75,7 +86,21 @@ function ChatWindow({
 
   useEffect(() => {
     didInitialScrollRef.current = false
+    messageRefs.current.clear()
+    setHighlightedMessageId(null)
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current)
+      highlightTimerRef.current = null
+    }
   }, [roomKey])
+
+  useEffect(() => {
+    return () => {
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current)
+      }
+    }
+  }, [])
 
   const typingStatusesKey = typingStatuses.map((item) => `${item.username}:${item.activity}`).join("|")
 
@@ -97,24 +122,55 @@ function ChatWindow({
       </div>
     ) : null
 
+  const setMessageRef = (messageId: string, element: HTMLElement | null) => {
+    if (!element) {
+      messageRefs.current.delete(messageId)
+      return
+    }
+    messageRefs.current.set(messageId, element)
+  }
+
+  const navigateToReferencedMessage = (messageId: string) => {
+    const target = messageRefs.current.get(messageId)
+    if (!target) {
+      onMissingReferencedMessage?.(messageId)
+      return
+    }
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" })
+    setHighlightedMessageId(messageId)
+    if (highlightTimerRef.current !== null) {
+      window.clearTimeout(highlightTimerRef.current)
+    }
+    highlightTimerRef.current = window.setTimeout(() => {
+      setHighlightedMessageId((prev) => (prev === messageId ? null : prev))
+    }, 1700)
+  }
+
   const renderBubble = (message: Message) => (
-    <MessageBubble
-      key={message.id}
-      message={message}
-      currentUsername={currentUsername}
-      currentUser={currentUser}
-      avatarSrc={
-        withSenderAvatars && message.senderId ? resolveAvatarUrl?.(message.senderId) : undefined
-      }
-      onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
-      onReply={onReplyMessage}
-      onDelete={onDeleteMessage}
-      canDeleteOwnMessage={canDeleteOwnMessages}
-      showReadReceipt={Boolean(readReceiptMessageId && readReceiptMessageId === message.id)}
-      readReceiptAvatarSrc={readReceiptAvatarSrc}
-      readReceiptLabel={readReceiptLabel}
-      onToggleReaction={onToggleReaction}
-    />
+    <div key={message.id} ref={(element) => setMessageRef(message.id, element)}>
+      <MessageBubble
+        message={message}
+        currentUsername={currentUsername}
+        currentUser={currentUser}
+        avatarSrc={
+          withSenderAvatars && message.senderId ? resolveAvatarUrl?.(message.senderId) : undefined
+        }
+        onAvatarClick={withSenderAvatars ? onAvatarClick : undefined}
+        onReply={onReplyMessage}
+        onReplyPreviewClick={navigateToReferencedMessage}
+        onDelete={onDeleteMessage}
+        onEdit={onEditMessage}
+        canDeleteOwnMessage={canDeleteOwnMessages}
+        showReadReceipt={Boolean(readReceiptMessageId && readReceiptMessageId === message.id)}
+        readReceiptAvatarSrc={readReceiptAvatarSrc}
+        readReceiptLabel={readReceiptLabel}
+        onToggleReaction={onToggleReaction}
+        resolveReactionAvatarUrl={resolveReactionAvatarUrl}
+        resolveReactionUserLabel={resolveReactionUserLabel}
+        isHighlighted={highlightedMessageId === message.id}
+      />
+    </div>
   )
 
   return (

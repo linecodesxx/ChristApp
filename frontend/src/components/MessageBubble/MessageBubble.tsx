@@ -20,16 +20,21 @@ type MessageBubbleProps = {
   onAvatarClick?: (message: Message) => void
   onReply?: (message: Message) => void
   onDelete?: (message: Message) => void
+  onEdit?: (message: Message) => void
   canDeleteOwnMessage?: boolean
   showReadReceipt?: boolean
   readReceiptAvatarSrc?: string
   readReceiptLabel?: string
-  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️") => void
+  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => void
+  onReplyPreviewClick?: (replyMessageId: string) => void
+  resolveReactionAvatarUrl?: (userId: string) => string | undefined
+  resolveReactionUserLabel?: (userId: string) => string | undefined
+  isHighlighted?: boolean
 }
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
-const REACTION_OPTIONS: Array<"🤍" | "😂" | "❤️"> = ["🤍", "😂", "❤️"]
+const REACTION_OPTIONS: Array<"🤍" | "😂" | "❤️" | "🔥" | "😊"> = ["🤍", "😂", "❤️", "🔥", "😊"]
 
 function MessageBubble({
   message,
@@ -39,11 +44,16 @@ function MessageBubble({
   onAvatarClick,
   onReply,
   onDelete,
+  onEdit,
   canDeleteOwnMessage = false,
   showReadReceipt = false,
   readReceiptAvatarSrc,
   readReceiptLabel = "Просмотрено",
   onToggleReaction,
+  onReplyPreviewClick,
+  resolveReactionAvatarUrl,
+  resolveReactionUserLabel,
+  isHighlighted = false,
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
@@ -73,17 +83,18 @@ function MessageBubble({
 
   const reactionGroups = useMemo(() => {
     const grouped = new Map<
-      "🤍" | "😂" | "❤️",
-      { emoji: "🤍" | "😂" | "❤️"; count: number; reactedByMe: boolean }
+      "🤍" | "😂" | "❤️" | "🔥" | "😊",
+      { emoji: "🤍" | "😂" | "❤️" | "🔥" | "😊"; count: number; reactedByMe: boolean; latestUserId: string }
     >()
     const currentUserId = currentUser?.id
     const allowed = new Set(REACTION_OPTIONS)
     for (const reaction of message.reactions ?? []) {
       if (!allowed.has(reaction.type)) continue
-      const emoji = reaction.type as "🤍" | "😂" | "❤️"
+      const emoji = reaction.type as "🤍" | "😂" | "❤️" | "🔥" | "😊"
       const existing = grouped.get(emoji)
       if (existing) {
         existing.count += 1
+        existing.latestUserId = reaction.userId
         if (currentUserId && reaction.userId === currentUserId) {
           existing.reactedByMe = true
         }
@@ -93,12 +104,14 @@ function MessageBubble({
         emoji,
         count: 1,
         reactedByMe: Boolean(currentUserId && reaction.userId === currentUserId),
+        latestUserId: reaction.userId,
       })
     }
     return REACTION_OPTIONS.map((emoji) => grouped.get(emoji)).filter(Boolean) as Array<{
-      emoji: "🤍" | "😂" | "❤️"
+      emoji: "🤍" | "😂" | "❤️" | "🔥" | "😊"
       count: number
       reactedByMe: boolean
+      latestUserId: string
     }>
   }, [currentUser?.id, message.reactions])
 
@@ -166,7 +179,7 @@ function MessageBubble({
     setIsReactionPickerOpen((prev) => !prev)
   }
 
-  const handleReactionClick = (event: MouseEvent<HTMLButtonElement>, reaction: "🤍" | "😂" | "❤️") => {
+  const handleReactionClick = (event: MouseEvent<HTMLButtonElement>, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => {
     event.stopPropagation()
     onToggleReaction?.(message, reaction)
     setIsReactionPickerOpen(false)
@@ -179,13 +192,27 @@ function MessageBubble({
     }
   }
 
+  const handleEditClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    onEdit?.(message)
+  }
+
+  const handleReplyPreviewClick = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    if (message.replyTo?.id) {
+      onReplyPreviewClick?.(message.replyTo.id)
+    }
+  }
+
+  const articleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`
+
   const bubbleBody = (
     <>
       {message.replyTo ? (
-        <div className={styles.replyPreview}>
+        <button type="button" className={styles.replyPreview} onClick={handleReplyPreviewClick}>
           <span className={styles.replyAuthor}>{message.replyTo.username}</span>
           <span className={styles.replyText}>{message.replyTo.content}</span>
-        </div>
+        </button>
       ) : null}
 
       {(() => {
@@ -271,19 +298,35 @@ function MessageBubble({
       })()}
 
       <div className={styles.metaRow}>
-        {isOwnMessage && canDeleteOwnMessage ? (
-          <button
-            type="button"
-            className={styles.deleteButton}
-            onClick={handleDeleteClick}
-            aria-label="Удалить сообщение"
-            title="Удалить сообщение"
-          >
-            Удалить
-          </button>
-        ) : null}
+        <div className={styles.metaActions}>
+          {isOwnMessage && onEdit && message.type !== "VOICE" && message.type !== "IMAGE" ? (
+            <button
+              type="button"
+              className={styles.metaActionButton}
+              onClick={handleEditClick}
+              aria-label="Изменить сообщение"
+              title="Изменить сообщение"
+            >
+              Изменить
+            </button>
+          ) : null}
+          {isOwnMessage && canDeleteOwnMessage ? (
+            <button
+              type="button"
+              className={styles.metaActionButton}
+              onClick={handleDeleteClick}
+              aria-label="Удалить сообщение"
+              title="Удалить сообщение"
+            >
+              Удалить
+            </button>
+          ) : null}
+        </div>
 
-        <span className={styles.date}>{formattedDate}</span>
+        <span className={styles.date}>
+          {formattedDate}
+          {message.isEdited ? " · изменено" : ""}
+        </span>
         {onToggleReaction ? (
           <div className={styles.reactionAnchor} ref={reactionPickerRef}>
             <button
@@ -324,6 +367,19 @@ function MessageBubble({
               aria-label={`Реакция ${reaction.emoji} (${reaction.count})`}
             >
               {reaction.emoji}
+              {reaction.latestUserId ? (
+                <AvatarWithFallback
+                  src={resolveReactionAvatarUrl?.(reaction.latestUserId)}
+                  initials={getInitials(resolveReactionUserLabel?.(reaction.latestUserId) ?? "U")}
+                  colorSeed={reaction.latestUserId}
+                  width={12}
+                  height={12}
+                  imageClassName={styles.reactionAvatarImg}
+                  fallbackClassName={styles.reactionAvatarFallback}
+                  fallbackTag="span"
+                  fallbackTint="onError"
+                />
+              ) : null}
               <span>{reaction.count}</span>
             </button>
           ))}
@@ -350,7 +406,7 @@ function MessageBubble({
 
   if (isOwnMessage) {
     return (
-      <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <article className={articleClassName} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
         {bubbleBody}
       </article>
     )
@@ -383,7 +439,7 @@ function MessageBubble({
   }
 
   return (
-    <article className={bubble} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <article className={articleClassName} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
       {bubbleBody}
     </article>
   )

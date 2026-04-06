@@ -9,7 +9,6 @@ import PushAutoSync from "@/components/PushAutoSync/PushAutoSync"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
 import Providers from "@/providers/providers"
 import SplashScreen from "@/components/SplashScreen/SplashScreen"
-import WelcomeJesusOverlay from "@/components/WelcomeJesusOverlay/WelcomeJesusOverlay"
 
 import type { Metadata, Viewport } from "next"
 
@@ -41,7 +40,6 @@ export default function RootLayout({
       >
         <SplashScreen />
         <Providers>
-        <WelcomeJesusOverlay />
         <PwaRegistration />
         <PushAutoSync />
         <PresenceSocket>

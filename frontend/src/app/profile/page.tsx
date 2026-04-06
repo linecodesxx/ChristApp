@@ -6,9 +6,7 @@ import { formatMemberSince, getInitials } from "@/lib/utils"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { getAppStreak } from "@/lib/appStreak"
-import PersistenceAchievements, {
-  countUnlockedPersistenceAchievements,
-} from "@/components/PersistenceAchievements/PersistenceAchievements"
+import PersistenceAchievements from "@/components/PersistenceAchievements/PersistenceAchievements"
 import { deleteSavedVerse } from "@/lib/versesApi"
 import { getApiErrorMessage } from "@/lib/apiError"
 import { USERNAME_REGEX } from "@/lib/formValidation"
@@ -55,6 +53,11 @@ function getPushPermissionState(): PushPermissionState {
   return Notification.permission
 }
 
+function effectiveThemeForegroundHex(user: { themeForegroundHex?: string | null } | null): string {
+  const raw = user?.themeForegroundHex?.trim() ?? ""
+  return /^#[0-9a-f]{6}$/i.test(raw) ? raw.toLowerCase() : SUGGESTED_THEME_FOREGROUND.toLowerCase()
+}
+
 export default function ProfilePage() {
   const hydrated = useHydrated()
   const queryClient = useQueryClient()
@@ -74,9 +77,14 @@ export default function ProfilePage() {
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [avatarCacheBust, setAvatarCacheBust] = useState(0)
   const [dayStreak, setDayStreak] = useState(0)
-  const [themeFgInput, setThemeFgInput] = useState(SUGGESTED_THEME_FOREGROUND)
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND)
   const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter")
+  /** Блок «Постоянство / стрики» по умолчанию скрыт; открывается только по кнопке «Серия дней». */
+  const [isPersistenceOpen, setIsPersistenceOpen] = useState(false)
+
+  useEffect(() => {
+    setIsPersistenceOpen(false)
+  }, [user?.id])
 
   useEffect(() => {
     setPushPermission(getPushPermissionState())
@@ -124,10 +132,8 @@ export default function ProfilePage() {
 
   const savedVerses = versesQuery.data ?? []
 
-  const persistenceRewardCount = useMemo(
-    () => countUnlockedPersistenceAchievements(dayStreak),
-    [dayStreak],
-  )
+  const isVerseKeeperUnlocked = savedVerses.length >= 5
+  const verseKeeperProgress = `${Math.min(savedVerses.length, 5)} из 5`
 
   const pushStatusQuery = useQuery({
     queryKey: pushStatusQueryKey(user?.id),
@@ -145,7 +151,6 @@ export default function ProfilePage() {
     }
     setNickEdit(user.nickname ?? user.username)
     setHandleEdit(user.username)
-    setThemeFgInput(user.themeForegroundHex || SUGGESTED_THEME_FOREGROUND)
     setThemeBgInput(user.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND)
     setThemeFontInput(normalizeThemeFontKey(user.themeFontKey))
   }, [user])
@@ -397,7 +402,6 @@ export default function ProfilePage() {
         themeBackgroundHex: null,
         themeFontKey: null,
       })
-      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
       setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
       setThemeFontInput("inter")
       return { previousUser }
@@ -405,9 +409,6 @@ export default function ProfilePage() {
     onError: (err, _vars, ctx) => {
       if (ctx?.previousUser) {
         replaceUser(ctx.previousUser)
-        setThemeFgInput(
-          ctx.previousUser.themeForegroundHex || SUGGESTED_THEME_FOREGROUND,
-        )
         setThemeBgInput(
           ctx.previousUser.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND,
         )
@@ -417,7 +418,6 @@ export default function ProfilePage() {
     },
     onSuccess: (serverUser) => {
       replaceUser(serverUser)
-      setThemeFgInput(SUGGESTED_THEME_FOREGROUND)
       setThemeBgInput(SUGGESTED_THEME_BACKGROUND)
       setThemeFontInput("inter")
     },
@@ -497,10 +497,10 @@ export default function ProfilePage() {
       return
     }
 
-    const hexFg = themeFgInput.trim().toLowerCase()
+    const hexFg = effectiveThemeForegroundHex(user)
     const hexBg = themeBgInput.trim().toLowerCase()
-    if (!/^#[0-9a-f]{6}$/.test(hexFg) || !/^#[0-9a-f]{6}$/.test(hexBg)) {
-      window.alert("Цвета: выберите оттенки в палитре (формат #RRGGBB).")
+    if (!/^#[0-9a-f]{6}$/.test(hexBg)) {
+      window.alert("Цвет фона: выберите оттенок в палитре (формат #RRGGBB).")
       return
     }
 
@@ -522,12 +522,9 @@ export default function ProfilePage() {
       body.username = nextHandle
     }
 
-    const userFg = (user.themeForegroundHex ?? "").toLowerCase()
     const userBg = (user.themeBackgroundHex ?? "").toLowerCase()
-    const effFg = userFg || SUGGESTED_THEME_FOREGROUND.toLowerCase()
     const effBg = userBg || SUGGESTED_THEME_BACKGROUND.toLowerCase()
-    const sameTheme =
-      hexFg === effFg && hexBg === effBg && themeFontInput === normalizeThemeFontKey(user.themeFontKey)
+    const sameTheme = hexBg === effBg && themeFontInput === normalizeThemeFontKey(user.themeFontKey)
     const sameNick = nextNick === (user.nickname ?? user.username)
     const sameHandle = nextHandle === user.username
     if (sameNick && sameHandle && sameTheme) {
@@ -597,11 +594,6 @@ export default function ProfilePage() {
               <span>Уведомления</span>
               <span className={styles.menuHint}>{pushHint}</span>
             </button>
-
-            <Link href="/contacts" className={styles.menuItem} role="menuitem" onClick={closeSettingsMenu}>
-              <span>Контакты и помощь</span>
-              <span className={styles.menuHint}>Открыть</span>
-            </Link>
 
             <button
               type="button"
@@ -676,30 +668,6 @@ export default function ProfilePage() {
             />
           </label>
 
-          <p className={styles.appearanceHint}>
-            Фон и текст применяются поверх тёмной/светлой темы (лампочка). Pastah и Achiko лежат в <code>public/fonts/</code>;{" "}
-            лицензии на вашей стороне. Bodoni Moda / Plus Jakarta Sans / Cinzel подключаются автоматически.
-          </p>
-          <label className={styles.profileLabel}>
-            Цвет текста
-            <span className={styles.colorRow}>
-              <input
-                className={styles.colorInput}
-                type="color"
-                value={themeFgInput.startsWith("#") && themeFgInput.length === 7 ? themeFgInput : SUGGESTED_THEME_FOREGROUND}
-                onChange={(event) => setThemeFgInput(event.target.value)}
-                aria-label="Цвет текста"
-              />
-              <input
-                className={styles.profileInput}
-                value={themeFgInput}
-                onChange={(event) => setThemeFgInput(event.target.value)}
-                spellCheck={false}
-                maxLength={7}
-                placeholder={SUGGESTED_THEME_FOREGROUND}
-              />
-            </span>
-          </label>
           <label className={styles.profileLabel}>
             Цвет фона
             <span className={styles.colorRow}>
@@ -766,24 +734,37 @@ export default function ProfilePage() {
       ) : null}
 
       <ul className={styles.list}>
-        <li className={styles.item}>
-          <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Серия дней" width={16} height={16} />
-          <span>{dayStreak}</span>
-          <p>Серия дней</p>
+        <li className={`${styles.item} ${styles.itemInteractive}`}>
+          <button
+            type="button"
+            className={styles.itemButton}
+            onClick={() => setIsPersistenceOpen((open) => !open)}
+            aria-expanded={isPersistenceOpen}
+            aria-controls="persistence-section"
+          >
+            <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Серия дней" width={16} height={16} />
+            <span>{dayStreak}</span>
+            <p>Серия дней</p>
+          </button>
         </li>
         <li className={styles.item}>
           <Image className={styles.imgIcon} src={"/icon-chapters.svg"} alt="Главы" width={16} height={16} />
           <span>0</span>
           <p>Главы</p>
         </li>
-        <li className={styles.item}>
+        <li className={`${styles.item} ${styles.rewardItem}`}>
           <Image className={styles.imgIcon} src={"/icon-badge.svg"} alt="Награды" width={16} height={16} />
-          <span>{persistenceRewardCount}</span>
-          <p>Награды</p>
+          <span className={styles.rewardValue}>{verseKeeperProgress}</span>
+          {isVerseKeeperUnlocked ? <span className={styles.rewardState}>Получено</span> : null}
+          <p>Хранитель стихов</p>
         </li>
       </ul>
 
-      <PersistenceAchievements dayStreak={dayStreak} />
+      {isPersistenceOpen ? (
+        <div id="persistence-section">
+          <PersistenceAchievements dayStreak={dayStreak} savedVersesCount={savedVerses.length} />
+        </div>
+      ) : null}
 
       {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ */}
       <div className={styles.savedVersesSection}>
@@ -826,12 +807,6 @@ export default function ProfilePage() {
             ))}
           </div>
         )}
-      </div>
-
-      <div className={styles.support}>
-        <Link className={styles.link} href="/contacts">
-          Контакты и помощь
-        </Link>
       </div>
 
       {isNotificationsOpen ? (

@@ -32,6 +32,7 @@ import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
+import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 
 const CHAT_SOCKET_URL = getDirectApiOrigin()
 const CHAT_HTTP_API = getHttpApiBase()
@@ -43,6 +44,8 @@ const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
 const MAX_REPLY_PREVIEW_LENGTH = 180
+const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
+const ALLOWED_IMAGE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
 type IncomingSocketMessage = {
   id?: string | number
   roomId?: string
@@ -277,7 +280,15 @@ function normalizeIncomingMessage(
   const reactions = (raw?.reactions ?? [])
     .map((reaction) => {
       if (!reaction?.id || !reaction.userId) return null
-      if (reaction.type !== "🤍" && reaction.type !== "😂" && reaction.type !== "❤️") return null
+      if (
+        reaction.type !== "🤍" &&
+        reaction.type !== "😂" &&
+        reaction.type !== "❤️" &&
+        reaction.type !== "🔥" &&
+        reaction.type !== "😊"
+      ) {
+        return null
+      }
       return {
         id: String(reaction.id),
         userId: String(reaction.userId),
@@ -373,6 +384,8 @@ export default function ChatPageDetails() {
   const [authError, setAuthError] = useState<string | null>(null)
   const [sendNotice, setSendNotice] = useState<string | null>(null)
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null)
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null)
+  const [isParticipantsDrawerOpen, setIsParticipantsDrawerOpen] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
   const [lastSeenByUserId, setLastSeenByUserId] = useState<Map<string, string>>(() => new Map())
@@ -414,6 +427,11 @@ export default function ChatPageDetails() {
   useEffect(() => {
     setDirectRouteRoomId(null)
   }, [routeRoomId])
+
+  useEffect(() => {
+    document.body.classList.add("chatRoomPage")
+    return () => document.body.classList.remove("chatRoomPage")
+  }, [])
 
   const effectiveSocketRoomId = useMemo(() => {
     if (!routeRoomId) return null
@@ -520,6 +538,7 @@ export default function ChatPageDetails() {
     messageIdsRef.current = new Set()
     awaitingRoomHistoryRef.current = false
     setReplyToMessage(null)
+    setEditingMessage(null)
     setResolvedShareJesusRoomId(null)
     if (routeRoomId === SHARE_WITH_JESUS_SLUG && user) {
       setRoomTitle(SHARE_WITH_JESUS_CHAT_TITLE)
@@ -732,6 +751,7 @@ export default function ChatPageDetails() {
       )
 
       setReplyToMessage((prev) => (prev?.id === deletedMessageId ? null : prev))
+      setEditingMessage((prev) => (prev?.id === deletedMessageId ? null : prev))
       dispatchChatUnreadChangedEvent()
     }
     socket.on("messageDeleted", onMessageDeleted)
@@ -951,7 +971,15 @@ export default function ChatPageDetails() {
       const normalizedReactions = (payload.reactions ?? [])
         .map((reaction) => {
           if (!reaction?.id || !reaction.userId) return null
-          if (reaction.type !== "🤍" && reaction.type !== "😂" && reaction.type !== "❤️") return null
+          if (
+            reaction.type !== "🤍" &&
+            reaction.type !== "😂" &&
+            reaction.type !== "❤️" &&
+            reaction.type !== "🔥" &&
+            reaction.type !== "😊"
+          ) {
+            return null
+          }
           return {
             id: String(reaction.id),
             userId: String(reaction.userId),
@@ -1139,6 +1167,35 @@ export default function ChatPageDetails() {
     () => users.find((existingUser) => existingUser.id === directChatTargetUserId),
     [users, directChatTargetUserId],
   )
+  const usersById = useMemo(() => {
+    const map = new Map<string, (typeof users)[number]>()
+    for (const item of users) {
+      map.set(item.id, item)
+    }
+    return map
+  }, [users])
+
+  const participants = useMemo(() => {
+    const list: Array<(typeof users)[number]> = []
+    if (roomId === GLOBAL_ROOM_ID) {
+      return users.map((item) => ({
+        ...item,
+        isOnline: onlineUserIds.has(item.id),
+      }))
+    }
+
+    if (user) {
+      list.push(user)
+    }
+    if (directChatTargetUser && !list.some((item) => item.id === directChatTargetUser.id)) {
+      list.push(directChatTargetUser)
+    }
+
+    return list.map((item) => ({
+      ...item,
+      isOnline: onlineUserIds.has(item.id),
+    }))
+  }, [directChatTargetUser, onlineUserIds, roomId, user, users])
   const headerAvatarSrc = useMemo(() => {
     if (isShareWithJesusView) {
       return "/jesus-say.svg"
@@ -1229,12 +1286,41 @@ export default function ChatPageDetails() {
   }, [messages, peerLastReadAt, user, directChatTargetUserId, effectiveSocketRoomId, isShareWithJesusView])
 
   const handleReplyMessage = (message: Message) => {
-    if (isMessageFromCurrentUser(message, user)) {
-      return
-    }
-
     setReplyToMessage(message)
+    setEditingMessage(null)
   }
+
+  const handleMissingReferencedMessage = useCallback(() => {
+    setSendNotice("Оригинальное сообщение не найдено в текущей истории.")
+  }, [])
+
+  const handleStartEditMessage = useCallback(
+    (message: Message) => {
+      if (!isMessageFromCurrentUser(message, user)) return
+      if (message.type && message.type !== "TEXT") return
+      setEditingMessage(message)
+      setReplyToMessage(null)
+    },
+    [user],
+  )
+
+  const handleSaveEditedMessage = useCallback(async (messageId: string, text: string) => {
+    const nextContent = text.trim()
+    if (!nextContent) return false
+    setMessages((prev) =>
+      prev.map((messageItem) =>
+        messageItem.id === messageId
+          ? {
+              ...messageItem,
+              content: nextContent,
+              isEdited: true,
+            }
+          : messageItem,
+      ),
+    )
+    setEditingMessage(null)
+    return true
+  }, [])
 
   const handleDeleteOwnMessage = useCallback(
     (message: Message) => {
@@ -1280,8 +1366,23 @@ export default function ChatPageDetails() {
     [router, user?.id],
   )
 
+  const handleParticipantClick = useCallback(
+    (participant: { id: string }) => {
+      if (!participant?.id || participant.id === user?.id) {
+        return
+      }
+      const socket = socketRef.current
+      if (socket?.connected) {
+        socket.emit("openDirectRoom", { targetUserId: participant.id })
+      }
+      setIsParticipantsDrawerOpen(false)
+      router.push(`/chat/${participant.id}`)
+    },
+    [router, user?.id],
+  )
+
   const handleToggleReaction = useCallback(
-    (message: Message, reaction: "🤍" | "😂" | "❤️") => {
+    (message: Message, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => {
       const targetRoomId = effectiveSocketRoomId
       const socket = socketRef.current
       if (!socket || !socket.connected || !targetRoomId) {
@@ -1463,6 +1564,49 @@ export default function ChatPageDetails() {
     [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId],
   )
 
+  const handleSelectAttachments = useCallback(
+    async (files: File[]) => {
+      if (!files.length) return
+
+      const tooLarge = files.find((file) => file.size > MAX_ATTACHMENT_SIZE_BYTES)
+      if (tooLarge) {
+        setSendNotice(`Файл "${tooLarge.name}" превышает лимит 50MB.`)
+        return
+      }
+
+      let sentImages = 0
+      const unsupportedNames: string[] = []
+
+      for (const file of files) {
+        const mimeType = file.type.toLowerCase()
+        if (ALLOWED_IMAGE_ATTACHMENT_TYPES.has(mimeType)) {
+          const sent = await handleSendImage(file)
+          if (sent) {
+            sentImages += 1
+          }
+          continue
+        }
+        unsupportedNames.push(file.name)
+      }
+
+      if (unsupportedNames.length > 0) {
+        const unsupportedPreview = unsupportedNames.slice(0, 2).join(", ")
+        const restCount = unsupportedNames.length - 2
+        setSendNotice(
+          `Пока отправка доступна только для изображений (.jpg/.png/.webp). Не отправлено: ${unsupportedPreview}${
+            restCount > 0 ? ` и ещё ${restCount}` : ""
+          }.`,
+        )
+        return
+      }
+
+      if (sentImages > 0) {
+        setSendNotice(null)
+      }
+    },
+    [handleSendImage],
+  )
+
   const handleSendSticker = useCallback(
     async (sticker: StickerItem): Promise<boolean> => {
       const targetRoomId = effectiveSocketRoomId
@@ -1541,6 +1685,15 @@ export default function ChatPageDetails() {
             <h2 className={styles.chatName}>{resolvedTitle}</h2>
             {statusLine ? <span className={styles.status}>{statusLine}</span> : null}
           </div>
+          <button
+            type="button"
+            className={styles.participantsButton}
+            onClick={() => setIsParticipantsDrawerOpen(true)}
+            aria-label="Открыть список участников"
+            title="Участники"
+          >
+            <Image src="/icon-profile.svg" alt="" width={20} height={20} className={styles.participantsIcon} />
+          </button>
         </div>
       </div>
 
@@ -1579,6 +1732,8 @@ export default function ChatPageDetails() {
           }
           onAvatarClick={handleOpenDmFromAvatar}
           onReplyMessage={handleReplyMessage}
+          onMissingReferencedMessage={handleMissingReferencedMessage}
+          onEditMessage={handleStartEditMessage}
           onDeleteMessage={handleDeleteOwnMessage}
           canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
           topBanner={shareJesusParchmentBanner}
@@ -1587,39 +1742,54 @@ export default function ChatPageDetails() {
           readReceiptAvatarSrc={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
           readReceiptLabel="Просмотрено"
           onToggleReaction={handleToggleReaction}
+          resolveReactionAvatarUrl={(senderId) => resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)}
+          resolveReactionUserLabel={(senderId) => usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username}
           roomKey={effectiveSocketRoomId ?? routeRoomId}
         />
       )}
 
-      <MessageInput
-        onSend={handleSend}
-        replyToMessage={replyToMessage}
-        onCancelReply={() => setReplyToMessage(null)}
-        disabled={routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId}
-        placeholder={
-          routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId
-            ? "Подключаем комнату…"
-            : "Напиши сообщение…"
-        }
-        onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
-        onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
-        onSendVoice={
-          authError || routeRoomId === user?.id
-            ? undefined
-            : handleSendVoice
-        }
-        onSendImage={
-          authError || routeRoomId === user?.id
-            ? undefined
-            : handleSendImage
-        }
-        onSendSticker={
-          authError || routeRoomId === user?.id
-            ? undefined
-            : handleSendSticker
-        }
+      <div className={styles.composerDock}>
+        <MessageInput
+          onSend={handleSend}
+          onSaveEdit={handleSaveEditedMessage}
+          editingMessage={editingMessage}
+          replyToMessage={replyToMessage}
+          onCancelReply={() => setReplyToMessage(null)}
+          onCancelEdit={() => setEditingMessage(null)}
+          onSelectFiles={handleSelectAttachments}
+          disabled={routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId}
+          placeholder={
+            routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId
+              ? "Подключаем комнату…"
+              : "Напиши сообщение…"
+          }
+          onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
+          onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
+          onSendVoice={
+            authError || routeRoomId === user?.id
+              ? undefined
+              : handleSendVoice
+          }
+          onSendImage={
+            authError || routeRoomId === user?.id
+              ? undefined
+              : handleSendImage
+          }
+          onSendSticker={
+            authError || routeRoomId === user?.id
+              ? undefined
+              : handleSendSticker
+          }
+        />
+        {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
+      </div>
+      <OnlineUsersDrawer
+        open={isParticipantsDrawerOpen}
+        onClose={() => setIsParticipantsDrawerOpen(false)}
+        participants={participants}
+        title="Участники чата"
+        onParticipantClick={handleParticipantClick}
       />
-      {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
     </section>
   )
 }

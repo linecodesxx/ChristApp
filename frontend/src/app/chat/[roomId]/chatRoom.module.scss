@@ -72,6 +72,10 @@
   gap: 10px;
   min-height: 0;
 
+  @media (max-width: 1023px) {
+    padding-bottom: 0;
+  }
+
   .header {
     width: 100%;
     display: flex;
@@ -149,6 +153,8 @@
         display: flex;
         flex-direction: column;
         gap: 2px;
+        flex: 1;
+        min-width: 0;
 
         .chatName {
           color: var(--foreground);
@@ -173,6 +179,24 @@
           letter-spacing: 0.02em;
           transition: color 0.25s ease;
         }
+      }
+
+      .participantsButton {
+        margin-left: auto;
+        width: 32px;
+        height: 32px;
+        border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
+        border-radius: 9999px;
+        background: color-mix(in srgb, var(--surface-elevated) 86%, transparent);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .participantsIcon {
+        width: 18px;
+        height: 18px;
       }
 
       &.peerOnline {
@@ -349,6 +373,10 @@ html[data-theme="dark"] .chat {
         color: color-mix(in srgb, var(--background) 82%, #000 18%);
       }
 
+      .participantsIcon {
+        filter: brightness(0) saturate(100%) invert(100%);
+      }
+
       &.peerOnline {
         .wrapContent .status {
           color: #4ae49a;
@@ -400,5 +428,15 @@ html[data-theme="dark"] .chat {
 
   100% {
     background-position: -110% 0;
+  }
+}
+
+/* Safe area у поля ввода на телефоне — без лишнего зазора на main/body. */
+.composerDock {
+  flex-shrink: 0;
+  width: 100%;
+
+  @media (max-width: 1023px) {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }

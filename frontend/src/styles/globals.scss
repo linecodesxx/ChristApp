@@ -118,6 +118,13 @@ body {
   transition: background-color 0.35s ease, color 0.35s ease;
 }
 
+/* Только экран комнаты чата на узкой ширине: убираем нижний отступ body, чтобы не было полосы под полем ввода (клавиатура). */
+@media (max-width: 1023px) {
+  body.chatRoomPage {
+    padding-bottom: 0;
+  }
+}
+
 img,
 picture,
 video,

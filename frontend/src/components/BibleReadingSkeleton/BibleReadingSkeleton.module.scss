@@ -46,12 +46,18 @@
   flex-direction: column;
   gap: 12px;
   flex: 1;
+  width: 100%;
+  min-width: 0;
+  align-self: stretch;
 }
 
 .line {
   height: 18px;
   border-radius: 8px;
+  width: 100%;
   max-width: 100%;
+  align-self: stretch;
+  box-sizing: border-box;
 }
 
 .minimalBar {
@@ -81,50 +87,3 @@
   }
 }
 
-.line:nth-child(1) {
-  width: 92%;
-}
-
-.line:nth-child(2) {
-  width: 88%;
-}
-
-.line:nth-child(3) {
-  width: 96%;
-}
-
-.line:nth-child(4) {
-  width: 78%;
-}
-
-.line:nth-child(5) {
-  width: 90%;
-}
-
-.line:nth-child(6) {
-  width: 84%;
-}
-
-.line:nth-child(7) {
-  width: 94%;
-}
-
-.line:nth-child(8) {
-  width: 82%;
-}
-
-.line:nth-child(9) {
-  width: 91%;
-}
-
-.line:nth-child(10) {
-  width: 86%;
-}
-
-.line:nth-child(11) {
-  width: 72%;
-}
-
-.line:nth-child(12) {
-  width: 58%;
-}

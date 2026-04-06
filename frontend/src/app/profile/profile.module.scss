@@ -268,14 +268,6 @@
     font-size: 14px;
   }
 
-  .appearanceHint {
-    margin: 0 0 4px;
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--text-dim);
-    line-height: 1.4;
-  }
-
   .colorRow {
     display: flex;
     align-items: center;
@@ -346,51 +338,113 @@
     gap: 12px;
 
     .item {
+      position: relative;
+      isolation: isolate;
       padding: 12px;
-      border: 1px solid var(--line-soft);
-      border-radius: 12px;
+      border: 1px solid color-mix(in srgb, var(--line-soft) 85%, transparent);
+      border-radius: 14px;
       background: var(--surface-elevated);
       display: flex;
       flex-direction: column;
       padding: 15px 13px;
       align-items: center;
       gap: 4px;
-      border-radius: 12px;
       max-width: 95px;
       max-height: 109px;
       flex: 1;
+      opacity: 0.72;
+      transition:
+        border-color 0.45s ease,
+        box-shadow 0.45s ease,
+        opacity 0.3s ease;
       box-shadow:
-        0 1px 2px 0 rgba(0, 0, 0, 0.05),
-        0 0 0 0 rgba(0, 0, 0, 0),
-        0 0 0 0 rgba(0, 0, 0, 0);
+        0 1px 3px rgba(38, 28, 16, 0.08),
+        0 4px 20px rgba(0, 0, 0, 0.04);
+
+      &:hover {
+        opacity: 0.9;
+        border-color: color-mix(in srgb, var(--line-soft) 75%, var(--accent) 25%);
+      }
 
       .imgIcon {
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 32px;
-        height: 32px;
+        width: 36px;
+        height: 36px;
         padding: 8px;
         border-radius: 50%;
-        background: rgba(196, 162, 101, 0.1);
+        background: color-mix(in srgb, var(--foreground) 6%, transparent);
+        transition:
+          color 0.45s ease,
+          filter 0.45s ease,
+          background 0.45s ease;
       }
 
       span {
         color: var(--book-title-color);
         font-family: "Inter";
-        font-size: 15px;
+        font-size: 18px;
         font-style: normal;
-        font-weight: 700;
-        line-height: 28px;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.03em;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.6;
       }
 
       p {
         color: var(--text-muted);
         font-family: "Inter";
-        font-size: 10px;
+        font-size: 11px;
         font-style: normal;
         font-weight: 700;
-        line-height: 15px;
+        line-height: 1.25;
+        text-align: center;
+      }
+    }
+
+    .itemInteractive {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .itemButton {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 15px 13px;
+      cursor: pointer;
+      text-align: center;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background: color-mix(in srgb, var(--accent) 10%, transparent);
+      }
+    }
+
+    .rewardItem {
+      .rewardValue {
+        font-size: 16px;
+        line-height: 1.15;
+        opacity: 0.95;
+        color: color-mix(in srgb, var(--foreground) 88%, var(--accent) 12%);
+      }
+
+      .rewardState {
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: color-mix(in srgb, var(--text-muted) 75%, var(--foreground) 25%);
+        opacity: 0.92;
       }
     }
   }
@@ -590,26 +644,6 @@
       color: var(--accent);
       border-color: color-mix(in srgb, var(--accent) 45%, var(--line-soft));
       background: color-mix(in srgb, var(--accent) 12%, var(--surface-elevated));
-    }
-  }
-
-  .support {
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 12px;
-    border: 1px solid var(--line-soft);
-    border-radius: 14px;
-    background: var(--surface-elevated);
-    color: var(--text-muted);
-    text-align: center;
-    transition: all 180ms ease;
-
-    &:hover {
-      color: var(--accent);
-      border-color: var(--accent);
-      background: color-mix(in srgb, var(--accent) 14%, var(--surface-elevated));
     }
   }
 }

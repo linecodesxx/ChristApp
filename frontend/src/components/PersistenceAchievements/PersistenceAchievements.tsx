@@ -33,30 +33,57 @@ export const PERSISTENCE_ACHIEVEMENTS = [
     description: "100 дней — самая престижная награда.",
     prestige: true,
   },
+  {
+    id: "verse-keeper",
+    savedVerses: 5,
+    title: "Хранитель стихов",
+    description: "Сохранить 5 стихов в коллекцию.",
+    prestige: false,
+  },
 ] as const
 
-export function countUnlockedPersistenceAchievements(streak: number): number {
-  return PERSISTENCE_ACHIEVEMENTS.filter((a) => streak >= a.days).length
+function isAchievementUnlocked(
+  achievement: (typeof PERSISTENCE_ACHIEVEMENTS)[number],
+  dayStreak: number,
+  savedVersesCount: number,
+): boolean {
+  if ("savedVerses" in achievement) {
+    return savedVersesCount >= achievement.savedVerses
+  }
+  return dayStreak >= achievement.days
+}
+
+export function countUnlockedPersistenceAchievements(streak: number, savedVersesCount = 0): number {
+  return PERSISTENCE_ACHIEVEMENTS.filter((a) => isAchievementUnlocked(a, streak, savedVersesCount)).length
 }
 
 type PersistenceAchievementsProps = {
   dayStreak: number
+  savedVersesCount?: number
 }
 
-export default function PersistenceAchievements({ dayStreak }: PersistenceAchievementsProps) {
+export default function PersistenceAchievements({
+  dayStreak,
+  savedVersesCount = 0,
+}: PersistenceAchievementsProps) {
   const prevStreakRef = useRef<number | null>(null)
+  const prevSavedVersesRef = useRef<number | null>(null)
   const [unlockFlashes, setUnlockFlashes] = useState<Record<string, boolean>>({})
 
   useLayoutEffect(() => {
-    const prev = prevStreakRef.current
+    const prevStreak = prevStreakRef.current
+    const prevSavedVerses = prevSavedVersesRef.current
     prevStreakRef.current = dayStreak
-    if (prev === null) {
+    prevSavedVersesRef.current = savedVersesCount
+    if (prevStreak === null || prevSavedVerses === null) {
       return
     }
 
     const timers: number[] = []
     for (const a of PERSISTENCE_ACHIEVEMENTS) {
-      if (prev < a.days && dayStreak >= a.days) {
+      const wasUnlocked = isAchievementUnlocked(a, prevStreak, prevSavedVerses)
+      const isUnlocked = isAchievementUnlocked(a, dayStreak, savedVersesCount)
+      if (!wasUnlocked && isUnlocked) {
         setUnlockFlashes((s) => ({ ...s, [a.id]: true }))
         timers.push(
           window.setTimeout(() => {
@@ -70,7 +97,7 @@ export default function PersistenceAchievements({ dayStreak }: PersistenceAchiev
         window.clearTimeout(t)
       }
     }
-  }, [dayStreak])
+  }, [dayStreak, savedVersesCount])
 
   return (
     <section className={styles.section} aria-labelledby="persistence-heading">
@@ -82,9 +109,12 @@ export default function PersistenceAchievements({ dayStreak }: PersistenceAchiev
       </div>
       <div className={styles.grid}>
         {PERSISTENCE_ACHIEVEMENTS.map((a) => {
-          const isActive = dayStreak >= a.days
+          const isActive = isAchievementUnlocked(a, dayStreak, savedVersesCount)
           const justUnlocked = Boolean(unlockFlashes[a.id])
           const prestige = a.prestige
+          const targetValue = "savedVerses" in a ? a.savedVerses : a.days
+          const progressLeft = "savedVerses" in a ? Math.max(0, a.savedVerses - savedVersesCount) : Math.max(0, a.days - dayStreak)
+          const lockLabel = "savedVerses" in a ? `Ещё ${progressLeft} стих.` : `Ещё ${progressLeft} дн.`
 
           return (
             <motion.article
@@ -150,14 +180,14 @@ export default function PersistenceAchievements({ dayStreak }: PersistenceAchiev
                       times: [0, 0.45, 1],
                     }}
                   >
-                    {a.days}
+                    {targetValue}
                   </motion.span>
 
                   <h3 className={styles.cardTitle}>{a.title}</h3>
                   <p className={styles.cardDesc}>{a.description}</p>
                   {!isActive ? (
                     <p className={styles.lockHint}>
-                      Ещё {Math.max(0, a.days - dayStreak)} дн.
+                      {lockLabel}
                     </p>
                   ) : null}
                 </div>
