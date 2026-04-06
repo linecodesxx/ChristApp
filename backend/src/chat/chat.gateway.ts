@@ -50,7 +50,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️']);
+  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️', '🔥', '😊']);
 
   constructor(
     private jwt: JwtService,
