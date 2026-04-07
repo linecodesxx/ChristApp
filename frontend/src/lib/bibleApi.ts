@@ -111,3 +111,52 @@ export async function fetchTranslations() {
     }),
   )
 }
+
+// ===== FETCH RANDOM VERSE =====
+export async function fetchRandomVerse(translation: string) {
+  if (!translation) return null
+
+  // Get all books
+  const books = await fetchBooks(translation)
+  if (!books.length) return null
+
+  // Select random book
+  const randomBook = books[Math.floor(Math.random() * books.length)] as {
+    id?: string
+    name?: string
+    chapters?: number
+  }
+  if (!randomBook?.id || !randomBook?.name) return null
+
+  // Get chapters for random book
+  const chapters = await fetchChapters(randomBook.id, translation)
+  if (!chapters.length) return null
+
+  // Select random chapter
+  const randomChapter = chapters[Math.floor(Math.random() * chapters.length)]
+
+  // get-text ожидает код книги (AMO, GEN…), не локализованное имя — иначе 404.
+  const verses = await fetchFullChapter(randomBook.id, randomChapter, translation)
+  if (!verses.length) return null
+
+  // Select random verse
+  const randomVerse = verses[Math.floor(Math.random() * verses.length)] as {
+    verse?: number | string
+    text?: string
+  } | null
+
+  if (!randomVerse) return null
+
+  const verse = randomVerse.verse
+  const text = randomVerse.text
+  if (verse === undefined || verse === null || text === undefined || text === null) {
+    return null
+  }
+
+  return {
+    book: randomBook.name,
+    chapter: randomChapter,
+    verse,
+    text,
+  }
+}

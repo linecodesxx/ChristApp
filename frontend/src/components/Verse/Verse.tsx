@@ -5,6 +5,8 @@ import styles from "./Verse.module.scss"
 import { saveVerse } from "@/lib/versesApi"
 import { VERSE_HIGHLIGHT_STORAGE_KEY, isValidHighlightHex } from "@/lib/verseHighlightStorage"
 import Image from "next/image"
+import { useQueryClient } from "@tanstack/react-query"
+import { savedVersesQueryKey } from "@/lib/queries/versesQueries"
 
 const selectedVersesClipboardStore = new Map<string, string>()
 const colors = ["#e92441", "#C4A265", "#64B5F6", "#81C784", "#BA68C8"]
@@ -64,6 +66,7 @@ function Verse({
   highlightStorageEpoch = 0,
   onApplyHighlightColorToSelection,
 }: VerseProps) {
+  const queryClient = useQueryClient()
   const [isClicked, setIsClicked] = useState(false)
   const [selectedColor, setSelectedColor] = useState<string | null>(null)
   
@@ -186,6 +189,7 @@ function Verse({
       setIsSaving(true)
       await saveVerse(bookName, chapter, verse, text, translation)
       setIsSaved(true)
+      void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
 
       // Reset saved state after 2 seconds
       setTimeout(() => {
@@ -198,6 +202,7 @@ function Verse({
       if (catchError.message.includes("already")) {
         setIsSaved(true)
       }
+      void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
     } finally {
       setIsSaving(false)
     }

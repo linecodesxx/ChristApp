@@ -1,17 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Verse from "@/components/Verse/Verse";
 import ShareToChatModal from "@/components/Verse/ShareToChatModal";
-import {
-  fetchChapters,
-  fetchBooks,
-  fetchFullChapter,
-  fetchTranslations,
-} from "@/lib/bibleApi";
 import styles from "./BibleReader.module.scss";
 import Image from "next/image";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import {
+  bibleBooksQueryKey,
+  bibleChapterTextQueryKey,
+  bibleChaptersQueryKey,
+  bibleStaticQueryOptions,
+  bibleTranslationsQueryKey,
+  fetchBibleBooksForQuery,
+  fetchBibleChapterTextForQuery,
+  fetchBibleChaptersForQuery,
+  fetchBibleTranslationsForQuery,
+} from "@/lib/queries/bibleQueries";
 import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
@@ -19,18 +25,15 @@ import { createShareTargetsFromRooms, type RoomSocketItem, type ShareTarget } fr
 import { clearVerseSelectionClipboard, getSelectedVersesClipboardText } from "@/components/Verse/Verse";
 import { serializeVerseSharePayload } from "@/lib/verseShareMessage";
 import { VERSE_HIGHLIGHT_STORAGE_KEY, isValidHighlightHex } from "@/lib/verseHighlightStorage";
+import {
+  BIBLE_LAST_READ_STORAGE_KEY,
+  markBibleChapterCompleted,
+} from "@/lib/bibleReadingProgress";
 
 type VerseType = {
   pk: number;
   verse: number;
   text: string;
-};
-
-type TranslationType = {
-  short_name: string;
-  full_name: string;
-  updated: number;
-  language: string;
 };
 
 type BookType = {
@@ -42,18 +45,49 @@ type BookType = {
 type ModalStep = "testament" | "books" | "chapters";
 
 const SHOW_VERSE_ACTIONS = true;
-const LAST_READ_STORAGE_KEY = "lastRead";
 const SESSION_HIGHLIGHTS_KEY = "bible-reader-highlights";
+
+function resolveLastReadBookAndChapter(
+  books: BookType[],
+): { book: BookType; chapter: number } | null {
+  if (!books.length) return null;
+
+  let bookToLoad = books[0];
+  let chapterToLoad = 1;
+
+  try {
+    const raw = window.localStorage.getItem(BIBLE_LAST_READ_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as {
+        bookId?: string;
+        chapter?: number;
+      };
+      const found = books.find((b) => b.id === parsed.bookId);
+      if (found) bookToLoad = found;
+      if (parsed.chapter) chapterToLoad = parsed.chapter;
+    }
+  } catch {
+    // ignore
+  }
+
+  const maxChapter = bookToLoad.chapters;
+  if (chapterToLoad < 1 || chapterToLoad > maxChapter) chapterToLoad = 1;
+
+  return { book: bookToLoad, chapter: chapterToLoad };
+}
+
+/** Книги из кэша RQ без ожидания useQuery (важно при remount после ухода с вкладки). */
+function getCachedBooks(queryClient: QueryClient, translation: string): BookType[] {
+  return queryClient.getQueryData<BookType[]>(bibleBooksQueryKey(translation)) ?? [];
+}
 
 export default function BibleReader() {
   const { user, users } = useAuth();
   const { socket } = usePresenceSocket();
-  /** Только после mount — без запросов к API на сервере при SSR, чтобы не было рассинхрона гидрации. */
+  const queryClient = useQueryClient();
+  /** После layout: включаем запросы на клиенте без лишнего кадра со скелетом при наличии кэша. */
   const [isMounted, setIsMounted] = useState(false);
 
-  const [books, setBooks] = useState<BookType[]>([]);
-  const [chapters, setChapters] = useState<number[]>([]);
-  const [translations, setTranslations] = useState<TranslationType[]>([]);
   const [translation, setTranslation] = useState("NRT");
 
   const [currentBook, setCurrentBook] = useState<BookType | null>(null);
@@ -74,6 +108,9 @@ export default function BibleReader() {
 
   const touchStartX = useRef(0);
   const versesSectionRef = useRef<HTMLDivElement | null>(null);
+  const chapterReadSentinelRef = useRef<HTMLDivElement | null>(null);
+  /** Чтобы не перезатирать книгу/главу при каждом новом reference `books` из useQuery. */
+  const readerLayoutTranslationRef = useRef<string | null>(null);
   /** На мобиле: прячем нижние стрелки при прокрутке текста главы. */
   const [floatingNavScrolledAway, setFloatingNavScrolledAway] = useState(false);
 
@@ -84,8 +121,8 @@ export default function BibleReader() {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     localStorage.setItem(
-      LAST_READ_STORAGE_KEY,
-      JSON.stringify({ bookId: book.id, chapter }),
+      BIBLE_LAST_READ_STORAGE_KEY,
+      JSON.stringify({ bookId: book.id, chapter, bookName: book.name }),
     );
   }, []);
 
@@ -115,49 +152,45 @@ export default function BibleReader() {
     } catch {}
   }, [highlights, isHighlightsHydrated]);
 
-  useEffect(() => {
+  const { data: translations = [] } = useQuery({
+    queryKey: bibleTranslationsQueryKey,
+    queryFn: fetchBibleTranslationsForQuery,
+    enabled: isMounted,
+    ...bibleStaticQueryOptions,
+  });
+
+  const { data: books = [] } = useQuery({
+    queryKey: bibleBooksQueryKey(translation),
+    queryFn: () => fetchBibleBooksForQuery(translation),
+    enabled: isMounted && Boolean(translation),
+    ...bibleStaticQueryOptions,
+  });
+
+  /**
+   * Клиент + позиция чтения до отрисовки: при возврате с «Чатов» кэш книг уже в QueryClient,
+   * а useQuery с enabled:false ещё не отдал бы data — без этого каждый раз скелетон.
+   */
+  useLayoutEffect(() => {
     setIsMounted(true);
-  }, []);
 
-  // ===== INIT =====
-  useEffect(() => {
-    if (!isMounted) return;
+    const fromCache = getCachedBooks(queryClient, translation);
+    const list = fromCache.length > 0 ? fromCache : books;
+    if (!list.length) return;
 
-    async function init() {
-      const [translationsData, booksData] = await Promise.all([
-        fetchTranslations(),
-        fetchBooks(translation),
-      ]);
-      setTranslations(translationsData);
-      setBooks(booksData);
+    const resolved = resolveLastReadBookAndChapter(list);
+    if (!resolved) return;
 
-      if (!booksData.length) return;
+    const translationChanged = readerLayoutTranslationRef.current !== translation;
+    readerLayoutTranslationRef.current = translation;
 
-      let bookToLoad = booksData[0];
-      let chapterToLoad = 1;
-
-      // Пытаемся восстановить последний прочитанный
-      try {
-        const raw = window.localStorage.getItem(LAST_READ_STORAGE_KEY);
-        if (raw) {
-          const parsed = JSON.parse(raw) as {
-            bookId?: string;
-            chapter?: number;
-          };
-          const found = booksData.find((b: any) => b.id === parsed.bookId);
-          if (found) bookToLoad = found;
-          if (parsed.chapter) chapterToLoad = parsed.chapter;
-        }
-      } catch {}
-
-      const bookChapters = await fetchChapters(bookToLoad.id, translation);
-      if (!bookChapters.includes(chapterToLoad)) chapterToLoad = 1;
-      setChapters(bookChapters);
-
-      loadChapter(bookToLoad, chapterToLoad);
+    if (translationChanged) {
+      setCurrentBook(resolved.book);
+      setCurrentChapter(resolved.chapter);
+      return;
     }
-    void init();
-  }, [translation, loadChapter, isMounted]);
+
+    setCurrentBook((prev) => prev ?? resolved.book);
+  }, [queryClient, translation, books]);
 
   // ===== TESTAMENT FILTER =====
   const oldTestamentBooks = books.filter((b) => {
@@ -239,7 +272,7 @@ export default function BibleReader() {
         loadChapter(prevBook, prevBook.chapters);
       }
     }
-  }, [currentBook, books, loadChapter]);
+  }, [currentBook, currentChapter, books, loadChapter]);
 
   const getHighlightKey = (bookId: string, chapter: number, verse: number) =>
     `${bookId}|${chapter}|${verse}`;
@@ -348,14 +381,26 @@ export default function BibleReader() {
     if (diff < -70) goNext();
   };
 
-  const { data: verses, isLoading } = useQuery({
-    queryKey: ["chapter", translation, currentBook?.id, currentChapter],
-    queryFn: () => {
-      if (!currentBook) return Promise.resolve([] as VerseType[]);
-      return fetchFullChapter(currentBook.id, currentChapter, translation);
-    },
+  const { data: chapters = [] } = useQuery({
+    queryKey: bibleChaptersQueryKey(translation, currentBook?.id ?? ""),
+    queryFn: () => fetchBibleChaptersForQuery(translation, currentBook!.id),
     enabled: isMounted && Boolean(currentBook),
-    staleTime: 1000 * 60 * 60, // 1 час
+    ...bibleStaticQueryOptions,
+  });
+
+  const versesQueryKey = bibleChapterTextQueryKey(
+    translation,
+    currentBook?.id ?? "",
+    currentChapter,
+  );
+
+  const { data: verses, isLoading: versesIsLoading } = useQuery({
+    queryKey: versesQueryKey,
+    queryFn: () =>
+      fetchBibleChapterTextForQuery(translation, currentBook!.id, currentChapter),
+    enabled: isMounted && Boolean(currentBook),
+    placeholderData: () => queryClient.getQueryData<VerseType[]>(versesQueryKey),
+    ...bibleStaticQueryOptions,
   });
 
   const memomizedVerses = useMemo(() => {
@@ -433,17 +478,19 @@ export default function BibleReader() {
     [activeActionsVerseKey, currentBook, currentChapter, verses, highlights],
   );
 
+  const hasVersesData = verses !== undefined;
+
   useEffect(() => {
-    if (!currentBook || isLoading) return;
+    if (!currentBook || (versesIsLoading && !hasVersesData)) return;
     const el = versesSectionRef.current;
     if (el) {
       el.scrollTop = 0;
     }
     setFloatingNavScrolledAway(false);
-  }, [currentBook?.id, currentChapter, isLoading]);
+  }, [currentBook?.id, currentChapter, versesIsLoading, hasVersesData]);
 
   useEffect(() => {
-    if (!currentBook || isLoading) return undefined;
+    if (!currentBook || (versesIsLoading && !hasVersesData)) return undefined;
     const el = versesSectionRef.current;
     if (!el) return undefined;
     const threshold = 40;
@@ -453,9 +500,56 @@ export default function BibleReader() {
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => el.removeEventListener("scroll", onScroll);
-  }, [currentBook?.id, currentChapter, isLoading, memomizedVerses.length]);
+  }, [currentBook?.id, currentChapter, versesIsLoading, hasVersesData, memomizedVerses.length]);
 
-  if (!isMounted || !currentBook || isLoading) {
+  /** Скелетон только без книги или при первой загрузке текста главы без кэша (isMounted не нужен — layout уже подставил книгу). */
+  const showReaderSkeleton =
+    !currentBook || (versesIsLoading && !hasVersesData);
+
+  /** Глава считается прочитанной, если низ текста ~2 с в зоне видимости области прокрутки главы. */
+  useEffect(() => {
+    if (!currentBook || (versesIsLoading && !hasVersesData)) return;
+
+    const root = versesSectionRef.current;
+    const sentinel = chapterReadSentinelRef.current;
+    if (!root || !sentinel) return;
+
+    const bookId = currentBook.id;
+    const chapter = currentChapter;
+
+    let timer: number | undefined;
+    const clearTimer = () => {
+      if (timer !== undefined) {
+        window.clearTimeout(timer);
+        timer = undefined;
+      }
+    };
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries.some((e) => e.isIntersecting && e.intersectionRatio >= 0.12);
+        if (visible) {
+          if (timer === undefined) {
+            timer = window.setTimeout(() => {
+              markBibleChapterCompleted(bookId, chapter);
+              clearTimer();
+            }, 2000);
+          }
+        } else {
+          clearTimer();
+        }
+      },
+      { root, threshold: [0, 0.12, 0.25, 0.5, 1] },
+    );
+
+    observer.observe(sentinel);
+    return () => {
+      clearTimer();
+      observer.disconnect();
+    };
+  }, [currentBook, currentChapter, versesIsLoading, hasVersesData]);
+
+  if (showReaderSkeleton) {
     return (
       <div className={styles.loadingState}>
         <BibleReadingSkeleton variant="embedded" />
@@ -556,13 +650,8 @@ export default function BibleReader() {
                     <button
                       className={`${styles.bookButton} ${currentBook.id === b.id ? styles.active : ""}`}
                       key={b.id}
-                      onClick={async () => {
+                      onClick={() => {
                         setCurrentBook(b);
-                        const bookChapters = await fetchChapters(
-                          b.id,
-                          translation,
-                        );
-                        setChapters(bookChapters);
                         setModalStep("chapters");
                       }}
                     >
@@ -663,6 +752,11 @@ export default function BibleReader() {
             onApplyHighlightColorToSelection={applyHighlightColorToSelection}
           />
         ))}
+        <div
+          ref={chapterReadSentinelRef}
+          className={styles.chapterReadSentinel}
+          aria-hidden
+        />
       </section>
       <ShareToChatModal
         open={isShareModalOpen}

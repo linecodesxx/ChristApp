@@ -31,10 +31,25 @@ export function isShareWithJesusRoomTitle(title: string) {
   return title.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
 }
 
+/**
+ * Второй участник dm-комнаты (`dm:idA:idB`). Без `currentUserId` нельзя однозначно выбрать собеседника:
+ * при `currentUserId === undefined` выражение `id !== undefined` даёт первый UUID из title — для пользователя
+ * с «меньшим» id это окажется он сам, в списке чатов появляются лишние/битые строки.
+ */
 export function getDirectTargetUserId(roomTitle: string, currentUserId?: string) {
   if (!roomTitle?.startsWith("dm:")) return undefined
-  const ids = roomTitle.split(":").slice(1)
-  return ids.find((id) => id !== currentUserId)
+  if (!currentUserId?.trim()) return undefined
+
+  const ids = roomTitle
+    .split(":")
+    .slice(1)
+    .map((id) => id.trim())
+    .filter(Boolean)
+
+  if (ids.length < 2) return undefined
+
+  const peer = ids.find((id) => id !== currentUserId)
+  return peer
 }
 
 export function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatListItem {

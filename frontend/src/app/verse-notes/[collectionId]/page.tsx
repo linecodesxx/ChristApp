@@ -114,7 +114,7 @@ export default function VerseNotesCollectionPage() {
             Сцена пергамента
           </button>
         </div>
-        <div className={styles.glassPanel}>
+        <div className={styles.noteFormShell}>
           <PremiumNoteForm
             onSubmit={handleAdd}
             appendToResponse={parchmentAppend}

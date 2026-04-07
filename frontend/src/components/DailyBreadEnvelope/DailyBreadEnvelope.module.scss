@@ -1,0 +1,158 @@
+.wrap {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.card {
+  position: relative;
+  border-radius: 16px;
+  padding: 24px 18px 18px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 94%, var(--accent-soft) 6%) 0%,
+    color-mix(in srgb, var(--surface) 90%, var(--accent) 5%) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  box-shadow:
+    0 1px 2px 0 rgba(0, 0, 0, 0.05),
+    0 10px 28px -12px rgba(0, 0, 0, 0.18);
+  transition:
+    border-color 0.22s ease,
+    box-shadow 0.22s ease;
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      border-color: color-mix(in srgb, var(--accent) 22%, var(--line-soft));
+      box-shadow:
+        0 1px 2px 0 rgba(0, 0, 0, 0.06),
+        0 12px 32px -10px color-mix(in srgb, var(--accent) 28%, transparent);
+    }
+  }
+}
+
+.sealWrap {
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 6px;
+}
+
+.seal {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(
+    circle at 32% 26%,
+    color-mix(in srgb, var(--accent-soft) 70%, #fff 30%) 0%,
+    var(--accent) 42%,
+    color-mix(in srgb, var(--accent) 55%, #1a1816 45%) 100%
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent-soft) 50%, transparent),
+    0 4px 14px color-mix(in srgb, var(--accent) 35%, rgba(0, 0, 0, 0.35)),
+    inset 0 2px 5px rgba(255, 255, 255, 0.22);
+  transition:
+    transform 0.28s ease,
+    box-shadow 0.28s ease;
+
+  &:hover {
+    transform: scale(1.04);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent-soft) 65%, transparent),
+      0 6px 20px color-mix(in srgb, var(--accent) 45%, rgba(0, 0, 0, 0.25)),
+      inset 0 2px 6px rgba(255, 255, 255, 0.28);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+}
+
+.sealInner {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface) 55%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.sealLabel {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.verseShell {
+  overflow: hidden;
+  max-height: 0;
+  transition:
+    max-height 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.45s ease;
+  opacity: 0;
+}
+
+.verseShellOpen {
+  max-height: min(72vh, 640px);
+  opacity: 1;
+}
+
+.verseInner {
+  margin-top: 10px;
+  padding: 16px 14px 18px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 58%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--foreground) 4%, transparent);
+}
+
+.reference {
+  font-family: var(--font-inter), "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.text {
+  font-family: var(--font-bodoni-moda), "Bodoni Moda", "Georgia", serif;
+  font-size: clamp(1.02rem, 3.1vw, 1.15rem);
+  line-height: 1.62;
+  color: var(--book-title-color);
+  text-align: center;
+}
+
+.loading,
+.error {
+  font-family: var(--font-inter), "Inter", sans-serif;
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 10px 8px 0;
+}
+
+.error {
+  color: var(--login-error-text);
+}
+
+html[data-theme="light"] .card {
+  box-shadow:
+    0 1px 2px 0 rgba(38, 28, 16, 0.05),
+    0 10px 26px -12px rgba(38, 28, 16, 0.12);
+}
+
+html[data-theme="light"] .text {
+  color: var(--foreground);
+}

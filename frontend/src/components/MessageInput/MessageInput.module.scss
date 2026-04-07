@@ -155,6 +155,13 @@
   }
 }
 
+/* Без нативного disabled на время отправки — иначе на мобильных PWA клавиатура закрывается. */
+.iconButtonSending {
+  pointer-events: none;
+  cursor: default;
+  opacity: 0.72;
+}
+
 .iconGraphic {
   display: block;
   width: 20px;

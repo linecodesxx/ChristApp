@@ -37,8 +37,7 @@ import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 const CHAT_SOCKET_URL = getDirectApiOrigin()
 const CHAT_HTTP_API = getHttpApiBase()
 const SHARE_JESUS_PARCHMENT_TITLE = "Делись своими мыслями"
-const SHARE_JESUS_PARCHMENT_TEXT =
-  "Здесь затихает шум мира. Говори о том, что болит или радует"
+const SHARE_JESUS_PARCHMENT_TEXT = "Здесь затихает шум мира. Говори о том, что болит или радует"
 const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
 const REPLY_META_PREFIX = "[[reply:"
@@ -262,14 +261,10 @@ function normalizeRoomHistory(history: IncomingSocketMessage[] | undefined, curr
   }
 }
 
-function normalizeIncomingMessage(
-  raw: IncomingSocketMessage | null | undefined,
-  currentUsername?: string,
-): Message {
+function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined, currentUsername?: string): Message {
   const senderId = raw?.senderId ?? raw?.sender?.id
   const handle = raw?.handle ?? raw?.sender?.username
-  const displayName =
-    raw?.username ?? raw?.sender?.nickname ?? raw?.sender?.username ?? "Unknown"
+  const displayName = raw?.username ?? raw?.sender?.nickname ?? raw?.sender?.username ?? "Unknown"
   const rawContent = String(raw?.content ?? "")
   const { content, replyTo } = parseMessageWithReply(rawContent)
   const type =
@@ -348,11 +343,7 @@ function getReadableRoomTitle(
   return rawTitle
 }
 
-function findDirectRoomByUserId(
-  rooms: MyRoomItem[],
-  currentUserId: string | undefined,
-  targetUserId: string,
-) {
+function findDirectRoomByUserId(rooms: MyRoomItem[], currentUserId: string | undefined, targetUserId: string) {
   if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
     return undefined
   }
@@ -634,15 +625,15 @@ export default function ChatPageDetails() {
         joinRoom(socket, GLOBAL_ROOM_ID)
       }
 
-      const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(
-        chatMyRoomsQueryKey(user?.id),
-      )
+      const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(chatMyRoomsQueryKey(user?.id))
       if (cachedRooms?.length && rr && rr !== GLOBAL_ROOM_SLUG && rr !== SHARE_WITH_JESUS_SLUG) {
         const directRoom = findDirectRoomByUserId(cachedRooms, user?.id, rr)
         if (directRoom) {
           joinRoom(socket, directRoom.id)
           setRoomRawTitle(directRoom.title)
-          setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user?.id, usersRef.current, directRoom.directPeer))
+          setRoomTitle(
+            getReadableRoomTitle(directRoom.id, directRoom.title, user?.id, usersRef.current, directRoom.directPeer),
+          )
         }
       }
 
@@ -743,9 +734,9 @@ export default function ChatPageDetails() {
           .map((messageItem) =>
             messageItem.replyTo?.id === deletedMessageId
               ? {
-                ...messageItem,
-                replyTo: undefined,
-              }
+                  ...messageItem,
+                  replyTo: undefined,
+                }
               : messageItem,
           ),
       )
@@ -801,8 +792,7 @@ export default function ChatPageDetails() {
       const rr = routeRoomIdRef.current
       const uid = user?.id
 
-      const shareRoom =
-        uid ? rooms.find((room) => room.title === `${SHARE_WITH_JESUS_ROOM_PREFIX}${uid}`) : undefined
+      const shareRoom = uid ? rooms.find((room) => room.title === `${SHARE_WITH_JESUS_ROOM_PREFIX}${uid}`) : undefined
 
       if (shareRoom && (rr === SHARE_WITH_JESUS_SLUG || rr === shareRoom.id)) {
         setResolvedShareJesusRoomId(shareRoom.id)
@@ -824,7 +814,9 @@ export default function ChatPageDetails() {
 
       if (roomForRoute?.title && rr !== SHARE_WITH_JESUS_SLUG && rr !== shareRoom?.id) {
         setRoomRawTitle(roomForRoute.title)
-        setRoomTitle(getReadableRoomTitle(roomForRoute.id, roomForRoute.title, uid, usersRef.current, roomForRoute.directPeer))
+        setRoomTitle(
+          getReadableRoomTitle(roomForRoute.id, roomForRoute.title, uid, usersRef.current, roomForRoute.directPeer),
+        )
       }
 
       const routeCandidate = rr
@@ -1063,15 +1055,15 @@ export default function ChatPageDetails() {
       return
     }
 
-    const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(
-      chatMyRoomsQueryKey(user?.id),
-    )
+    const cachedRooms = queryClient.getQueryData<MyRoomItem[]>(chatMyRoomsQueryKey(user?.id))
     if (cachedRooms?.length && user?.id) {
       const directRoom = findDirectRoomByUserId(cachedRooms, user.id, routeRoomId)
       if (directRoom) {
         joinRoom(socket, directRoom.id)
         setRoomRawTitle(directRoom.title)
-        setRoomTitle(getReadableRoomTitle(directRoom.id, directRoom.title, user.id, usersRef.current, directRoom.directPeer))
+        setRoomTitle(
+          getReadableRoomTitle(directRoom.id, directRoom.title, user.id, usersRef.current, directRoom.directPeer),
+        )
         return
       }
     }
@@ -1236,13 +1228,12 @@ export default function ChatPageDetails() {
     return `был(а) в сети ${hours} ч назад`
   }
 
-  const statusLine =
-    isHistoryLoading
-      ? "Загрузка сообщений..."
-      : !isSocketConnected
-        ? "Подключение..."
-        : voiceRecordingStatusLine
-          ? voiceRecordingStatusLine
+  const statusLine = isHistoryLoading
+    ? "Загрузка сообщений..."
+    : !isSocketConnected
+      ? "Подключение..."
+      : voiceRecordingStatusLine
+        ? voiceRecordingStatusLine
         : roomId === GLOBAL_ROOM_ID
           ? `${globalOnlineCount} пользователей онлайн`
           : routeRoomId === SHARE_WITH_JESUS_SLUG || roomRawTitle.startsWith(SHARE_WITH_JESUS_ROOM_PREFIX)
@@ -1254,15 +1245,10 @@ export default function ChatPageDetails() {
               : ""
 
   const headerPresenceClass =
-    directChatTargetUser != null
-      ? isDirectTargetOnline
-        ? styles.peerOnline
-        : styles.peerOffline
-      : styles.peerNeutral
+    directChatTargetUser != null ? (isDirectTargetOnline ? styles.peerOnline : styles.peerOffline) : styles.peerNeutral
 
   /** Зелёный цвет строки «N пользователей онлайн» в общем чате (не для «Загрузка…» / «Подключение…»). */
-  const globalOnlineStatusHighlight =
-    roomId === GLOBAL_ROOM_ID && !isHistoryLoading && isSocketConnected
+  const globalOnlineStatusHighlight = roomId === GLOBAL_ROOM_ID && !isHistoryLoading && isSocketConnected
 
   const typingStatuses = useMemo(() => Array.from(typingUsers.values()), [typingUsers])
 
@@ -1339,9 +1325,7 @@ export default function ChatPageDetails() {
       }
 
       const isGlobal = effectiveSocketRoomId === GLOBAL_ROOM_ID
-      const confirmed = window.confirm(
-        isGlobal ? "Удалить это сообщение из общего чата?" : "Удалить это сообщение?",
-      )
+      const confirmed = window.confirm(isGlobal ? "Удалить это сообщение из общего чата?" : "Удалить это сообщение?")
       if (!confirmed) {
         return
       }
@@ -1429,12 +1413,12 @@ export default function ChatPageDetails() {
       normalizedText,
       replyTarget
         ? {
-          id: replyTarget.id,
-          username: replyTarget.username,
-          content: replyTarget.content,
-          type: replyTarget.type,
-          fileUrl: replyTarget.fileUrl,
-        }
+            id: replyTarget.id,
+            username: replyTarget.username,
+            content: replyTarget.content,
+            type: replyTarget.type,
+            fileUrl: replyTarget.fileUrl,
+          }
         : null,
     )
 
@@ -1499,12 +1483,7 @@ export default function ChatPageDetails() {
         return false
       }
     },
-    [
-      effectiveSocketRoomId,
-      routeRoomId,
-      user?.id,
-      resolvedShareJesusRoomId,
-    ],
+    [effectiveSocketRoomId, routeRoomId, user?.id, resolvedShareJesusRoomId],
   )
 
   const handleSendImage = useCallback(
@@ -1685,15 +1664,6 @@ export default function ChatPageDetails() {
             <h2 className={styles.chatName}>{resolvedTitle}</h2>
             {statusLine ? <span className={styles.status}>{statusLine}</span> : null}
           </div>
-          <button
-            type="button"
-            className={styles.participantsButton}
-            onClick={() => setIsParticipantsDrawerOpen(true)}
-            aria-label="Открыть список участников"
-            title="Участники"
-          >
-            <Image src="/icon-profile.svg" alt="" width={20} height={20} className={styles.participantsIcon} />
-          </button>
         </div>
       </div>
 
@@ -1743,7 +1713,9 @@ export default function ChatPageDetails() {
           readReceiptLabel="Просмотрено"
           onToggleReaction={handleToggleReaction}
           resolveReactionAvatarUrl={(senderId) => resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)}
-          resolveReactionUserLabel={(senderId) => usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username}
+          resolveReactionUserLabel={(senderId) =>
+            usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username
+          }
           roomKey={effectiveSocketRoomId ?? routeRoomId}
         />
       )}
@@ -1765,21 +1737,9 @@ export default function ChatPageDetails() {
           }
           onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
           onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
-          onSendVoice={
-            authError || routeRoomId === user?.id
-              ? undefined
-              : handleSendVoice
-          }
-          onSendImage={
-            authError || routeRoomId === user?.id
-              ? undefined
-              : handleSendImage
-          }
-          onSendSticker={
-            authError || routeRoomId === user?.id
-              ? undefined
-              : handleSendSticker
-          }
+          onSendVoice={authError || routeRoomId === user?.id ? undefined : handleSendVoice}
+          onSendImage={authError || routeRoomId === user?.id ? undefined : handleSendImage}
+          onSendSticker={authError || routeRoomId === user?.id ? undefined : handleSendSticker}
         />
         {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
       </div>

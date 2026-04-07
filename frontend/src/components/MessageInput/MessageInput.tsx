@@ -2,7 +2,7 @@
 
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from "react"
 import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import styles from "@/components/MessageInput/MessageInput.module.scss"
 import Image from "next/image"
@@ -39,6 +39,19 @@ const MAX_MESSAGE_LENGTH = 2000
 const MAX_TEXTAREA_HEIGHT = 140
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
 
+/** После очистки поля на мобильных PWA нужно вернуть фокус; на iOS — повтор в следующем тике. */
+function focusComposerTextarea(textarea: HTMLTextAreaElement | null) {
+  if (!textarea) return
+  textarea.focus()
+  window.setTimeout(() => {
+    textarea.focus()
+  }, 0)
+}
+
+function handleSendPointerDown(event: PointerEvent<HTMLButtonElement>) {
+  event.preventDefault()
+}
+
 export default function MessageInput({
   onSend,
   onSaveEdit,
@@ -60,6 +73,7 @@ export default function MessageInput({
   tabBarOverlayRef.current = tabBarOverlay
   const [value, setValue] = useState("")
   const [isSending, setIsSending] = useState(false)
+  const isSendingRef = useRef(false)
   const [mode, setMode] = useState<ComposerMode>("text")
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
@@ -163,7 +177,7 @@ export default function MessageInput({
   }, [value, mode])
 
   useEffect(() => {
-    if (!onTypingActivity || disabled || mode !== "text") {
+    if (!onTypingActivity || disabled || mode !== "text" || isSending) {
       return
     }
 
@@ -186,12 +200,14 @@ export default function MessageInput({
     }, 2200)
 
     return () => window.clearTimeout(idleTimer)
-  }, [value, onTypingActivity, disabled, mode])
+  }, [value, onTypingActivity, disabled, mode, isSending])
 
   const submit = async () => {
     const text = value.trim()
-    if (!text || isSending || disabled) return
+    if (!text || disabled) return
+    if (isSendingRef.current) return
 
+    isSendingRef.current = true
     setIsSending(true)
     try {
       const isSent = editingMessage
@@ -204,8 +220,12 @@ export default function MessageInput({
         } else {
           onCancelReply?.()
         }
+        if (mode === "text") {
+          focusComposerTextarea(textareaRef.current)
+        }
       }
     } finally {
+      isSendingRef.current = false
       setIsSending(false)
     }
   }
@@ -391,7 +411,7 @@ export default function MessageInput({
             placeholder={placeholder}
             className={styles.input}
             aria-label="Сообщение"
-            disabled={disabled}
+            readOnly={disabled || isSending}
           />
         )}
 
@@ -409,10 +429,12 @@ export default function MessageInput({
         ) : hasText ? (
           <button
             type="button"
-            className={styles.iconButton}
+            className={`${styles.iconButton}${isSending ? ` ${styles.iconButtonSending}` : ""}`}
             aria-label="Отправить сообщение"
+            aria-busy={isSending || undefined}
+            onPointerDown={handleSendPointerDown}
             onClick={() => void submit()}
-            disabled={disabled || isSending}
+            disabled={disabled}
           >
             <Image src="/icon-send.svg" className={styles.iconGraphic} alt="" width={20} height={20} />
           </button>
@@ -430,10 +452,12 @@ export default function MessageInput({
         ) : (
           <button
             type="button"
-            className={styles.iconButton}
+            className={`${styles.iconButton}${isSending ? ` ${styles.iconButtonSending}` : ""}`}
             aria-label="Отправить сообщение"
+            aria-busy={isSending || undefined}
+            onPointerDown={handleSendPointerDown}
             onClick={() => void submit()}
-            disabled={disabled || !hasText || isSending}
+            disabled={disabled || !hasText}
           >
             <Image src="/icon-send.svg" className={styles.iconGraphic} alt="" width={20} height={20} />
           </button>

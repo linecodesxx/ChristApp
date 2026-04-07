@@ -11,6 +11,7 @@ import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
 import { parseStickerMessagePayload } from "@/lib/stickerMessage"
+import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble"
 
 type MessageBubbleProps = {
   message: Message
@@ -269,13 +270,12 @@ function MessageBubble({
             /* бэкенд кладёт encodeURIComponent(URL); если строка уже «голая» — оставляем cleanUrl */
           }
           return (
-            <div className={styles.voiceMessage}>
-              <p className={styles.voiceMessageMeta}>
-                <strong>{message.username || "Unknown"}</strong>
-                <span> — голосовое</span>
-              </p>
-              <audio className={styles.voicePlayer} controls src={playerSrc} preload="metadata" />
-            </div>
+            <VoiceMessageBubble
+              username={message.username || "Unknown"}
+              src={playerSrc}
+              isOwn={isOwnMessage}
+              message={message}
+            />
           )
         }
 
