@@ -30,6 +30,7 @@ model User {
   savedVerses       SavedVerse[]
   reactions         Reaction[]
   refreshSessions   RefreshSession[]
+  voiceListens      VoiceMessageListen[] @relation("VoiceListens")
 }
 
 /// * Opaque refresh token (хеш в БД, сырое значение только в HttpOnly-куке).
@@ -56,14 +57,29 @@ model Message {
   type      MessageType @default(TEXT)
   content   String?
   fileUrl   String?
+  voiceDuration Float?
   senderId  String
   createdAt DateTime    @default(now())
   roomId    String      @default(dbgenerated("'00000000-0000-0000-0000-000000000001'::uuid")) @db.Uuid
   room      Room        @relation(fields: [roomId], references: [id])
   sender    User        @relation(fields: [senderId], references: [id], onDelete: Cascade)
   reactions Reaction[]
+  voiceListens VoiceMessageListen[]
 
   @@index([roomId, createdAt])
+}
+
+model VoiceMessageListen {
+  id        String    @id @default(uuid())
+  messageId String
+  userId    String
+  listenedAt DateTime @default(now())
+  message   Message   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User      @relation("VoiceListens", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
 }
 
 model Reaction {

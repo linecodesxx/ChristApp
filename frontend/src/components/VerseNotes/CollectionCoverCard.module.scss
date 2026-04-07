@@ -4,25 +4,27 @@
   min-width: 0;
   text-decoration: none;
   color: inherit;
-  border-radius: 11px;
+  border-radius: 12px;
   overflow: hidden;
   transition:
-    transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 0.28s ease;
+    transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.25s ease,
+    filter 0.25s ease;
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 20px 40px -18px rgba(26, 53, 82, 0.35);
+    transform: scale(0.98);
+    box-shadow: 0 12px 32px -8px rgba(212, 175, 55, 0.25);
+    filter: brightness(1.05);
   }
 
   :global(html[data-theme="dark"]) & {
     &:hover {
-      box-shadow: 0 22px 44px -16px rgba(0, 0, 0, 0.65);
+      box-shadow: 0 12px 32px -8px rgba(212, 175, 55, 0.28);
     }
   }
 
   &:active {
-    transform: translateY(-1px);
+    transform: scale(0.96);
   }
 }
 
@@ -33,27 +35,44 @@
 
   .link:hover {
     transform: none;
+    filter: none;
   }
 }
 
 .cover {
   position: relative;
   width: 100%;
-  aspect-ratio: 4 / 3;
-  border-radius: 11px;
+  min-height: 160px;
+  border-radius: 12px;
   overflow: hidden;
   isolation: isolate;
+  border-left: 2.5px solid #d4af37;
+  background: rgba(22, 19, 17, 0.72);
+  backdrop-filter: blur(20px) saturate(1.1);
+  -webkit-backdrop-filter: blur(20px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 8px 24px -6px rgba(0, 0, 0, 0.35);
+  animation: cardSlide 0.52s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 
-/* Размытый «фото»-слой + градиенты поверх */
 .cover::before {
   content: "";
   position: absolute;
-  inset: -40%;
+  inset: 0;
   z-index: 0;
-  filter: blur(14px);
-  opacity: 0.85;
-  transform: scale(1.05);
+  border-radius: inherit;
+  background: radial-gradient(
+    circle at 20% 0%,
+    rgba(212, 175, 55, 0.08) 0%,
+    transparent 35%
+  ),
+  radial-gradient(
+    circle at 100% 100%,
+    rgba(90, 99, 69, 0.04) 0%,
+    transparent 40%
+  );
+  pointer-events: none;
 }
 
 .cover::after {
@@ -62,12 +81,12 @@
   inset: 0;
   z-index: 1;
   border-radius: inherit;
-  padding: 0.5px;
+  padding: 1px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.55) 0%,
-    rgba(200, 190, 170, 0.25) 40%,
-    rgba(180, 185, 195, 0.2) 100%
+    rgba(212, 175, 55, 0.28) 0%,
+    rgba(212, 175, 55, 0.12) 25%,
+    transparent 70%
   );
   -webkit-mask:
     linear-gradient(#fff 0 0) content-box,
@@ -80,6 +99,46 @@
   pointer-events: none;
 }
 
+@keyframes cardSlide {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.iconWrapper {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  color: #d4af37;
+  opacity: 0.48;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
+
+  svg {
+    display: block;
+  }
+
+  .link:hover & {
+    opacity: 0.72;
+  }
+
+  .link:active & {
+    opacity: 0.58;
+  }
+}
+
 .inner {
   position: relative;
   z-index: 2;
@@ -87,77 +146,58 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  padding: 9px 9px 10px;
-  background: linear-gradient(
-    180deg,
-    transparent 0%,
-    rgba(35, 32, 28, 0.12) 45%,
-    rgba(35, 32, 28, 0.55) 100%
-  );
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 14px 14px 16px;
+  gap: 12px;
 }
 
 .title {
-  margin: 0 0 5px;
+  margin: 0;
   font-family: var(--font-display, "Achiko", "Inter", system-ui, sans-serif);
-  font-size: clamp(1.02rem, 3vw, 1.2rem);
+  font-size: clamp(0.95rem, 2.5vw, 1.1rem);
   font-weight: 700;
-  line-height: 1.18;
-  letter-spacing: 0.01em;
-  color: #fdfcf8;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
-  overflow-wrap: anywhere;
+  line-height: 1.2;
+  letter-spacing: 0;
+  color: rgba(253, 252, 248, 0.98);
+  text-wrap: balance;
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
 .tagline {
   margin: 0;
+  margin-top: auto;
   font-family: var(--font-body, "Achiko", "Inter", system-ui, sans-serif);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0.02em;
-  color: rgba(253, 252, 248, 0.9);
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  line-height: 1.45;
+  letter-spacing: 0.01em;
+  color: rgba(196, 191, 180, 0.85);
   max-width: none;
   overflow-wrap: anywhere;
   font-feature-settings: "kern" 1, "liga" 1;
 }
 
-/* --- Варианты обложек (мягкие градиенты + «туман») --- */
+/**
+ * Minimal accent variants — тонкие цветные полоски слева для визually distinguish collections
+ */
 
-.gratitude::before {
-  background:
-    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(255, 235, 200, 0.9) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 60% at 10% 80%, rgba(220, 190, 150, 0.75) 0%, transparent 50%),
-    linear-gradient(145deg, #e8d5c4 0%, #d4b896 40%, #c4a882 100%);
+.gratitude {
+  border-left-color: #d4af37;
 }
 
-.love::before {
-  background:
-    radial-gradient(ellipse 65% 55% at 30% 25%, rgba(255, 210, 220, 0.85) 0%, transparent 55%),
-    radial-gradient(ellipse 55% 45% at 90% 70%, rgba(200, 150, 170, 0.6) 0%, transparent 50%),
-    linear-gradient(155deg, #e8c4c8 0%, #c9a0a8 45%, #a87880 100%);
+.love {
+  border-left-color: #e8969c;
 }
 
-.prayer::before {
-  background:
-    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(180, 220, 255, 0.6) 0%, transparent 55%),
-    radial-gradient(ellipse 90% 70% at 100% 100%, rgba(80, 110, 150, 0.45) 0%, transparent 55%),
-    linear-gradient(165deg, #8fa8c4 0%, #2a4a6e 55%, #1a3552 100%);
+.prayer {
+  border-left-color: #8fa8c4;
 }
 
-.insights::before {
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(200, 210, 200, 0.6) 0%, transparent 50%),
-    radial-gradient(ellipse 70% 50% at 85% 75%, rgba(140, 150, 170, 0.6) 0%, transparent 50%),
-    linear-gradient(155deg, #9ca89a 0%, #6b7a6a 40%, #4a5550 100%);
+.insights {
+  border-left-color: #9ca89a;
 }
 
-/* Тёплый «зал»: золотистый свет + глубокий винный — ассоциация со служением слова */
-.sermons::before {
-  background:
-    radial-gradient(ellipse 55% 45% at 75% 15%, rgba(255, 220, 160, 0.75) 0%, transparent 52%),
-    radial-gradient(ellipse 70% 55% at 15% 85%, rgba(120, 60, 75, 0.45) 0%, transparent 52%),
-    linear-gradient(155deg, #6b4c52 0%, #4a3540 38%, #2d2228 100%);
+.sermons {
+  border-left-color: #b89968;
 }

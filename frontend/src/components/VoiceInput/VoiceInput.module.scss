@@ -110,22 +110,54 @@
 .previewPanel {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
   min-width: 0;
-  padding: 4px 2px 2px;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--surface-elevated) 96%, var(--accent-soft) 4%),
+    var(--surface-elevated)
+  );
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, var(--accent-soft) 40%);
+  box-shadow:
+    0 8px 24px -6px rgba(38, 28, 16, 0.12),
+    inset 0 1px 0 color-mix(in srgb, #fff 10%, transparent);
+  backdrop-filter: blur(6px);
+  animation: previewSlideIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes previewSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .previewPanel {
+    animation: none;
+  }
 }
 
 .previewAudio {
   width: 100%;
   height: 36px;
   border-radius: 12px;
+  accent-color: var(--accent);
+  filter: brightness(0.98);
 }
 
 .previewActions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .previewDiscardBtn,
@@ -133,28 +165,75 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 14px;
-  border-radius: 9999px;
+  padding: 10px 18px;
+  border-radius: 12px;
   font-family: "Inter", sans-serif;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
+  letter-spacing: 0.02em;
   cursor: pointer;
+  transition:
+    all 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 200ms ease;
+  white-space: nowrap;
+  border: none;
 }
 
 .previewDiscardBtn {
-  border: 1px solid color-mix(in srgb, var(--line-soft) 75%, transparent);
   color: var(--text-muted);
-  background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 85%, var(--foreground) 15%);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--surface-elevated) 75%, var(--foreground) 25%);
+    border-color: color-mix(in srgb, var(--line-soft) 85%, transparent);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(38, 28, 16, 0.15);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
 }
 
 .previewSendBtn {
-  border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line-soft));
-  color: color-mix(in srgb, var(--foreground) 94%, #1a1208 6%);
+  color: #fff;
   background: linear-gradient(
-    165deg,
-    color-mix(in srgb, var(--surface-elevated) 90%, var(--accent-soft) 10%),
-    color-mix(in srgb, var(--accent-soft) 40%, var(--surface-elevated))
+    145deg,
+    color-mix(in srgb, var(--accent) 92%, var(--foreground) 8%),
+    color-mix(in srgb, var(--accent) 78%, var(--accent-soft) 22%)
   );
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--line-soft) 45%);
+  box-shadow:
+    0 2px 8px -2px color-mix(in srgb, var(--accent) 32%, transparent),
+    inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent);
+
+  &:hover:not(:disabled) {
+    background: linear-gradient(
+      145deg,
+      color-mix(in srgb, var(--accent) 100%, var(--foreground) 0%),
+      color-mix(in srgb, var(--accent) 88%, var(--accent-soft) 12%)
+    );
+    border-color: color-mix(in srgb, var(--accent) 72%, var(--line-soft) 28%);
+    transform: translateY(-2px);
+    box-shadow:
+      0 6px 16px -2px color-mix(in srgb, var(--accent) 42%, transparent),
+      inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: not-allowed;
+  }
 }
 
 .waveSection {

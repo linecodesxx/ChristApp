@@ -1,6 +1,17 @@
 import type { QueryClient } from "@tanstack/react-query"
-import { fetchFullChapter } from "@/lib/bibleApi"
 import { getAuthToken } from "@/lib/auth"
+import { BIBLE_LAST_READ_STORAGE_KEY } from "@/lib/bibleReadingProgress"
+import {
+  bibleBooksQueryKey,
+  bibleChapterTextQueryKey,
+  bibleChaptersQueryKey,
+  bibleStaticQueryOptions,
+  bibleTranslationsQueryKey,
+  fetchBibleBooksForQuery,
+  fetchBibleChapterTextForQuery,
+  fetchBibleChaptersForQuery,
+  fetchBibleTranslationsForQuery,
+} from "@/lib/queries/bibleQueries"
 import { getUserIdFromJwt } from "@/lib/jwtUser"
 import {
   fetchPushStatusForQuery,
@@ -10,8 +21,6 @@ import {
 } from "@/lib/queries/pushQueries"
 import { fetchSavedVersesForQuery, savedVersesQueryKey } from "@/lib/queries/versesQueries"
 import { fetchUsersDirectory, usersDirectoryQueryKey } from "@/lib/queries/usersQueries"
-
-const LAST_READ_STORAGE_KEY = "lastRead"
 
 /** Prefetch при наведении на таб «Чат». */
 export function prefetchTabChatData(queryClient: QueryClient) {
@@ -53,24 +62,59 @@ export function prefetchTabProfileData(queryClient: QueryClient) {
   })
 }
 
-/** Prefetch последней прочитанной главы Библии (ключ совпадает с BibleReader). */
-export function prefetchTabBibleChapter(queryClient: QueryClient) {
+/**
+ * Prefetch Библии до перехода на таб: переводы, список книг, список глав и текст главы
+ * (ключи совпадают с BibleReader / bibleQueries).
+ */
+export function prefetchTabBibleData(queryClient: QueryClient) {
   if (typeof window === "undefined") return
 
-  try {
-    const raw = window.localStorage.getItem(LAST_READ_STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as { bookId?: string; chapter?: number }) : null
-    if (!parsed?.bookId) return
+  const translation = "NRT"
 
-    const chapter = Number(parsed.chapter) || 1
-    const translation = "NRT"
+  void queryClient.prefetchQuery({
+    queryKey: bibleTranslationsQueryKey,
+    queryFn: fetchBibleTranslationsForQuery,
+    ...bibleStaticQueryOptions,
+  })
 
-    void queryClient.prefetchQuery({
-      queryKey: ["chapter", translation, parsed.bookId, chapter],
-      queryFn: () => fetchFullChapter(parsed.bookId!, chapter, translation),
-      staleTime: 1000 * 60 * 60,
+  void queryClient
+    .prefetchQuery({
+      queryKey: bibleBooksQueryKey(translation),
+      queryFn: () => fetchBibleBooksForQuery(translation),
+      ...bibleStaticQueryOptions,
     })
-  } catch {
-    // ignore invalid JSON
-  }
+    .then(() => {
+      let bookId: string | undefined
+      let chapter = 1
+      try {
+        const raw = window.localStorage.getItem(BIBLE_LAST_READ_STORAGE_KEY)
+        const parsed = raw ? (JSON.parse(raw) as { bookId?: string; chapter?: number }) : null
+        if (parsed?.bookId) {
+          bookId = parsed.bookId
+          chapter = Number(parsed.chapter) || 1
+        }
+      } catch {
+        // ignore invalid JSON
+      }
+
+      const books = queryClient.getQueryData<Array<{ id: string }>>(bibleBooksQueryKey(translation))
+      if (!bookId && books?.[0]?.id) {
+        bookId = books[0].id
+        chapter = 1
+      }
+      if (!bookId) return
+
+      void queryClient.prefetchQuery({
+        queryKey: bibleChaptersQueryKey(translation, bookId),
+        queryFn: () => fetchBibleChaptersForQuery(translation, bookId!),
+        ...bibleStaticQueryOptions,
+      })
+
+      void queryClient.prefetchQuery({
+        queryKey: bibleChapterTextQueryKey(translation, bookId, chapter),
+        queryFn: () => fetchBibleChapterTextForQuery(translation, bookId, chapter),
+        ...bibleStaticQueryOptions,
+      })
+    })
 }
+

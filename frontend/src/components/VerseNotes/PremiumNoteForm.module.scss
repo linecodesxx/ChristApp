@@ -1,51 +1,141 @@
 .form {
+  margin: 0;
+}
+
+/* Единая подложка: пергамент + лёгкое стекло */
+.sheet {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0;
+  padding: clamp(18px, 3.5vw, 26px) clamp(16px, 3vw, 22px) clamp(20px, 3.5vw, 26px);
+  border-radius: 16px;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse 90% 60% at 10% -8%, rgba(212, 175, 95, 0.16), transparent 55%),
+    radial-gradient(ellipse 75% 55% at 102% 100%, rgba(175, 155, 120, 0.11), transparent 52%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 26px,
+      rgba(120, 100, 70, 0.035) 26px,
+      rgba(120, 100, 70, 0.035) 27px
+    ),
+    linear-gradient(
+      168deg,
+      rgba(255, 253, 248, 0.96) 0%,
+      rgba(252, 247, 236, 0.92) 45%,
+      rgba(254, 250, 242, 0.95) 100%
+    );
+  backdrop-filter: blur(12px) saturate(1.1);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 0 120px rgba(210, 180, 120, 0.05),
+    0 2px 14px rgba(45, 38, 28, 0.06);
+  border: 1px solid rgba(195, 165, 105, 0.32);
+}
+
+.cornerPen {
+  position: absolute;
+  top: clamp(10px, 2vw, 14px);
+  right: clamp(10px, 2.5vw, 16px);
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0.4;
+  color: color-mix(in srgb, #9a7b2c 42%, var(--parchment-blue-soft, #2a4a6e) 58%);
+  transform-origin: 70% 90%;
+  transition:
+    opacity 0.35s ease,
+    color 0.35s ease;
+}
+
+.cornerPenSvg {
+  width: 26px;
+  height: 26px;
+  display: block;
+}
+
+.cornerPenWriting {
+  opacity: 0.78;
+  color: color-mix(in srgb, #b8922e 55%, var(--parchment-blue-soft, #2a4a6e) 45%);
+  animation: premiumNotePenWobble 1.85s ease-in-out infinite;
+}
+
+@keyframes premiumNotePenWobble {
+  0%,
+  100% {
+    transform: rotate(-5deg) translate(0, 0);
+  }
+
+  33% {
+    transform: rotate(7deg) translate(1px, -1px);
+  }
+
+  66% {
+    transform: rotate(-3deg) translate(-0.5px, 0.5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cornerPenWriting {
+    animation: none;
+  }
 }
 
 .labelSource,
 .labelResponse {
-  margin: 0 0 8px;
-  font-family: var(--font-body, "Inter", sans-serif);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  margin: 0;
+  padding-top: 0.35rem;
+  margin-bottom: 0.4rem;
+  font-family: var(--font-display, "Georgia", serif);
+  font-size: 12px;
+  font-weight: 500;
+  font-style: italic;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: color-mix(in srgb, #a67c00 38%, var(--parchment-muted, #6b6760) 62%);
 }
 
 .labelSource {
-  color: var(--parchment-blue-soft, var(--text-muted));
-  opacity: 0.9;
+  padding-top: 0.15rem;
 }
 
 .labelResponse {
-  color: var(--parchment-olive, #5a6345);
-  opacity: 0.95;
+  margin-top: 1.35rem;
+  padding-top: 0.55rem;
 }
 
 .sourceField,
 .responseField {
   width: 100%;
   box-sizing: border-box;
-  border-radius: 12px;
+  margin: 0;
+  padding: 10px 2px 12px;
+  border: none;
+  border-radius: 0;
   font-family: var(--font-body, "Inter", sans-serif);
   font-size: 15px;
-  line-height: 1.55;
-  resize: vertical;
+  line-height: 1.6;
+  resize: none;
   min-height: 96px;
-  padding: 14px 16px;
   color: var(--parchment-ink, #2e2c29);
-  background: rgba(255, 252, 245, 0.75);
-  border: 0.5px solid rgba(100, 95, 85, 0.22);
+  background: transparent;
   outline: none;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+    color 0.2s ease,
+    box-shadow 0.25s ease;
 
-  &:focus {
-    border-color: rgba(42, 74, 110, 0.35);
-    box-shadow: 0 0 0 3px rgba(42, 74, 110, 0.08);
+  &::placeholder {
+    color: color-mix(in srgb, var(--parchment-muted, #6b6760) 75%, transparent);
+    font-style: italic;
+  }
+
+  &:focus-visible {
+    box-shadow: 0 2px 0 0 color-mix(in srgb, #c9a227 45%, transparent);
   }
 }
 
@@ -53,36 +143,55 @@
   font-family: var(--font-display, "Georgia", serif);
   font-style: italic;
   font-size: 16px;
-  line-height: 1.65;
-  min-height: 120px;
+  line-height: 1.68;
+  min-height: 104px;
 }
 
 .actions {
-  margin-top: 18px;
+  margin-top: 1.35rem;
+  padding-top: 0.25rem;
   display: flex;
   justify-content: flex-end;
 }
 
 .submit {
-  padding: 12px 22px;
+  padding: 10px 20px;
   border-radius: 999px;
-  border: none;
+  border: 1px solid color-mix(in srgb, #c9a227 55%, rgba(180, 150, 90, 0.65));
   cursor: pointer;
   font-family: var(--font-body, "Inter", sans-serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  color: #fdfcf0;
-  background: linear-gradient(145deg, var(--parchment-blue-soft, #2a4a6e) 0%, var(--parchment-blue, #1a3552) 100%);
-  box-shadow: 0 4px 16px -4px rgba(26, 53, 82, 0.45);
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, #8a6a1f 55%, var(--parchment-blue, #1a3552) 45%);
+  background: color-mix(in srgb, rgba(255, 252, 245, 0.35) 40%, transparent);
+  box-shadow: none;
   transition:
-    transform 0.15s ease,
-    box-shadow 0.2s ease,
+    transform 0.18s ease,
+    border-color 0.22s ease,
+    color 0.22s ease,
+    box-shadow 0.28s ease,
+    background 0.22s ease,
     opacity 0.2s ease;
 
   &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 22px -6px rgba(26, 53, 82, 0.5);
+    transform: translateY(-0.5px);
+    border-color: color-mix(in srgb, #d4af37 70%, rgba(200, 170, 100, 0.8));
+    color: color-mix(in srgb, #6b5218 40%, var(--parchment-blue, #1a3552) 60%);
+    background: color-mix(in srgb, rgba(212, 175, 55, 0.1) 50%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, #d4af37 22%, transparent),
+      0 6px 22px -8px color-mix(in srgb, #c9a227 35%, transparent),
+      0 0 28px -6px color-mix(in srgb, #e8c547 25%, transparent);
+  }
+
+  &:focus-visible:not(:disabled) {
+    outline: none;
+    border-color: color-mix(in srgb, #d4af37 75%, #fff 25%);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, #d4af37 28%, transparent),
+      0 8px 26px -8px color-mix(in srgb, #c9a227 38%, transparent),
+      0 0 32px -4px color-mix(in srgb, #f0d060 22%, transparent);
   }
 
   &:active:not(:disabled) {
@@ -90,34 +199,82 @@
   }
 
   &:disabled {
-    opacity: 0.45;
+    opacity: 0.42;
     cursor: default;
   }
+}
+
+:global(html[data-theme="dark"]) .sheet {
+  background:
+    radial-gradient(ellipse 88% 58% at 8% -6%, rgba(200, 165, 90, 0.12), transparent 54%),
+    radial-gradient(ellipse 70% 50% at 100% 100%, rgba(140, 125, 95, 0.08), transparent 50%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 26px,
+      rgba(255, 255, 255, 0.02) 26px,
+      rgba(255, 255, 255, 0.02) 27px
+    ),
+    linear-gradient(
+      168deg,
+      rgba(34, 31, 28, 0.92) 0%,
+      rgba(28, 26, 24, 0.9) 100%
+    );
+  border-color: rgba(200, 170, 110, 0.22);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 100px rgba(0, 0, 0, 0.2),
+    0 2px 18px rgba(0, 0, 0, 0.35);
+}
+
+:global(html[data-theme="dark"]) .labelSource,
+:global(html[data-theme="dark"]) .labelResponse {
+  color: color-mix(in srgb, #d4b060 42%, var(--parchment-muted) 58%);
+}
+
+:global(html[data-theme="dark"]) .cornerPen {
+  color: color-mix(in srgb, #c9a227 38%, var(--text-muted) 62%);
+  opacity: 0.38;
+}
+
+:global(html[data-theme="dark"]) .cornerPenWriting {
+  color: color-mix(in srgb, #e0c068 48%, var(--accent-soft) 52%);
+  opacity: 0.82;
 }
 
 :global(html[data-theme="dark"]) .sourceField,
 :global(html[data-theme="dark"]) .responseField {
   color: var(--parchment-ink, #e9e6e0);
-  background: rgba(28, 26, 24, 0.75);
-  border-color: rgba(220, 215, 205, 0.12);
 
-  &:focus {
-    border-color: color-mix(in srgb, var(--accent) 50%, transparent);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-soft) 35%, transparent);
+  &::placeholder {
+    color: color-mix(in srgb, var(--parchment-muted) 65%, transparent);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 2px 0 0 color-mix(in srgb, var(--accent) 45%, transparent);
   }
 }
 
 :global(html[data-theme="dark"]) .submit {
-  color: var(--login-button-text, #1f1d1d);
-  background: linear-gradient(
-    145deg,
-    var(--accent-soft) 0%,
-    var(--accent) 52%,
-    color-mix(in srgb, var(--accent) 85%, #1a1510) 100%
-  );
-  box-shadow: 0 4px 20px -4px color-mix(in srgb, var(--accent) 25%, transparent);
+  color: color-mix(in srgb, #e8c878 55%, var(--parchment-ink-soft) 45%);
+  border-color: color-mix(in srgb, var(--accent) 55%, rgba(200, 175, 120, 0.45));
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.04) 50%, transparent);
 
   &:hover:not(:disabled) {
-    box-shadow: 0 8px 26px -6px color-mix(in srgb, var(--accent) 32%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 72%, #d4af37 28%);
+    color: color-mix(in srgb, #f5e0a8 40%, var(--parchment-ink) 60%);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--accent) 20%, transparent),
+      0 6px 26px -8px color-mix(in srgb, var(--accent) 32%, transparent),
+      0 0 36px -6px color-mix(in srgb, #f0d878 18%, transparent);
+  }
+
+  &:focus-visible:not(:disabled) {
+    border-color: color-mix(in srgb, var(--accent) 80%, #fff 20%);
+    box-shadow:
+      0 0 0 2px color-mix(in srgb, var(--accent) 28%, transparent),
+      0 8px 30px -8px color-mix(in srgb, var(--accent) 38%, transparent),
+      0 0 40px -4px color-mix(in srgb, #f5e6a8 20%, transparent);
   }
 }

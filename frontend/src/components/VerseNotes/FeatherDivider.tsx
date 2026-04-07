@@ -1,9 +1,20 @@
 import styles from "./FeatherDivider.module.scss"
 
 /** Тонкий разделитель с символом пера — вместо грубой линии */
-export default function FeatherDivider({ className }: { className?: string }) {
+export default function FeatherDivider({
+  className,
+  active = false,
+}: {
+  className?: string
+  /** Подсветка при наборе текста в форме заметки */
+  active?: boolean
+}) {
   return (
-    <div className={`${styles.root} ${className ?? ""}`} role="separator" aria-hidden>
+    <div
+      className={`${styles.root} ${active ? styles.rootActive : ""} ${className ?? ""}`}
+      role="separator"
+      aria-hidden
+    >
       <span className={styles.line} />
       <svg className={styles.feather} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <path

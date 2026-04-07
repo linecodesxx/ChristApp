@@ -85,6 +85,7 @@ export class MessagesService {
           senderId: string;
           type: 'VOICE';
           content: string;
+          voiceDuration?: number;
         }
       | {
           roomId: string;
@@ -96,11 +97,13 @@ export class MessagesService {
     const { roomId, senderId, type } = params;
     const content = type === 'IMAGE' ? null : params.content;
     const fileUrl = type === 'IMAGE' ? params.fileUrl : null;
+    const voiceDuration = type === 'VOICE' ? params.voiceDuration : null;
     return this.prisma.message.create({
       data: {
         type,
         content,
         fileUrl,
+        voiceDuration: voiceDuration || null,
         senderId,
         roomId,
       },

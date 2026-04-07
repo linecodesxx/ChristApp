@@ -1,0 +1,243 @@
+/**
+ * Свеча по мотивам pure CSS candle (структура как в CodePen Takuma_BMe / BaVdNLK):
+ * holder → candle → blinking-glow, thread, glow, flame.
+ * Размеры в «дизайн-пространстве» 150×300, затем scale снизу вверх.
+ */
+
+.holder {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 150px;
+  height: 320px;
+  overflow: visible;
+  transform: scale(0.42);
+  transform-origin: 50% 100%;
+}
+
+@media (min-width: 480px) {
+  .holder {
+    transform: scale(0.46);
+  }
+}
+
+@media (min-width: 900px) {
+  .holder {
+    transform: scale(0.52);
+  }
+}
+
+.candle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin: 0 auto;
+  width: 150px;
+  height: 300px;
+  overflow: visible;
+  border-radius: 150px / 40px;
+  box-shadow:
+    inset 20px -30px 50px 0 rgba(0, 0, 0, 0.4),
+    inset -20px 0 50px 0 rgba(0, 0, 0, 0.4);
+  background: linear-gradient(#e48825, #e78e0e, #833c03, #4c1a03 50%, #1c0900);
+}
+
+.candle::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid #d47401;
+  background: radial-gradient(#eaa121, #8e4901 45%, #b86409 80%);
+  box-sizing: border-box;
+}
+
+.candle::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  width: 34px;
+  height: 10px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px 0 rgba(0, 0, 0, 0.5);
+  background: radial-gradient(rgba(0, 0, 0, 0.6), transparent 45%);
+}
+
+.thread {
+  position: absolute;
+  width: 6px;
+  height: 36px;
+  top: -17px;
+  left: 50%;
+  z-index: 1;
+  border-radius: 40% 40% 0 0;
+  transform: translateX(-50%);
+  background: linear-gradient(#d6994a, #4b232c, #121212, #000000, #e8bb31 90%);
+}
+
+.flame {
+  position: absolute;
+  width: 24px;
+  height: 120px;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  transform-origin: 50% 100%;
+  border-radius: 50% 50% 20% 20%;
+  background: linear-gradient(#fff 80%, transparent);
+  animation:
+    codepenCandleMoveFlame 6s linear infinite,
+    codepenCandleEnlargeFlame 5s linear infinite,
+    codepenCandleFlicker 2.6s ease-in-out infinite;
+}
+
+.flame::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50% 50% 20% 20%;
+  transform-origin: 50% 100%;
+  box-shadow:
+    0 0 15px 0 rgba(247, 93, 0, 0.4),
+    0 -6px 4px 0 rgba(247, 128, 0, 0.7);
+  animation: codepenCandleFlickerCore 3.1s ease-in-out infinite;
+}
+
+.glow {
+  position: absolute;
+  width: 26px;
+  height: 60px;
+  left: 50%;
+  top: -48px;
+  transform: translateX(-50%);
+  border-radius: 50% 50% 35% 35%;
+  /* В оригинале был холодный синий — здесь только тёплый янтарь */
+  background: rgba(255, 140, 40, 0.45);
+  box-shadow:
+    0 -40px 30px 0 #dc8a0c,
+    0 40px 50px 0 #dc8a0c,
+    inset 2px 0 3px 0 rgba(255, 200, 120, 0.35),
+    inset -2px 0 3px 0 rgba(255, 160, 60, 0.25);
+}
+
+.glow::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 70%;
+  height: 60%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.blinkingGlow {
+  position: absolute;
+  width: 100px;
+  height: 180px;
+  left: 50%;
+  top: -55%;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #ff6000;
+  filter: blur(50px);
+  opacity: 0.85;
+  /* В CodePen — очень быстрый blinkIt; для сцены заметок — мягкое «дыхание» */
+  animation: codepenCandleBreatheGlow 3.2s ease-in-out infinite;
+}
+
+@keyframes codepenCandleMoveFlame {
+  0%,
+  100% {
+    transform: translateX(-50%) rotate(-2deg);
+  }
+
+  50% {
+    transform: translateX(-50%) rotate(2deg);
+  }
+}
+
+@keyframes codepenCandleEnlargeFlame {
+  0%,
+  100% {
+    height: 120px;
+  }
+
+  50% {
+    height: 140px;
+  }
+}
+
+@keyframes codepenCandleBreatheGlow {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: translateX(-50%) scale(1);
+  }
+
+  50% {
+    opacity: 0.95;
+    transform: translateX(-50%) scale(1.06);
+  }
+}
+
+/* Мягкое мерцание: только opacity у тела пламени (transform занят другими keyframes). */
+@keyframes codepenCandleFlicker {
+  0%,
+  100% {
+    opacity: 0.94;
+  }
+
+  22% {
+    opacity: 1;
+  }
+
+  48% {
+    opacity: 0.9;
+  }
+
+  71% {
+    opacity: 0.98;
+  }
+}
+
+/* Лёгкое «дыхание» размера внутри пламени. */
+@keyframes codepenCandleFlickerCore {
+  0%,
+  100% {
+    opacity: 0.92;
+    transform: scale(1, 1);
+  }
+
+  33% {
+    opacity: 1;
+    transform: scale(1.05, 1.07);
+  }
+
+  66% {
+    opacity: 0.88;
+    transform: scale(0.97, 0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flame {
+    animation: none;
+  }
+
+  .flame::before {
+    animation: none;
+  }
+
+  .blinkingGlow {
+    animation: none;
+    opacity: 0.82;
+  }
+}

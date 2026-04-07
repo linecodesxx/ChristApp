@@ -1,11 +1,11 @@
-// import { getBibleData } from "@/lib/storage";
-import BibleReader from "@/components/BibleReader/BibleReader";
+import BibleReader from "@/components/BibleReader/BibleReader"
+import RandomVerseWidget from "@/components/RandomVerseWidget/RandomVerseWidget"
 
 export default async function BiblePage() {
-  // const bible = await getBibleData();
-
-  // if (!bible?.Books) return <div>Нет данных</div>;
-
-  // // клиентский компонент восстановит последнюю позицию чтения
-  return <BibleReader  />;
+  return (
+    <div>
+      <RandomVerseWidget />
+      <BibleReader />
+    </div>
+  )
 }

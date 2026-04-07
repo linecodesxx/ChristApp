@@ -89,6 +89,10 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## База и Vercel (фронт)
+
+Если Next.js крутится на Vercel с **Root Directory = `frontend`**, миграции к той же БД, что и у Nest, запускаются **перед `next build`** (см. `frontend/vercel.json`). В Vercel нужна переменная **`DATABASE_URL`**.
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

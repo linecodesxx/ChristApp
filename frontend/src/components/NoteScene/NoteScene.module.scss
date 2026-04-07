@@ -4,9 +4,8 @@
   --note-ink: #2c2c2c;
   --note-parchment-base: #e8dcc4;
   --note-parchment-mid: #dcc9a8;
-  --note-flame-core: #fff4a8;
-  --note-flame-mid: #ffb347;
-  --note-flame-edge: #e85d04;
+  /* Свет свечи слева */
+  --note-candle-light: #f7e2b1;
 
   position: fixed;
   inset: 0;
@@ -20,6 +19,7 @@
   opacity: 0;
   animation: sceneFadeIn 0.75s ease-out forwards;
   pointer-events: auto;
+  isolation: isolate;
 }
 
 @keyframes sceneFadeIn {
@@ -32,18 +32,63 @@
   }
 }
 
-/* Полностью непрозрачный фон — под сценой ничего из приложения не просвечивает */
-.backdrop {
+/*
+ * Фон (снизу вверх): тёмная база поверх приложения → тёплое боке → размытие (backdrop-filter).
+ */
+.backdropStack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.darkBase {
   position: absolute;
   inset: 0;
   background: radial-gradient(
-    ellipse 90% 85% at 50% 42%,
-    #141210 0%,
-    #0c0c0c 52%,
-    #050505 88%,
-    #0a0a0a 100%
+    ellipse 92% 88% at 50% 44%,
+    rgba(28, 22, 18, 0.92) 0%,
+    rgba(14, 11, 9, 0.96) 52%,
+    rgba(6, 5, 4, 0.98) 100%
   );
-  pointer-events: none;
+}
+
+.bokehLayer {
+  position: absolute;
+  inset: -8%;
+  background:
+    radial-gradient(ellipse 75% 55% at 18% 38%, rgba(255, 210, 140, 0.38) 0%, transparent 58%),
+    radial-gradient(ellipse 65% 48% at 88% 72%, rgba(220, 165, 95, 0.24) 0%, transparent 52%),
+    radial-gradient(ellipse 55% 40% at 48% 92%, rgba(200, 145, 80, 0.16) 0%, transparent 48%),
+    radial-gradient(ellipse 90% 70% at 62% 18%, rgba(255, 230, 180, 0.14) 0%, transparent 55%);
+  animation: noteSceneBokehDrift 22s ease-in-out infinite alternate;
+}
+
+@keyframes noteSceneBokehDrift {
+  0% {
+    transform: translate3d(-1.5%, -1%, 0) scale(1.02);
+  }
+
+  100% {
+    transform: translate3d(1.5%, 1.2%, 0) scale(1.06);
+  }
+}
+
+.blurLayer {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: blur(48px) saturate(1.45);
+  -webkit-backdrop-filter: blur(48px) saturate(1.45);
+  /* Лёгкая вуаль поверх тёмного слоя — усиливает глубину, блюр всё ещё «стекает» снизу */
+  background: rgba(8, 6, 5, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bokehLayer {
+    animation: none;
+    transform: none;
+  }
 }
 
 .stage {
@@ -53,121 +98,28 @@
   flex-direction: row;
   align-items: flex-end;
   justify-content: center;
-  gap: clamp(10px, 3vw, 40px);
+  gap: clamp(8px, 2.5vw, 32px);
   max-width: min(96vw, 1200px);
   width: 100%;
+  min-width: 0;
+  overflow: visible;
 }
 
+/* Пергамент забирал 80% ширины и не сжимался — вместе со свечой (150px) ряд не помещался,
+   flex центрировал группу и свеча оказывалась за левым краем экрана. */
 .parchmentColumn {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: clamp(14px, 2.5vw, 22px);
-  width: 80%;
-  max-width: 640px;
-  flex-shrink: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: min(640px, 100%);
 }
 
 @media (min-width: 900px) {
   .parchmentColumn {
-    width: 50%;
-    max-width: 560px;
-  }
-}
-
-/* ——— Свеча ——— */
-
-.candle {
-  flex-shrink: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: clamp(28px, 5vw, 40px);
-  padding-bottom: 0.15em;
-}
-
-.candleStem {
-  width: 100%;
-  max-width: 22px;
-  height: clamp(72px, 14vh, 120px);
-  border-radius: 4px 5px 6px 5px / 3px 4px 5px 4px;
-  background: linear-gradient(
-    90deg,
-    #2a2420 0%,
-    #4a3f38 35%,
-    #3d3530 55%,
-    #2c2622 100%
-  );
-  box-shadow:
-    inset -2px 0 4px rgba(0, 0, 0, 0.45),
-    inset 1px 0 2px rgba(255, 255, 255, 0.06);
-}
-
-.flameWrap {
-  position: relative;
-  width: clamp(22px, 4vw, 32px);
-  height: clamp(36px, 7vh, 52px);
-  margin-bottom: -6px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-}
-
-.flame {
-  width: 46%;
-  height: 72%;
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  background: radial-gradient(
-    ellipse 80% 100% at 50% 30%,
-    var(--note-flame-core) 0%,
-    var(--note-flame-mid) 45%,
-    var(--note-flame-edge) 88%,
-    transparent 100%
-  );
-  filter: blur(2px);
-  transform-origin: 50% 100%;
-  animation: flameFlicker 2.8s ease-in-out infinite;
-  box-shadow:
-    0 0 28px 14px rgba(255, 160, 60, 0.35),
-    0 0 56px 28px rgba(255, 120, 40, 0.12),
-    0 0 80px 40px rgba(255, 100, 30, 0.06);
-}
-
-@keyframes flameFlicker {
-  0%,
-  100% {
-    transform: scale(1, 1) translateY(0);
-    opacity: 1;
-  }
-
-  12% {
-    transform: scale(1.06, 1.12) translateY(-1px);
-    opacity: 0.94;
-  }
-
-  28% {
-    transform: scale(0.96, 1.05) translateY(0);
-    opacity: 1;
-  }
-
-  41% {
-    transform: scale(1.1, 0.98) translateY(1px);
-    opacity: 0.88;
-  }
-
-  55% {
-    transform: scale(1.02, 1.08) translateY(-1px);
-    opacity: 0.96;
-  }
-
-  68% {
-    transform: scale(0.98, 1) translateY(0);
-    opacity: 1;
-  }
-
-  82% {
-    transform: scale(1.05, 1.06) translateY(0);
-    opacity: 0.92;
+    max-width: min(560px, 100%);
   }
 }
 
@@ -177,7 +129,7 @@
   position: relative;
   width: 100%;
   min-height: min(55vh, 420px);
-  padding: clamp(1.25rem, 4vw, 2.25rem) clamp(1.1rem, 3.5vw, 2rem);
+  padding: clamp(1.55rem, 5vw, 2.85rem) clamp(1.35rem, 4.5vw, 2.5rem);
   box-sizing: border-box;
   border-radius: 2% 5% 4% 3% / 1% 1% 3% 4%;
   background-color: var(--note-parchment-base);
@@ -200,6 +152,9 @@
   box-shadow:
     inset 0 0 0 1px rgba(255, 250, 235, 0.35),
     inset 0 -20px 40px -20px rgba(80, 55, 30, 0.12),
+    inset 14px 0 32px -12px color-mix(in srgb, var(--note-candle-light) 22%, transparent),
+    -10px 0 28px color-mix(in srgb, var(--note-candle-light) 32%, transparent),
+    -22px 0 48px color-mix(in srgb, var(--note-candle-light) 18%, transparent),
     0 4px 24px rgba(0, 0, 0, 0.35),
     0 12px 48px rgba(0, 0, 0, 0.2);
   animation: parchmentBreath 4.5s ease-in-out infinite;
@@ -211,18 +166,24 @@
     box-shadow:
       inset 0 0 0 1px rgba(255, 250, 235, 0.35),
       inset 0 -20px 40px -20px rgba(80, 55, 30, 0.12),
+      inset 14px 0 30px -12px color-mix(in srgb, var(--note-candle-light) 20%, transparent),
+      -10px 0 26px color-mix(in srgb, var(--note-candle-light) 28%, transparent),
+      -20px 0 44px color-mix(in srgb, var(--note-candle-light) 15%, transparent),
       0 4px 24px rgba(0, 0, 0, 0.35),
       0 12px 48px rgba(0, 0, 0, 0.2),
-      0 0 80px -10px rgba(255, 140, 60, 0.15);
+      0 0 80px -10px rgba(255, 140, 60, 0.12);
   }
 
   50% {
     box-shadow:
       inset 0 0 0 1px rgba(255, 250, 235, 0.38),
       inset 0 -20px 40px -20px rgba(80, 55, 30, 0.1),
+      inset 16px 0 38px -10px color-mix(in srgb, var(--note-candle-light) 28%, transparent),
+      -12px 0 34px color-mix(in srgb, var(--note-candle-light) 38%, transparent),
+      -26px 0 56px color-mix(in srgb, var(--note-candle-light) 22%, transparent),
       0 4px 28px rgba(0, 0, 0, 0.32),
       0 14px 52px rgba(0, 0, 0, 0.18),
-      0 0 100px -8px rgba(255, 160, 80, 0.22);
+      0 0 100px -8px rgba(255, 160, 80, 0.18);
   }
 }
 
@@ -249,7 +210,7 @@
   width: 100%;
   min-height: min(38vh, 280px);
   margin: 0;
-  padding: 0;
+  padding: clamp(0.65rem, 2vw, 1rem) clamp(0.55rem, 1.8vw, 0.95rem);
   border: none;
   background: transparent;
   resize: none;
@@ -269,33 +230,52 @@
 
 .saveBtn {
   align-self: center;
-  min-width: min(220px, 100%);
-  padding: 12px 28px;
-  border: none;
-  border-radius: 3px 6px 5px 4px / 2px 3px 4px 3px;
+  margin-inline: auto;
+  padding: 11px 28px;
+  border: 1px solid color-mix(in srgb, var(--note-candle-light) 55%, rgba(255, 255, 255, 0.2));
+  border-radius: 999px;
   font-family: inherit;
   font-size: 1.05rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #f5f0e6;
+  letter-spacing: 0.08em;
   cursor: pointer;
-  background: linear-gradient(180deg, #3d3228 0%, #2a221c 45%, #1f1915 100%);
+  background-color: transparent;
+  color: transparent;
+  background-image: linear-gradient(
+    118deg,
+    #d4bc7a 0%,
+    var(--note-candle-light) 42%,
+    #e8cc6a 58%,
+    #c9a44a 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   box-shadow:
-    0 0 0 1px rgba(255, 200, 120, 0.12),
-    0 2px 12px rgba(0, 0, 0, 0.45),
-    0 0 32px -4px rgba(255, 140, 60, 0.2);
+    0 0 22px color-mix(in srgb, var(--note-candle-light) 38%, transparent),
+    0 0 40px color-mix(in srgb, var(--note-candle-light) 18%, transparent);
   transition:
     transform 0.2s ease,
-    box-shadow 0.2s ease,
+    border-color 0.25s ease,
+    box-shadow 0.3s ease,
     filter 0.2s ease;
 }
 
 .saveBtn:hover {
-  filter: brightness(1.06);
+  filter: brightness(1.08);
+  border-color: color-mix(in srgb, var(--note-candle-light) 75%, #fff 25%);
   box-shadow:
-    0 0 0 1px rgba(255, 210, 140, 0.2),
-    0 4px 16px rgba(0, 0, 0, 0.5),
-    0 0 40px -2px rgba(255, 150, 70, 0.28);
+    0 0 28px color-mix(in srgb, var(--note-candle-light) 48%, transparent),
+    0 0 52px color-mix(in srgb, var(--note-candle-light) 26%, transparent);
+}
+
+.saveBtn:focus-visible {
+  outline: none;
+  border-color: var(--note-candle-light);
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--note-candle-light) 45%, transparent),
+    0 0 32px color-mix(in srgb, var(--note-candle-light) 42%, transparent),
+    0 0 48px color-mix(in srgb, var(--note-candle-light) 22%, transparent);
 }
 
 .saveBtn:active {
@@ -308,11 +288,15 @@
     opacity: 1;
   }
 
-  .flame {
-    animation: none;
-  }
-
   .parchment {
     animation: none;
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 250, 235, 0.35),
+      inset 0 -20px 40px -20px rgba(80, 55, 30, 0.12),
+      inset 14px 0 32px -12px color-mix(in srgb, var(--note-candle-light) 24%, transparent),
+      -10px 0 28px color-mix(in srgb, var(--note-candle-light) 32%, transparent),
+      -22px 0 48px color-mix(in srgb, var(--note-candle-light) 18%, transparent),
+      0 4px 24px rgba(0, 0, 0, 0.35),
+      0 12px 48px rgba(0, 0, 0, 0.2);
   }
 }

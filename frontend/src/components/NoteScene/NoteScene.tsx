@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react"
 import { ebGaramond } from "@/styles/fonts"
+import CodePenCandle from "./CodePenCandle"
 import styles from "./NoteScene.module.scss"
 
 export type NoteSceneProps = {
@@ -22,7 +23,7 @@ export type NoteSceneProps = {
 const DEFAULT_MAX_TEXTAREA_HEIGHT = 520
 
 /**
- * Полноэкранная сцена: только тёмный фон, свеча, пергамент и кнопка «Сохранить».
+ * Полноэкранная сцена: размытый фон (backdrop) + тёплые блики, свеча, пергамент, «Сохранить».
  */
 export default function NoteScene({
   isOpen,
@@ -68,15 +69,14 @@ export default function NoteScene({
       aria-modal="true"
       aria-label={ariaLabel}
     >
-      <div className={styles.backdrop} aria-hidden />
+      <div className={styles.backdropStack} aria-hidden>
+        <div className={styles.darkBase} />
+        <div className={styles.bokehLayer} />
+        <div className={styles.blurLayer} />
+      </div>
 
       <div className={styles.stage}>
-        <div className={styles.candle} aria-hidden>
-          <div className={styles.flameWrap}>
-            <div className={styles.flame} />
-          </div>
-          <div className={styles.candleStem} />
-        </div>
+        <CodePenCandle />
 
         <div className={styles.parchmentColumn}>
           <div className={styles.parchment}>

@@ -46,6 +46,18 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
+В корне фронта лежит [`vercel.json`](./vercel.json): при деплое **Root Directory = `frontend`** из репозитория ставятся зависимости и **`../backend`**, затем выполняется **`prisma migrate deploy`**, после чего **`next build`**.
+
+**Обязательно** в переменных окружения проекта Vercel задай **`DATABASE_URL`** — тот же Postgres, что использует бэкенд (например Neon). Без него шаг миграций упадёт.
+
+Локально применить миграции к своей БД:
+
+```bash
+cd frontend && npm run db:migrate
+# или из backend:
+cd backend && npx prisma migrate deploy
+```
+
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

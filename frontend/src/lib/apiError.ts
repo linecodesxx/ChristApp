@@ -76,7 +76,7 @@ export function getNetworkFailureHint(err: unknown): string {
     m.includes("network request failed") ||
     m.includes("fetch failed")
   ) {
-    return "Браузер не смог связаться с сервером. Проверьте NEXT_PUBLIC_API_URL и что на бэкенде CORS_ORIGIN совпадает с адресом сайта (не «*»). Если NEXT_PUBLIC_API_URL не задан — запросы идут через /api/nest; проверьте, что Next запущен и BACKEND_PROXY_TARGET указывает на API."
+    return "Не удалось подключиться к серверу. Похоже, бэкенд локально не включён или сервер временно недоступен."
   }
   return err.message
 }

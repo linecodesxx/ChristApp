@@ -140,12 +140,12 @@
   list-style: none;
   margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 
   @media (min-width: 520px) {
-    gap: 16px;
+    gap: 18px;
   }
 
   li {
@@ -238,6 +238,22 @@
   .glassPanel {
     animation: none;
   }
+}
+
+/* Обёртка только для формы заметки: без второго слоя стекла (подложка в PremiumNoteForm). */
+.noteFormShell {
+  position: relative;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+  border-radius: 0;
+  animation: none;
+}
+
+.noteFormShell::before {
+  display: none;
 }
 
 .lead {

@@ -12,9 +12,10 @@ import {
   fetchUnreadSummaryForQuery,
   pushUnreadSummaryQueryKey,
 } from "@/lib/queries/pushQueries"
-import { getUserIdFromJwt } from "@/lib/jwtUser"
+import { canSeeAdminDashboardNav } from "@/lib/adminDashboardNav"
+import { getUserIdFromJwt, getUsernameFromJwt } from "@/lib/jwtUser"
 import {
-  prefetchTabBibleChapter,
+  prefetchTabBibleData,
   prefetchTabChatData,
   prefetchTabProfileData,
 } from "@/lib/tabPrefetch"
@@ -32,9 +33,14 @@ export default function TabBar() {
   const tabBarOverlay = useTabBarOverlayOptional()
   const narrowForChatComposer = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const [authEpoch, setAuthEpoch] = useState(0)
+  /** Токен в localStorage недоступен на SSR — иначе число вкладок и active-иконка не совпадают с клиентом (hydration error). */
+  const [tabBarClientReady, setTabBarClientReady] = useState(false)
 
   const token = getAuthToken()
   const userId = token ? getUserIdFromJwt(token) : undefined
+  const jwtUsername = token ? getUsernameFromJwt(token) : undefined
+  const showAdminDashboardTab =
+    tabBarClientReady && canSeeAdminDashboardNav(jwtUsername)
 
   const unreadQuery = useQuery({
     queryKey: pushUnreadSummaryQueryKey(userId),
@@ -62,6 +68,10 @@ export default function TabBar() {
   const hideForChatComposer = (tabBarOverlay?.chatComposerFocused ?? false) && narrowForChatComposer
 
   const isRouteActive = (route: string) => pathname === route || pathname.startsWith(`${route}/`)
+
+  useEffect(() => {
+    setTabBarClientReady(true)
+  }, [])
 
   useEffect(() => {
     const bump = () => setAuthEpoch((n) => n + 1)
@@ -120,13 +130,27 @@ export default function TabBar() {
         className={styles.tabLink}
         href="/bible"
         prefetch
-        onPointerEnter={() => prefetchTabBibleChapter(queryClient)}
-        onFocus={() => prefetchTabBibleChapter(queryClient)}
+        onPointerEnter={() => prefetchTabBibleData(queryClient)}
+        onFocus={() => prefetchTabBibleData(queryClient)}
+        onTouchStart={() => prefetchTabBibleData(queryClient)}
       >
         <span className={`${styles.iconWrap} ${isRouteActive("/bible") ? styles.activeIcon : ""}`}>
           <Image src="/icon-bible.svg" alt="Библия" width={24} height={24} />
         </span>
       </Link>
+      {showAdminDashboardTab ? (
+        <Link
+          className={styles.tabLink}
+          href="/dashboard"
+          prefetch
+          aria-label="Обзор"
+          title="Обзор"
+        >
+          <span className={`${styles.iconWrap} ${isRouteActive("/dashboard") ? styles.activeIcon : ""}`}>
+            <Image src="/icon-dashboard.svg" alt="Обзор" width={24} height={24} />
+          </span>
+        </Link>
+      ) : null}
       <Link
         className={styles.tabLink}
         href="/chat"

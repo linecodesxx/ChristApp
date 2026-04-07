@@ -20,10 +20,7 @@ import {
   type ThemeFontKey,
 } from "@/lib/userAppearance"
 import { isPushSupportedInBrowser } from "@/lib/push"
-import {
-  fetchPushStatusForQuery,
-  pushStatusQueryKey,
-} from "@/lib/queries/pushQueries"
+import { fetchPushStatusForQuery, pushStatusQueryKey } from "@/lib/queries/pushQueries"
 import { getHttpApiBase } from "@/lib/apiBase"
 import { currentUserQueryKey } from "@/lib/queries/authQueries"
 import { fetchSavedVersesForQuery, savedVersesQueryKey } from "@/lib/queries/versesQueries"
@@ -32,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } f
 import { useHydrated } from "@/hooks/useHydrated"
 import Link from "next/link"
 import Image from "next/image"
+import ProfileChaptersCard from "@/components/ProfileChaptersCard/ProfileChaptersCard"
 
 type SavedVerse = {
   id: string
@@ -134,6 +132,8 @@ export default function ProfilePage() {
 
   const isVerseKeeperUnlocked = savedVerses.length >= 5
   const verseKeeperProgress = `${Math.min(savedVerses.length, 5)} из 5`
+  const verseKeeperUnlockedUI = hydrated && isVerseKeeperUnlocked
+  const verseKeeperProgressUI = hydrated ? verseKeeperProgress : "0 из 5"
 
   const pushStatusQuery = useQuery({
     queryKey: pushStatusQueryKey(user?.id),
@@ -409,9 +409,7 @@ export default function ProfilePage() {
     onError: (err, _vars, ctx) => {
       if (ctx?.previousUser) {
         replaceUser(ctx.previousUser)
-        setThemeBgInput(
-          ctx.previousUser.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND,
-        )
+        setThemeBgInput(ctx.previousUser.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND)
         setThemeFontInput(normalizeThemeFontKey(ctx.previousUser.themeFontKey))
       }
       window.alert(err instanceof Error ? err.message : "Не удалось сбросить оформление")
@@ -580,12 +578,7 @@ export default function ProfilePage() {
           <div className={`${styles.settingsMenu} ${isSettingsOpen ? styles.show : ""}`} id="settings-menu" role="menu">
             <p className={styles.menuTitle}>Быстрые настройки</p>
 
-            <button
-              type="button"
-              className={styles.menuItem}
-              role="menuitem"
-              onClick={openProfileEditFromSettings}
-            >
+            <button type="button" className={styles.menuItem} role="menuitem" onClick={openProfileEditFromSettings}>
               <span>Редактировать профиль</span>
               <span className={styles.menuHint}>Ник и @username</span>
             </button>
@@ -602,7 +595,6 @@ export default function ProfilePage() {
               onClick={handleLogoutFromMenu}
             >
               <span>Выйти из аккаунта</span>
-              <span className={styles.menuHint}>Сейчас</span>
             </button>
           </div>
         </div>
@@ -674,7 +666,9 @@ export default function ProfilePage() {
               <input
                 className={styles.colorInput}
                 type="color"
-                value={themeBgInput.startsWith("#") && themeBgInput.length === 7 ? themeBgInput : SUGGESTED_THEME_BACKGROUND}
+                value={
+                  themeBgInput.startsWith("#") && themeBgInput.length === 7 ? themeBgInput : SUGGESTED_THEME_BACKGROUND
+                }
                 onChange={(event) => setThemeBgInput(event.target.value)}
                 aria-label="Цвет фона"
               />
@@ -705,12 +699,7 @@ export default function ProfilePage() {
           </label>
 
           <div className={styles.profileEditActions}>
-            <button
-              type="button"
-              className={styles.profileCancel}
-              onClick={closeProfileEdit}
-              disabled={profileSaving}
-            >
+            <button type="button" className={styles.profileCancel} onClick={closeProfileEdit} disabled={profileSaving}>
               Отмена
             </button>
             <button
@@ -735,47 +724,61 @@ export default function ProfilePage() {
 
       <ul className={styles.list}>
         <li className={`${styles.item} ${styles.itemInteractive}`}>
-          <button
-            type="button"
-            className={styles.itemButton}
-            onClick={() => setIsPersistenceOpen((open) => !open)}
+          <Link
+            href="#persistence-section"
+            scroll={false}
+            className={styles.itemLink}
+            onClick={(event) => {
+              event.preventDefault()
+              setIsPersistenceOpen((open) => !open)
+            }}
             aria-expanded={isPersistenceOpen}
             aria-controls="persistence-section"
           >
             <Image className={styles.imgIcon} src={"/icon-fire.svg"} alt="Серия дней" width={16} height={16} />
             <span>{dayStreak}</span>
-            <p>Серия дней</p>
-          </button>
+            <span className={styles.rewardStatePlaceholder} aria-hidden />
+            <p className={styles.statCardLabel}>Серия дней</p>
+          </Link>
         </li>
-        <li className={styles.item}>
-          <Image className={styles.imgIcon} src={"/icon-chapters.svg"} alt="Главы" width={16} height={16} />
-          <span>0</span>
-          <p>Главы</p>
-        </li>
-        <li className={`${styles.item} ${styles.rewardItem}`}>
-          <Image className={styles.imgIcon} src={"/icon-badge.svg"} alt="Награды" width={16} height={16} />
-          <span className={styles.rewardValue}>{verseKeeperProgress}</span>
-          {isVerseKeeperUnlocked ? <span className={styles.rewardState}>Получено</span> : null}
-          <p>Хранитель стихов</p>
+        <ProfileChaptersCard />
+        <li
+          className={[styles.item, styles.rewardItem, verseKeeperUnlockedUI ? styles.rewardItemUnlocked : ""]
+            .filter(Boolean)
+            .join(" ")}
+        >
+          <Image
+            className={[styles.imgIcon, verseKeeperUnlockedUI ? styles.rewardIconUnlocked : ""]
+              .filter(Boolean)
+              .join(" ")}
+            src={"/icon-badge.svg"}
+            alt="Награды"
+            width={16}
+            height={16}
+          />
+          <span className={styles.rewardValue}>{verseKeeperProgressUI}</span>
+          {verseKeeperUnlockedUI ? <span className={styles.rewardState}>Получено</span> : null}
+          <p className={styles.statCardLabel}>Хранитель стихов</p>
         </li>
       </ul>
 
       {isPersistenceOpen ? (
         <div id="persistence-section">
-          <PersistenceAchievements dayStreak={dayStreak} savedVersesCount={savedVerses.length} />
+          <PersistenceAchievements
+            dayStreak={dayStreak}
+            savedVersesCount={hydrated ? savedVerses.length : 0}
+          />
         </div>
       ) : null}
 
-      {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ */}
+      {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ — до hydrated не опираемся на persist-кэш RQ (иначе mismatch SSR/клиент). */}
       <div className={styles.savedVersesSection}>
         <div className={styles.sectionHeader}>
-          <span>Сохранённые стихи ({savedVerses.length})</span>
+          <span>Сохранённые стихи ({hydrated ? savedVerses.length : 0})</span>
         </div>
 
-        {versesQuery.isPending ? (
-          <div className={styles.versesLoadingWrap}>
-            Loading...
-          </div>
+        {!hydrated || (versesQuery.isPending && savedVerses.length === 0) ? (
+          <div className={styles.versesLoadingWrap}>Loading...</div>
         ) : savedVerses.length === 0 ? (
           <div className={styles.empty}>Нет сохранённых стихов</div>
         ) : (
@@ -791,9 +794,7 @@ export default function ProfilePage() {
                   </div>
                   <p className={styles.verseText}>{verse.text}</p>
                   <span className={styles.savedDate}>
-                    {hydrated
-                      ? new Date(verse.savedAt).toLocaleDateString("ru-RU")
-                      : "\u2014"}
+                    {hydrated ? new Date(verse.savedAt).toLocaleDateString("ru-RU") : "\u2014"}
                   </span>
                 </div>
                 <button
@@ -825,20 +826,6 @@ export default function ProfilePage() {
           <PushNotificationCenter />
         </div>
       ) : null}
-
-      <div className={styles.signOut}>
-        <div>
-          <Link
-            href="/"
-            onClick={(event) => {
-              event.preventDefault()
-              logout()
-            }}
-          >
-            Выйти из аккаунта
-          </Link>
-        </div>
-      </div>
     </section>
   )
 }

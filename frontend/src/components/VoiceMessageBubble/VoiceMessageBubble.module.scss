@@ -1,0 +1,200 @@
+.voiceMessage {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent-soft) 42%, var(--surface-elevated) 58%),
+    var(--surface-elevated)
+  );
+  border: 1px solid color-mix(in srgb, var(--line-soft) 55%, var(--accent-soft) 45%);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    0 8px 24px -6px rgba(38, 28, 16, 0.14),
+    inset 0 1px 0 color-mix(in srgb, #fff 12%, transparent);
+  transition: all 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  animation: voiceMessageIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+
+  &:hover {
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, var(--accent-soft) 52%, var(--surface-elevated) 48%),
+      var(--surface-elevated)
+    );
+    border-color: color-mix(in srgb, var(--line-soft) 45%, var(--accent-soft) 55%);
+    box-shadow:
+      0 12px 32px -8px rgba(38, 28, 16, 0.2),
+      inset 0 1px 0 color-mix(in srgb, #fff 16%, transparent);
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes voiceMessageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .voiceMessage {
+    animation: none;
+  }
+}
+
+.voiceMessageOwn {
+  border-left: 3px solid var(--accent);
+  background: linear-gradient(
+    165deg,
+    color-mix(in srgb, var(--accent-soft) 28%, var(--surface-elevated) 72%),
+    var(--surface-elevated)
+  );
+
+  &:hover {
+    border-left-color: color-mix(in srgb, var(--accent) 95%, var(--foreground) 5%);
+  }
+}
+
+.voiceHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.voiceIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent-soft) 65%, transparent),
+    color-mix(in srgb, var(--accent) 20%, transparent)
+  );
+  color: var(--accent);
+  flex-shrink: 0;
+  padding: 6px;
+  box-shadow: inset 0 1px 2px color-mix(in srgb, #fff 14%, transparent);
+
+  svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.voiceInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+
+.voiceUsername {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--foreground);
+  line-height: 1.2;
+}
+
+.voiceDuration {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.2;
+  letter-spacing: 0.02em;
+}
+
+.currentTime {
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.separator {
+  opacity: 0.4;
+  font-weight: 600;
+}
+
+.totalTime {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+.voicePlayer {
+  width: 100%;
+  max-width: none;
+  height: 40px;
+  accent-color: var(--accent);
+  border-radius: 12px;
+  filter: brightness(0.92);
+  transition: filter 200ms ease;
+
+  &:hover {
+    filter: brightness(0.98);
+  }
+
+  &::-webkit-media-controls-panel {
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--surface-elevated) 75%, var(--accent-soft) 25%),
+      color-mix(in srgb, var(--surface-elevated) 88%, var(--accent-soft) 12%)
+    );
+    border-radius: 8px;
+  }
+
+  &::-webkit-media-controls-mute-button:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-radius: 6px;
+  }
+
+  &::-webkit-media-controls-play-button:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border-radius: 6px;
+  }
+
+  &::-webkit-media-controls-timeline:hover {
+    background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+  }
+}
+
+@media (max-width: 480px) {
+  .voiceMessage {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .voiceIcon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .voiceUsername {
+    font-size: 12px;
+  }
+
+  .voiceDuration {
+    font-size: 11px;
+  }
+
+  .voicePlayer {
+    height: 36px;
+  }
+}

@@ -31,6 +31,7 @@ function shouldPersistQuery(query: { queryKey: readonly unknown[] }) {
   }
   return (
     root === "chapter" ||
+    root === "bible" ||
     root === "chat" ||
     root === "verses" ||
     root === "users" ||
@@ -72,7 +73,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       client={queryClient}
       persistOptions={{
         persister,
-        maxAge: 1000 * 60 * 60 * 24,
+        /** Согласовано с gcTime статичных запросов Библии (7 дней). */
+        maxAge: 1000 * 60 * 60 * 24 * 7,
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>
             query.state.status === "success" && shouldPersistQuery(query),

@@ -7,6 +7,35 @@
   margin: 20px 0;
 }
 
+.rootActive .line {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(200, 165, 85, 0.35) 18%,
+    rgba(212, 175, 95, 0.55) 50%,
+    rgba(200, 165, 85, 0.35) 82%,
+    transparent
+  );
+  transition: background 0.55s ease;
+}
+
+.rootActive .feather {
+  opacity: 0.92;
+  color: color-mix(in srgb, #c9a227 42%, var(--parchment-blue-soft, #2a4a6e) 58%);
+  filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.42)) drop-shadow(0 0 18px rgba(200, 160, 70, 0.22));
+  transition:
+    opacity 0.55s ease,
+    color 0.55s ease,
+    filter 0.55s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rootActive .line,
+  .rootActive .feather {
+    transition: none;
+  }
+}
+
 .line {
   flex: 1;
   height: 0.5px;
@@ -19,6 +48,7 @@
     rgba(74, 71, 67, 0.22) 80%,
     transparent
   );
+  transition: background 0.45s ease;
 }
 
 .feather {
@@ -27,6 +57,10 @@
   height: 22px;
   opacity: 0.55;
   color: var(--parchment-blue-soft, #2a4a6e);
+  transition:
+    opacity 0.45s ease,
+    color 0.45s ease,
+    filter 0.45s ease;
 }
 
 :global(html[data-theme="dark"]) .line {
@@ -43,4 +77,22 @@
 :global(html[data-theme="dark"]) .feather {
   opacity: 0.65;
   color: var(--parchment-blue-soft, var(--text-muted));
+}
+
+:global(html[data-theme="dark"]) .rootActive .line {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--accent) 28%, transparent) 20%,
+    color-mix(in srgb, #e0c068 45%, var(--accent-soft) 55%) 50%,
+    color-mix(in srgb, var(--accent) 28%, transparent) 80%,
+    transparent
+  );
+}
+
+:global(html[data-theme="dark"]) .rootActive .feather {
+  opacity: 0.95;
+  color: color-mix(in srgb, #e8c878 40%, var(--accent-soft) 60%);
+  filter: drop-shadow(0 0 12px color-mix(in srgb, var(--accent) 35%, transparent))
+    drop-shadow(0 0 20px color-mix(in srgb, #f0d878 22%, transparent));
 }

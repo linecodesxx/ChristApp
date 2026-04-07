@@ -162,6 +162,7 @@ export class MessagesController {
       const message = await this.messagesService.createRoomMessage({
         type: 'VOICE',
         content,
+        voiceDuration: body.voiceDuration,
         senderId: userId,
         roomId: rid,
       });
