@@ -1,53 +1,116 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { fetchRandomVerse } from "@/lib/bibleApi"
 import styles from "./SplashScreen.module.scss"
 
-const quotes = [
-  "В начале было Слово...",
-  "Слово Твое — светильник ноге моей",
-  "Бог есть любовь",
-  "Вера же есть осуществление ожидаемого",
-]
+const BRAND_TEXT = "Christ App"
+const FALLBACK_VERSE_TEXT = "Слово дня скоро появится"
 
-const SPLASH_MS = 4000
+function fallbackQuote() {
+  return FALLBACK_VERSE_TEXT
+}
+
+function buildSplashQuote(text: string, reference: string) {
+  const normalizedText = text.trim().replace(/\s+/g, " ")
+  const shortText = normalizedText.length > 140 ? `${normalizedText.slice(0, 137).trimEnd()}...` : normalizedText
+  if (!shortText) {
+    return fallbackQuote()
+  }
+  return `${shortText} — ${reference}`
+}
+
+const BRAND_HOLD_MS = 2000
+const VERSE_HOLD_MS = 2600
 const TYPING_MS = 50
 const EXIT_MS = 480
 
 export default function SplashScreen() {
-  const [quote] = useState<string>(quotes[0] ?? "")
+  const [quote, setQuote] = useState<string>(fallbackQuote())
   const [text, setText] = useState("")
-  const [phase, setPhase] = useState<"enter" | "exit" | "done">("enter")
+  const [phase, setPhase] = useState<"brand" | "verse" | "exit" | "done">("brand")
 
   useEffect(() => {
+    let cancelled = false
+
+    const loadQuote = async () => {
+      const randomVerse = await fetchRandomVerse("NRT")
+      if (cancelled || !randomVerse) {
+        return
+      }
+
+      const reference = `${randomVerse.book} ${randomVerse.chapter}:${randomVerse.verse}`
+      setQuote(buildSplashQuote(randomVerse.text, reference))
+    }
+
+    void loadQuote()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (phase !== "brand") {
+      return
+    }
+
+    setText("")
+
+    let i = 0
+    const typingInterval = window.setInterval(() => {
+      i += 1
+      setText(BRAND_TEXT.substring(0, i))
+      if (i >= BRAND_TEXT.length) {
+        window.clearInterval(typingInterval)
+      }
+    }, TYPING_MS)
+
+    const t = window.setTimeout(() => setPhase("verse"), BRAND_HOLD_MS)
+    return () => {
+      window.clearInterval(typingInterval)
+      window.clearTimeout(t)
+    }
+  }, [phase])
+
+  useEffect(() => {
+    if (phase !== "verse") {
+      return
+    }
+
     if (typeof window === "undefined") {
       return
     }
+
+    setText("")
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
     if (reduceMotion) {
       queueMicrotask(() => setText(quote))
-      const t = window.setTimeout(() => setPhase("exit"), Math.min(SPLASH_MS, 1800))
+      const t = window.setTimeout(() => setPhase("exit"), VERSE_HOLD_MS)
       return () => window.clearTimeout(t)
     }
 
     let i = 0
+    let holdTimer: number | null = null
+
     const typingInterval = window.setInterval(() => {
       i += 1
       setText(quote.substring(0, i))
       if (i >= quote.length) {
         window.clearInterval(typingInterval)
+        holdTimer = window.setTimeout(() => setPhase("exit"), VERSE_HOLD_MS)
       }
     }, TYPING_MS)
 
-    const fadeTimer = window.setTimeout(() => setPhase("exit"), SPLASH_MS)
-
     return () => {
       window.clearInterval(typingInterval)
-      window.clearTimeout(fadeTimer)
+      if (holdTimer != null) {
+        window.clearTimeout(holdTimer)
+      }
     }
-  }, [quote])
+  }, [phase, quote])
 
   useEffect(() => {
     if (phase !== "exit") return

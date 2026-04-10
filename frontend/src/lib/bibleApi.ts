@@ -113,6 +113,103 @@ export async function fetchTranslations() {
 }
 
 // ===== FETCH RANDOM VERSE =====
+const NT_BOOK_IDS = new Set([
+  "MAT",
+  "MRK",
+  "LUK",
+  "JHN",
+  "ACT",
+  "ROM",
+  "1CO",
+  "2CO",
+  "GAL",
+  "EPH",
+  "PHP",
+  "COL",
+  "1TH",
+  "2TH",
+  "1TI",
+  "2TI",
+  "TIT",
+  "PHM",
+  "HEB",
+  "JAS",
+  "1PE",
+  "2PE",
+  "1JN",
+  "2JN",
+  "3JN",
+  "JUD",
+  "REV",
+])
+
+function normalizeBookLabel(value: string | undefined) {
+  return (value || "")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[^a-zа-я0-9]+/g, "")
+}
+
+function isAllowedRandomBook(book: { id?: string; name?: string }) {
+  const id = (book.id || "").toUpperCase()
+  if (id === "PSA" || id === "PS") {
+    return true
+  }
+  if (NT_BOOK_IDS.has(id)) {
+    return true
+  }
+
+  const name = normalizeBookLabel(book.name)
+  if (!name) {
+    return false
+  }
+
+  if (name.includes("псалтир") || name.includes("псалом") || name.includes("psalm")) {
+    return true
+  }
+
+  return (
+    name.includes("матф") ||
+    name.includes("марк") ||
+    name.includes("лук") ||
+    name.includes("иоан") ||
+    name.includes("деян") ||
+    name.includes("рим") ||
+    name.includes("корин") ||
+    name.includes("галат") ||
+    name.includes("ефес") ||
+    name.includes("филип") ||
+    name.includes("колос") ||
+    name.includes("фесс") ||
+    name.includes("тимоф") ||
+    name.includes("тит") ||
+    name.includes("филим") ||
+    name.includes("евре") ||
+    name.includes("иаков") ||
+    name.includes("петр") ||
+    name.includes("иуд") ||
+    name.includes("откров") ||
+    name.includes("matt") ||
+    name.includes("mark") ||
+    name.includes("luke") ||
+    name.includes("john") ||
+    name.includes("acts") ||
+    name.includes("romans") ||
+    name.includes("corinth") ||
+    name.includes("galat") ||
+    name.includes("ephes") ||
+    name.includes("philip") ||
+    name.includes("coloss") ||
+    name.includes("thess") ||
+    name.includes("timoth") ||
+    name.includes("hebre") ||
+    name.includes("james") ||
+    name.includes("peter") ||
+    name.includes("jude") ||
+    name.includes("revel")
+  )
+}
+
 export async function fetchRandomVerse(translation: string) {
   if (!translation) return null
 
@@ -120,8 +217,16 @@ export async function fetchRandomVerse(translation: string) {
   const books = await fetchBooks(translation)
   if (!books.length) return null
 
+  const allowedBooks = books.filter((book) =>
+    isAllowedRandomBook(book as { id?: string; name?: string }),
+  )
+
+  if (!allowedBooks.length) {
+    return null
+  }
+
   // Select random book
-  const randomBook = books[Math.floor(Math.random() * books.length)] as {
+  const randomBook = allowedBooks[Math.floor(Math.random() * allowedBooks.length)] as {
     id?: string
     name?: string
     chapters?: number

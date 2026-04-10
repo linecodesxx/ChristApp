@@ -60,6 +60,12 @@ WEB_PUSH_PRIVATE_KEY="..."
 WEB_PUSH_SUBJECT="mailto:you@example.com"
 ```
 
+Проверь, что публичный ключ из `.env` — из той же пары, что приватный, и совпадает с ответом API:
+
+```bash
+$ npm run push:verify
+```
+
 3. Примени миграции Prisma для push-подписок и непрочитанных сообщений:
 
 ```bash

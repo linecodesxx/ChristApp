@@ -1,13 +1,44 @@
 "use client"
 
+import Link from "next/link"
+import { useEffect, useState } from "react"
 import styles from "@/app/offline/offline.module.scss"
+
+function BrandMark() {
+  return (
+    <div className={styles.brand} aria-hidden>
+      <svg className={styles.brandSvg} width="44" height="44" viewBox="0 0 100 100" fill="none">
+        <path
+          d="M20 25C20 20 25 15 40 15H50V85H40C25 85 20 80 20 75V25Z"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M80 25C80 20 75 15 60 15H50V85H60C75 85 80 80 80 75V25Z"
+          stroke="currentColor"
+          strokeWidth="2.25"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M50 38V62 M42 48H58"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  )
+}
 
 function OfflineGlyph() {
   return (
     <svg
       className={styles.mark}
-      width="36"
-      height="36"
+      width="34"
+      height="34"
       viewBox="0 0 24 24"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -30,17 +61,70 @@ function OfflineGlyph() {
 }
 
 export default function OfflinePage() {
+  const [isOnline, setIsOnline] = useState(() => {
+    if (typeof navigator === "undefined") {
+      return false
+    }
+
+    return navigator.onLine
+  })
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  useEffect(() => {
+    const onOnline = () => setIsOnline(true)
+    const onOffline = () => setIsOnline(false)
+
+    document.body.classList.add("offlinePage")
+
+    window.addEventListener("online", onOnline)
+    window.addEventListener("offline", onOffline)
+
+    return () => {
+      document.body.classList.remove("offlinePage")
+      window.removeEventListener("online", onOnline)
+      window.removeEventListener("offline", onOffline)
+    }
+  }, [])
+
+  const title = isOnline ? "Сервер временно недоступен" : "Вы сейчас офлайн"
+  const description = isOnline
+    ? "Интернет подключен, но сервер пока не отвечает. Обычно это проходит через несколько секунд."
+    : "Проверьте интернет и попробуйте снова. Как только сеть вернется, можно сразу продолжить работу."
+
   return (
     <div className={styles.wrap}>
+      <div className={styles.backdrop} aria-hidden />
+      <div className={styles.vignette} aria-hidden />
       <section className={styles.inner} aria-labelledby="offline-title">
-        <OfflineGlyph />
+        <BrandMark />
+        <p
+          className={`${styles.status} ${isOnline ? styles.statusWarning : styles.statusOffline}`}
+          aria-live="polite"
+        >
+          {isOnline ? "Интернет есть" : "Нет подключения"}
+        </p>
+        <div className={styles.iconOrb}>
+          <OfflineGlyph />
+        </div>
         <h1 id="offline-title" className={styles.title}>
-          Нет сети
+          {title}
         </h1>
-        <p className={styles.text}>Проверьте подключение и попробуйте снова.</p>
-        <button type="button" className={styles.retry} onClick={() => window.location.reload()}>
-          Обновить
-        </button>
+        <p className={styles.text}>{description}</p>
+        <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.retry}
+            onClick={() => {
+              setIsRefreshing(true)
+              window.location.reload()
+            }}
+          >
+            {isRefreshing ? "Обновляем..." : "Повторить"}
+          </button>
+          <Link href="/" className={styles.home}>
+            На главную
+          </Link>
+        </div>
       </section>
     </div>
   )

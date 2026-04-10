@@ -12,10 +12,11 @@ export default function AdaptiveMain({ children }: { children: React.ReactNode }
   const composerFocused = overlay?.chatComposerFocused ?? false
   const relaxMainForKeyboard = composerFocused && narrowForChatComposer
   const isActiveChatRoom = pathname.startsWith("/chat/")
+  const isOfflineRoute = pathname === "/offline"
 
   return (
     <main
-      className={`${styles.main} ${relaxMainForKeyboard ? styles.mainComposerFocused : ""} ${isActiveChatRoom && !relaxMainForKeyboard ? styles.mainChatRoom : ""}`}
+      className={`${styles.main} ${isOfflineRoute ? styles.mainOffline : ""} ${relaxMainForKeyboard ? styles.mainComposerFocused : ""} ${isActiveChatRoom && !relaxMainForKeyboard ? styles.mainChatRoom : ""}`}
     >
       {children}
     </main>

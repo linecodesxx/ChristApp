@@ -12,7 +12,7 @@ import {
   readBibleLastReadFromStorage,
   type BibleLastRead,
 } from "@/lib/bibleReadingProgress"
-import DailyBreadEnvelope from "@/components/DailyBreadEnvelope/DailyBreadEnvelope"
+import RandomVerseWidget from "@/components/RandomVerseWidget/RandomVerseWidget"
 import styles from "./dashboard.module.scss"
 
 function formatLastReadLabel(last: BibleLastRead | null): string {
@@ -78,7 +78,9 @@ export default function DashboardPage() {
   return (
     <div className={styles.page}>
       <div className={styles.appBrand}>
-        <span className={styles.appBrandCross} aria-hidden>✝</span>
+        <span className={styles.appBrandCross} aria-hidden>
+          ✝
+        </span>
         <span className={styles.appBrandName}>ChristApp</span>
       </div>
 
@@ -86,9 +88,7 @@ export default function DashboardPage() {
         <p className={styles.greetingHi}>
           Привет, <span className={styles.greetingName}>{name}</span>!
         </p>
-        <p className={styles.greetingLead}>
-          Сегодня прекрасный день — давай прочитаем слово дня.
-        </p>
+        <p className={styles.greetingLead}>Сегодня прекрасный день — давай прочитаем слово дня.</p>
         <p className={styles.greetingHint}>
           И не забудь скинуть его своим друзьям —{" "}
           <Link href="/chat" className={styles.greetingChatLink} prefetch>
@@ -116,30 +116,11 @@ export default function DashboardPage() {
         </div>
       </header>
 
-      <nav className={styles.quickNav} aria-label="Быстрый доступ">
-        <Link href="/bible" className={styles.quickNavItem} prefetch>
-          <Image src="/icon-bible.svg" alt="" width={22} height={22} aria-hidden />
-          <span>Библия</span>
-        </Link>
-        <Link href="/chat" className={styles.quickNavItem} prefetch>
-          <Image src="/icon-chat.svg" alt="" width={22} height={22} aria-hidden />
-          <span>Чат</span>
-        </Link>
-        <Link href="/verse-notes" className={styles.quickNavItem} prefetch>
-          <Image src="/icon-profile.svg" alt="" width={22} height={22} aria-hidden />
-          <span>Записи</span>
-        </Link>
-        <Link href="/profile" className={styles.quickNavItem} prefetch>
-          <Image src="/icon-dashboard.svg" alt="" width={22} height={22} aria-hidden />
-          <span>Профиль</span>
-        </Link>
-      </nav>
-
       <section className={styles.center} aria-labelledby="daily-bread-heading">
         <h2 id="daily-bread-heading" className={styles.sectionLabel}>
-          Хлеб насущный
+          Случайный стих
         </h2>
-        <DailyBreadEnvelope />
+        <RandomVerseWidget />
       </section>
     </div>
   )

@@ -60,7 +60,7 @@ export default function TabBar() {
     void queryClient.invalidateQueries({ queryKey: pushUnreadSummaryQueryKey(userId) })
   }, [queryClient, userId])
 
-  const hiddenRoutes = ["/", "/register"]
+  const hiddenRoutes = ["/", "/register", "/offline"]
   /** Список чатов — таб виден; открытая комната — таб скрыт, больше места под переписку. */
   const hideOnActiveChatRoom = pathname.startsWith("/chat/")
   const shouldHideTabBar =
