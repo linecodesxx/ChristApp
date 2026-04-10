@@ -4,6 +4,7 @@ import "@/styles/globals.scss"
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain"
 import TabBar from "@/components/TabBar/TabBar"
 import ThemeToggle from "@/components/ThemeToggle/ThemeToggle"
+import PwaInstallPrompt from "@/components/PwaInstallPrompt/PwaInstallPrompt"
 import PwaRegistration from "@/components/PwaRegistration/PwaRegistration"
 import PushAutoSync from "@/components/PushAutoSync/PushAutoSync"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
@@ -41,6 +42,7 @@ export default function RootLayout({
         <SplashScreen />
         <Providers>
         <PwaRegistration />
+        <PwaInstallPrompt />
         <PushAutoSync />
         <PresenceSocket>
           <ThemeToggle />

@@ -1,7 +1,7 @@
-const STATIC_CACHE = "christapp-static-v5"
-const RUNTIME_CACHE = "christapp-runtime-v5"
+const STATIC_CACHE = "christapp-static-v6"
+const RUNTIME_CACHE = "christapp-runtime-v6"
 /** SWR для cross-origin GET к Nest API (ключ кеша = полный Request, включая Authorization). */
-const API_SWR_CACHE = "christapp-api-swr-v5"
+const API_SWR_CACHE = "christapp-api-swr-v6"
 const OFFLINE_URL = "/offline"
 
 const APP_SHELL = [

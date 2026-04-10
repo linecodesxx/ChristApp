@@ -26,32 +26,18 @@
     transform: translateX(-50%);
     width: 48px;
     height: 1px;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(212, 175, 55, 0.45),
-      transparent
-    );
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.45), transparent);
   }
 }
 
-.appBrandCross {
-  font-size: 16px;
-  color: #d4af37;
-  opacity: 0.8;
-  line-height: 1;
-  filter: drop-shadow(0 0 6px rgba(212, 175, 55, 0.5));
-}
-
 .appBrandName {
-  font-family: var(--font-cinzel), "Cinzel", serif;
+  font-family: "Inter", sans-serif;
   font-size: clamp(1rem, 4vw, 1.15rem);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   background: linear-gradient(135deg, #d4af37 0%, #ffe27a 48%, #c89b2a 100%);
   -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
   background-clip: text;
   line-height: 1.2;
 }
@@ -119,7 +105,9 @@
   font-weight: 600;
   text-decoration: none;
   border-radius: 6px;
-  transition: color 0.2s ease, background-color 0.2s ease;
+  transition:
+    color 0.2s ease,
+    background-color 0.2s ease;
 
   &:hover {
     color: var(--foreground);
@@ -255,7 +243,9 @@ html[data-theme="light"] .greeting {
 
   img {
     opacity: 0.55;
-    transition: opacity 200ms ease, transform 200ms ease;
+    transition:
+      opacity 200ms ease,
+      transform 200ms ease;
   }
 
   &:hover {
@@ -278,15 +268,6 @@ html[data-theme="light"] .greeting {
     outline: 2px solid color-mix(in srgb, var(--accent) 55%, transparent);
     outline-offset: 2px;
   }
-}
-
-.center {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 180px;
 }
 
 .sectionLabel {
@@ -394,9 +375,10 @@ html[data-theme="light"] .page .statCard {
   flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  align-items: flex-start;
+  justify-content: flex-start;
   min-height: 200px;
+  padding-top: 50px;
 }
 
 .sectionLabel {

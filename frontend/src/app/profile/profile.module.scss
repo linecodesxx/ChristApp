@@ -439,6 +439,41 @@
       font-style: normal;
     }
 
+    .itemInteractive,
+    .rewardItem {
+      min-height: 124px;
+      width: clamp(100px, 27vw, 118px);
+      max-width: 118px;
+      padding: 8px 8px;
+      gap: 4px;
+    }
+
+    .itemInteractive .itemLink {
+      gap: 4px;
+      padding: 8px 8px;
+    }
+
+    .itemInteractive p.statCardLabel,
+    .rewardItem p.statCardLabel {
+      min-height: 2.6em;
+      line-height: 1.25;
+    }
+
+    .rewardItem {
+      .rewardValue {
+        font-size: 16px;
+      }
+
+      .rewardState {
+        min-height: 18px;
+        padding: 2px 7px;
+      }
+
+      .rewardStatePlaceholder {
+        min-height: 18px;
+      }
+    }
+
     .rewardItem.rewardItemUnlocked p.statCardLabel {
       color: color-mix(in srgb, var(--foreground) 92%, #f0c252 8%);
     }
@@ -596,10 +631,10 @@
   @media (min-width: 1024px) {
     .list {
       gap: 16px;
-      max-width: 960px;
-      margin-left: auto;
-      margin-right: auto;
-      justify-content: center;
+      max-width: none;
+      margin-left: 0;
+      margin-right: 0;
+      justify-content: flex-start;
 
       .item {
         flex: 1 1 200px;
@@ -638,18 +673,32 @@
         padding: 0;
       }
 
+      .itemInteractive,
+      .rewardItem {
+        min-width: 168px;
+        max-width: 220px;
+        min-height: 122px;
+        padding: 10px 10px 9px;
+        gap: 5px;
+      }
+
+      .itemInteractive .itemLink {
+        gap: 5px;
+        padding: 0;
+      }
+
       .rewardItem {
         justify-content: flex-start;
 
         .rewardValue {
-          font-size: 20px;
+          font-size: 17px;
           margin-top: 0;
         }
 
         .rewardState {
-          min-height: 24px;
-          padding: 3px 10px;
-          font-size: 10px;
+          min-height: 18px;
+          padding: 2px 7px;
+          font-size: 8px;
         }
 
         p {
@@ -661,13 +710,13 @@
 
       /* Десктоп: как у подписи «Главы» (.list .item p = 12px), без урезания statCardLabel. */
       .item p.statCardLabel {
-        min-height: 2.6em;
-        font-size: 12px;
+        min-height: 2.2em;
+        font-size: 10px;
         letter-spacing: 0.09em;
       }
 
       .rewardStatePlaceholder {
-        min-height: 24px;
+        min-height: 18px;
       }
     }
   }

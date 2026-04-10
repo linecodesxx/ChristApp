@@ -1,26 +1,66 @@
 .panel {
   width: 100%;
   box-sizing: border-box;
-  padding: 12px 14px;
-  border-radius: 12px;
+  padding: 12px;
+  border-radius: 14px;
   border: 1px solid var(--line-soft);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
 .panelNeutral {
-  background: color-mix(in srgb, var(--surface-elevated) 88%, var(--accent-soft) 12%);
+  background: color-mix(in srgb, var(--surface-elevated) 84%, var(--accent-soft) 16%);
   color: var(--foreground);
 }
 
 .panelWarning {
-  background: color-mix(in srgb, var(--login-error-bg) 55%, var(--surface-elevated) 45%);
+  background: color-mix(in srgb, var(--login-error-bg) 52%, var(--surface-elevated) 48%);
   border-color: color-mix(in srgb, var(--login-error-text) 28%, var(--line-soft) 72%);
   color: var(--foreground);
 }
 
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex: none;
+}
+
+@keyframes dotPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  50% {
+    transform: scale(1.25);
+    opacity: 0.7;
+  }
+}
+
+.dotChecking {
+  background: color-mix(in srgb, var(--accent) 86%, #ffffff 14%);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.dotNeutral {
+  background: color-mix(in srgb, var(--accent) 72%, #ffffff 28%);
+}
+
+.dotWarning {
+  background: color-mix(in srgb, var(--login-error-text) 80%, #ffffff 20%);
+}
+
 .title {
-  margin: 0 0 6px;
+  margin: 0;
   font-weight: 700;
   font-size: 13px;
 }
@@ -44,4 +84,14 @@
   margin: 0;
   font-size: 11px;
   color: var(--login-muted);
+}
+
+.offlineLink {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--login-link);
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

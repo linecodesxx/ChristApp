@@ -7,12 +7,22 @@
   // height: calc(100dvh - 0px);
   display: flex;
   flex-direction: column;
-  // padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px));
+
+  /* Резерв под фиксированный island-tabbar (80px высота + 12px bottom + воздух). */
+  @media (min-width: 768px) {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
 
   @media (min-width: 1440px) {
     max-width: 800px;
     margin: 0 auto;
   }
+}
+
+/* Offline-экран: без desktop-ограничения ширины контейнера. */
+.mainOffline {
+  max-width: none;
+  margin: 0;
 }
 
 /* Когда открыт ввод в чате, нижний таб скрыт — не резервируем под него место. */

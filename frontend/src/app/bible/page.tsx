@@ -1,10 +1,8 @@
 import BibleReader from "@/components/BibleReader/BibleReader"
-import RandomVerseWidget from "@/components/RandomVerseWidget/RandomVerseWidget"
 
-export default async function BiblePage() {
+export default function BiblePage() {
   return (
     <div>
-      <RandomVerseWidget />
       <BibleReader />
     </div>
   )

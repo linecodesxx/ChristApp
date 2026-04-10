@@ -48,8 +48,9 @@ export default function ThemeToggle() {
 
   const isLight = theme === "light"
   const isProfilePage = pathname.startsWith("/profile")
+  const isOfflinePage = pathname === "/offline"
 
-  if (isProfilePage) {
+  if (isProfilePage || isOfflinePage) {
     return null
   }
 

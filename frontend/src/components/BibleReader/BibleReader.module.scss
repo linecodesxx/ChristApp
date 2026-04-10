@@ -309,6 +309,11 @@
         @media (max-width: 899px) {
             padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
         }
+
+        @media (min-width: 900px) {
+            /* Резерв под фиксированный island-tabbar, чтобы последние стихи не уходили под нав. */
+            padding-bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+        }
     }
 
     .chapterReadSentinel {
