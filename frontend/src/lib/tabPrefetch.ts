@@ -11,7 +11,9 @@ import {
   fetchBibleChapterTextForQuery,
   fetchBibleChaptersForQuery,
   fetchBibleTranslationsForQuery,
+  type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries"
+import { getAppLocaleFromWindow, pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
 import { getUserIdFromJwt } from "@/lib/jwtUser"
 import {
   fetchPushStatusForQuery,
@@ -66,55 +68,61 @@ export function prefetchTabProfileData(queryClient: QueryClient) {
  * Prefetch Библии до перехода на таб: переводы, список книг, список глав и текст главы
  * (ключи совпадают с BibleReader / bibleQueries).
  */
-export function prefetchTabBibleData(queryClient: QueryClient) {
+export function prefetchTabBibleData(queryClient: QueryClient, localeHint?: string) {
   if (typeof window === "undefined") return
 
-  const translation = "NRT"
-
-  void queryClient.prefetchQuery({
-    queryKey: bibleTranslationsQueryKey,
-    queryFn: fetchBibleTranslationsForQuery,
-    ...bibleStaticQueryOptions,
-  })
+  const locale = localeHint ?? getAppLocaleFromWindow()
 
   void queryClient
     .prefetchQuery({
-      queryKey: bibleBooksQueryKey(translation),
-      queryFn: () => fetchBibleBooksForQuery(translation),
+      queryKey: bibleTranslationsQueryKey,
+      queryFn: fetchBibleTranslationsForQuery,
       ...bibleStaticQueryOptions,
     })
     .then(() => {
-      let bookId: string | undefined
-      let chapter = 1
-      try {
-        const raw = window.localStorage.getItem(BIBLE_LAST_READ_STORAGE_KEY)
-        const parsed = raw ? (JSON.parse(raw) as { bookId?: string; chapter?: number }) : null
-        if (parsed?.bookId) {
-          bookId = parsed.bookId
-          chapter = Number(parsed.chapter) || 1
-        }
-      } catch {
-        // ignore invalid JSON
-      }
+      const translations =
+        (queryClient.getQueryData(bibleTranslationsQueryKey) as BibleTranslationItem[] | undefined) ?? []
+      const translation = pickTranslationShortName(translations, locale)
 
-      const books = queryClient.getQueryData<Array<{ id: string }>>(bibleBooksQueryKey(translation))
-      if (!bookId && books?.[0]?.id) {
-        bookId = books[0].id
-        chapter = 1
-      }
-      if (!bookId) return
+      return queryClient
+        .prefetchQuery({
+          queryKey: bibleBooksQueryKey(translation),
+          queryFn: () => fetchBibleBooksForQuery(translation),
+          ...bibleStaticQueryOptions,
+        })
+        .then(() => {
+          let bookId: string | undefined
+          let chapter = 1
+          try {
+            const raw = window.localStorage.getItem(BIBLE_LAST_READ_STORAGE_KEY)
+            const parsed = raw ? (JSON.parse(raw) as { bookId?: string; chapter?: number }) : null
+            if (parsed?.bookId) {
+              bookId = parsed.bookId
+              chapter = Number(parsed.chapter) || 1
+            }
+          } catch {
+            // ignore invalid JSON
+          }
 
-      void queryClient.prefetchQuery({
-        queryKey: bibleChaptersQueryKey(translation, bookId),
-        queryFn: () => fetchBibleChaptersForQuery(translation, bookId!),
-        ...bibleStaticQueryOptions,
-      })
+          const books = queryClient.getQueryData<Array<{ id: string }>>(bibleBooksQueryKey(translation))
+          if (!bookId && books?.[0]?.id) {
+            bookId = books[0].id
+            chapter = 1
+          }
+          if (!bookId) return
 
-      void queryClient.prefetchQuery({
-        queryKey: bibleChapterTextQueryKey(translation, bookId, chapter),
-        queryFn: () => fetchBibleChapterTextForQuery(translation, bookId, chapter),
-        ...bibleStaticQueryOptions,
-      })
+          void queryClient.prefetchQuery({
+            queryKey: bibleChaptersQueryKey(translation, bookId),
+            queryFn: () => fetchBibleChaptersForQuery(translation, bookId!),
+            ...bibleStaticQueryOptions,
+          })
+
+          void queryClient.prefetchQuery({
+            queryKey: bibleChapterTextQueryKey(translation, bookId, chapter),
+            queryFn: () => fetchBibleChapterTextForQuery(translation, bookId, chapter),
+            ...bibleStaticQueryOptions,
+          })
+        })
     })
 }
 

@@ -1,46 +1,53 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useLocale } from "next-intl"
 import { fetchRandomVerse } from "@/lib/bibleApi"
 import styles from "./SplashScreen.module.scss"
 
 const BRAND_TEXT = "Christ App"
-const FALLBACK_VERSE_TEXT = "Слово дня скоро появится"
-
-function fallbackQuote() {
-  return FALLBACK_VERSE_TEXT
+function fallbackQuote(locale: string) {
+  if (locale === "en") {
+    return "The verse of the day will appear soon"
+  }
+  if (locale === "ua") {
+    return "Вірш дня з'явиться незабаром"
+  }
+  return "Слово дня скоро появится"
 }
 
-function buildSplashQuote(text: string, reference: string) {
+function buildSplashQuote(text: string, reference: string, locale: string) {
   const normalizedText = text.trim().replace(/\s+/g, " ")
   const shortText = normalizedText.length > 140 ? `${normalizedText.slice(0, 137).trimEnd()}...` : normalizedText
   if (!shortText) {
-    return fallbackQuote()
+    return fallbackQuote(locale)
   }
   return `${shortText} — ${reference}`
 }
 
-const BRAND_HOLD_MS = 2000
-const VERSE_HOLD_MS = 2600
-const TYPING_MS = 50
-const EXIT_MS = 480
+const BRAND_HOLD_MS = 1000
+const VERSE_HOLD_MS = 1600
+const TYPING_MS = 30
+const EXIT_MS = 330
 
 export default function SplashScreen() {
-  const [quote, setQuote] = useState<string>(fallbackQuote())
+  const locale = useLocale()
+  const [quote, setQuote] = useState<string>(() => fallbackQuote(locale))
   const [text, setText] = useState("")
   const [phase, setPhase] = useState<"brand" | "verse" | "exit" | "done">("brand")
 
   useEffect(() => {
     let cancelled = false
+    const translation = locale === "en" ? "NKJV" : "NRT"
 
     const loadQuote = async () => {
-      const randomVerse = await fetchRandomVerse("NRT")
+      const randomVerse = await fetchRandomVerse(translation)
       if (cancelled || !randomVerse) {
         return
       }
 
       const reference = `${randomVerse.book} ${randomVerse.chapter}:${randomVerse.verse}`
-      setQuote(buildSplashQuote(randomVerse.text, reference))
+      setQuote(buildSplashQuote(randomVerse.text, reference, locale))
     }
 
     void loadQuote()
@@ -48,14 +55,19 @@ export default function SplashScreen() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     if (phase !== "brand") {
       return
     }
 
-    setText("")
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setText("")
+      }
+    })
 
     let i = 0
     const typingInterval = window.setInterval(() => {
@@ -68,6 +80,7 @@ export default function SplashScreen() {
 
     const t = window.setTimeout(() => setPhase("verse"), BRAND_HOLD_MS)
     return () => {
+      cancelled = true
       window.clearInterval(typingInterval)
       window.clearTimeout(t)
     }
@@ -82,14 +95,22 @@ export default function SplashScreen() {
       return
     }
 
-    setText("")
+    let cancelled = false
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setText("")
+      }
+    })
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
     if (reduceMotion) {
       queueMicrotask(() => setText(quote))
       const t = window.setTimeout(() => setPhase("exit"), VERSE_HOLD_MS)
-      return () => window.clearTimeout(t)
+      return () => {
+        cancelled = true
+        window.clearTimeout(t)
+      }
     }
 
     let i = 0
@@ -105,6 +126,7 @@ export default function SplashScreen() {
     }, TYPING_MS)
 
     return () => {
+      cancelled = true
       window.clearInterval(typingInterval)
       if (holdTimer != null) {
         window.clearTimeout(holdTimer)

@@ -1,0 +1,126 @@
+.root {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  z-index: 2;
+}
+
+.rootInline {
+  position: relative;
+  width: auto;
+  flex-shrink: 0;
+  z-index: 45;
+}
+
+.trigger {
+  width: 100%;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  padding: 10px 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.triggerInline {
+  width: auto;
+  min-width: 3.25rem;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border-color: transparent;
+  background: var(--surface-elevated);
+  color: var(--text-muted);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.triggerInline:hover,
+.triggerInline:focus-visible {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-elevated));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line-soft));
+  color: var(--accent);
+}
+
+.trigger:hover,
+.trigger:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-elevated));
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--line-soft));
+  color: var(--accent);
+}
+
+.chevron {
+  opacity: 0.45;
+  font-size: 0.55rem;
+  transform: translateY(1px);
+}
+
+.menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 6px);
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: color-mix(in srgb, var(--surface-elevated) 92%, var(--background));
+  box-shadow:
+    0 12px 28px -14px rgba(0, 0, 0, 0.35),
+    0 4px 12px -8px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 50;
+}
+
+.menuInline {
+  left: auto;
+  right: 0;
+  min-width: 5.5rem;
+  top: calc(100% + 10px);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease;
+}
+
+.option:hover,
+.option:focus-visible {
+  outline: none;
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-elevated));
+  color: var(--accent);
+}
+
+.optionActive {
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-elevated));
+  color: var(--accent);
+}

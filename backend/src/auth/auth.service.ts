@@ -81,10 +81,21 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto, res: Response) {
+    const nickname = dto.username.trim();
+    const username = normalizeUsernameHandle(dto.username);
+
+    const usernameTaken = await this.prisma.user.findFirst({
+      where: { username },
+      select: { id: true },
+    });
+    if (usernameTaken) {
+      throw new ConflictException(
+        'Этот username уже занят. Выберите другой @username.',
+      );
+    }
+
     try {
       const hash = await bcrypt.hash(dto.password, 10);
-      const nickname = dto.username.trim();
-      const username = normalizeUsernameHandle(dto.username);
 
       const user = await this.prisma.user.create({
         data: {

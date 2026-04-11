@@ -1,21 +1,4 @@
-/* Pastah (trial) — положите файлы в public/fonts/; лицензия на вашей стороне. */
-@font-face {
-  font-family: "Pastah";
-  src: url("/fonts/Pastah-Bold.otf") format("opentype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Pastah";
-  src: url("/fonts/Pastah-Bold.otf") format("opentype");
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-}
-
-/* Achiko — лицензия в public/fonts/; подключение для экрана «Заметки по стихам». */
+/* Achiko — локальный файл в public/fonts/. */
 @font-face {
   font-family: "Achiko";
   src: url("/fonts/Achiko_1.otf") format("opentype");

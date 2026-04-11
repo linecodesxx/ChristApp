@@ -66,6 +66,12 @@ export function createGlobalChatItem(overrides?: Partial<ChatListItem>): ChatLis
   }
 }
 
+export type ChatShareTargetLabels = {
+  globalChatTitle: string
+  shareWithJesusTitle: string
+  directChatFallback: string
+}
+
 export function createShareTargetsFromRooms(input: {
   rooms: RoomSocketItem[]
   currentUserId?: string
@@ -76,8 +82,12 @@ export function createShareTargetsFromRooms(input: {
     avatarUrl?: string | null
   }>
   onlineUserIds?: Set<string>
+  labels?: ChatShareTargetLabels
 }): ShareTarget[] {
-  const { rooms, currentUserId, users, onlineUserIds = new Set() } = input
+  const { rooms, currentUserId, users, onlineUserIds = new Set(), labels } = input
+  const globalTitle = labels?.globalChatTitle ?? GLOBAL_CHAT_TITLE
+  const shareTitle = labels?.shareWithJesusTitle ?? SHARE_WITH_JESUS_CHAT_TITLE
+  const directFallback = labels?.directChatFallback ?? "Чат"
   const usersById = new Map(users.map((u) => [u.id, u]))
   const targets: ShareTarget[] = []
 
@@ -86,7 +96,7 @@ export function createShareTargetsFromRooms(input: {
       targets.push({
         id: GLOBAL_ROOM_ID,
         roomId: GLOBAL_ROOM_ID,
-        title: GLOBAL_CHAT_TITLE,
+        title: globalTitle,
         avatarImage: GLOBAL_CHAT_AVATAR_SRC,
       })
       continue
@@ -96,7 +106,7 @@ export function createShareTargetsFromRooms(input: {
       targets.push({
         id: SHARE_WITH_JESUS_CHAT_ID,
         roomId: room.id,
-        title: SHARE_WITH_JESUS_CHAT_TITLE,
+        title: shareTitle,
         avatarImage: "/jesus-say.svg",
         avatarClass: "jesusAvatar",
       })
@@ -109,7 +119,7 @@ export function createShareTargetsFromRooms(input: {
     }
 
     const matchedUser = usersById.get(targetUserId)
-    const title = matchedUser?.nickname ?? matchedUser?.username ?? "Чат"
+    const title = matchedUser?.nickname ?? matchedUser?.username ?? directFallback
     targets.push({
       id: targetUserId,
       roomId: room.id,
@@ -126,7 +136,7 @@ export function createShareTargetsFromRooms(input: {
     targets.push({
       id: GLOBAL_ROOM_ID,
       roomId: GLOBAL_ROOM_ID,
-      title: GLOBAL_CHAT_TITLE,
+      title: globalTitle,
       avatarImage: GLOBAL_CHAT_AVATAR_SRC,
     })
   }

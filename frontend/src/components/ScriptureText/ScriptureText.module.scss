@@ -1,0 +1,31 @@
+.root {
+  margin: 0;
+  line-height: 1.75;
+  letter-spacing: 0.018em;
+  font-style: normal;
+  font-variant-numeric: proportional-nums;
+  color: inherit;
+  text-wrap: pretty;
+
+  :global(i),
+  :global(em) {
+    font-family:
+      "Iowan Old Style",
+      "Palatino Linotype",
+      Palatino,
+      Georgia,
+      "Times New Roman",
+      serif;
+    font-style: italic;
+    font-weight: 400;
+    letter-spacing: 0.022em;
+    color: color-mix(in srgb, var(--foreground) 58%, #b89f6a 42%);
+  }
+}
+
+.empty {
+  font-style: normal;
+  letter-spacing: normal;
+  opacity: 0.42;
+  user-select: none;
+}

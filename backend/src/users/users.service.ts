@@ -4,6 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { normalizeUsernameHandle } from './username.util';
@@ -113,17 +114,33 @@ export class UsersService {
           ? null
           : dto.themeFontKey;
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(nextUsername !== undefined ? { username: nextUsername } : {}),
-        ...(nextNickname !== undefined ? { nickname: nextNickname } : {}),
-        ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),
-        ...(themeBg !== undefined ? { themeBackgroundHex: themeBg } : {}),
-        ...(themeFont !== undefined ? { themeFontKey: themeFont } : {}),
-      },
-      select: profileSelect,
-    });
+    try {
+      return await this.prisma.user.update({
+        where: { id: userId },
+        data: {
+          ...(nextUsername !== undefined ? { username: nextUsername } : {}),
+          ...(nextNickname !== undefined ? { nickname: nextNickname } : {}),
+          ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),
+          ...(themeBg !== undefined ? { themeBackgroundHex: themeBg } : {}),
+          ...(themeFont !== undefined ? { themeFontKey: themeFont } : {}),
+        },
+        select: profileSelect,
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const target = error.meta?.target;
+        const fields = Array.isArray(target)
+          ? target.map((item) => String(item).toLowerCase())
+          : [];
+        if (fields.some((f) => f.includes('username'))) {
+          throw new ConflictException('Этот @username уже занят');
+        }
+      }
+      throw error;
+    }
   }
 
   async setAvatarUrl(userId: string, avatarUrl: string) {

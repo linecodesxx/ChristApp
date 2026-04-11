@@ -3,7 +3,7 @@
 import styles from "@/app/layout.module.scss"
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 
 export default function AdaptiveMain({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

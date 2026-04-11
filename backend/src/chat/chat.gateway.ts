@@ -39,6 +39,14 @@ type ReactionEventBody = {
   chatId: string;
 };
 
+type RoomReadStatesPayload = {
+  roomId: string;
+  readStates: Array<{
+    userId: string;
+    lastReadAt: string;
+  }>;
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -50,7 +58,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️', '🔥', '😊']);
+  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️', '🔥', '😊', '😧', '🥲']);
 
   constructor(
     private jwt: JwtService,
@@ -295,6 +303,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         skip,
       );
 
+      const readStates = await this.prisma.roomReadState.findMany({
+        where: { roomId },
+        select: {
+          userId: true,
+          lastReadAt: true,
+        },
+      });
+
       // Комната открыта у пользователя: считаем текущий срез прочитанным.
       const readAt = new Date();
       await this.messagesService.markRoomAsRead(roomId, user.id, readAt);
@@ -308,6 +324,22 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId,
         messages: history,
       });
+
+      client.emit('roomReadStates', {
+        roomId,
+        readStates: [
+          ...readStates
+            .filter((item) => item.userId !== user.id)
+            .map((item) => ({
+              userId: item.userId,
+              lastReadAt: item.lastReadAt.toISOString(),
+            })),
+          {
+            userId: user.id,
+            lastReadAt: readAt.toISOString(),
+          },
+        ],
+      } satisfies RoomReadStatesPayload);
 
       client.to(roomId).emit('userJoinedRoom', {
         roomId,

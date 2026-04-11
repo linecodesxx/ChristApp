@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Verse from "@/components/Verse/Verse";
 import ShareToChatModal from "@/components/Verse/ShareToChatModal";
 import styles from "./BibleReader.module.scss";
@@ -17,7 +18,9 @@ import {
   fetchBibleChapterTextForQuery,
   fetchBibleChaptersForQuery,
   fetchBibleTranslationsForQuery,
+  type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries";
+import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale";
 import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
@@ -82,6 +85,8 @@ function getCachedBooks(queryClient: QueryClient, translation: string): BookType
 }
 
 export default function BibleReader() {
+  const tChat = useTranslations("chat");
+  const locale = useLocale();
   const { user, users } = useAuth();
   const { socket } = usePresenceSocket();
   const queryClient = useQueryClient();
@@ -158,6 +163,13 @@ export default function BibleReader() {
     enabled: isMounted,
     ...bibleStaticQueryOptions,
   });
+
+  useEffect(() => {
+    if (!translations.length) {
+      return;
+    }
+    setTranslation(pickTranslationShortName(translations as BibleTranslationItem[], locale));
+  }, [locale, translations]);
 
   const { data: books = [] } = useQuery({
     queryKey: bibleBooksQueryKey(translation),
@@ -316,6 +328,11 @@ export default function BibleReader() {
           nickname: existingUser.nickname,
           avatarUrl: existingUser.avatarUrl,
         })),
+        labels: {
+          globalChatTitle: tChat("globalChatTitle"),
+          shareWithJesusTitle: tChat("shareWithJesusTitle"),
+          directChatFallback: tChat("chatFallback"),
+        },
       });
       setShareTargets(mapped);
     };
@@ -324,7 +341,7 @@ export default function BibleReader() {
     return () => {
       socket.off("myRooms", onMyRooms);
     };
-  }, [socket, user?.id, users]);
+  }, [socket, tChat, user?.id, users]);
 
   const handleOpenShare = useCallback(() => {
     requestShareTargets();

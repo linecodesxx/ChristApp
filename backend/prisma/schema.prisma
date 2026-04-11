@@ -21,8 +21,8 @@ model User {
   themeForegroundHex String? @db.VarChar(7)
   /// * Кастомный фон (#RRGGBB), опционально.
   themeBackgroundHex String? @db.VarChar(7)
-  /// * Ключ шрифта: `inter` | `pastah` | `achiko`.
-  themeFontKey      String? @db.VarChar(16)
+  /// * Ключ шрифта: `inter` | `achiko` | `bodoni-moda`.
+  themeFontKey      String? @db.VarChar(32)
   messages          Message[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]

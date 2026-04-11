@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react"
 import Image from "next/image"
-import Link from "next/link"
+import { useTranslations } from "next-intl"
+import { Link } from "@/i18n/navigation"
 import styles from "@/components/ChatList/ChatList.module.scss"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { GLOBAL_ROOM_ID } from "@/lib/chatRooms"
@@ -49,6 +50,16 @@ type ChatListProps = {
   isLoading?: boolean
 }
 
+function toRenderText(value: unknown, fallback = ""): string {
+  if (typeof value === "string") {
+    return value
+  }
+  if (typeof value === "number") {
+    return String(value)
+  }
+  return fallback
+}
+
 const ChatList = ({
   items,
   onCreateChat,
@@ -58,6 +69,7 @@ const ChatList = ({
   verseNotesVisible = false,
   isLoading = false,
 }: ChatListProps) => {
+  const t = useTranslations("chat")
   const list: ChatListItem[] = items
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
@@ -72,8 +84,8 @@ const ChatList = ({
       return list
     }
     return list.filter((chat) => {
-      const title = chat.title.toLowerCase()
-      const preview = (chat.preview ?? "").toLowerCase()
+      const title = toRenderText(chat.title).toLowerCase()
+      const preview = toRenderText(chat.preview).toLowerCase()
       return title.includes(normalizedSearch) || preview.includes(normalizedSearch)
     })
   }, [list, normalizedSearch])
@@ -92,7 +104,7 @@ const ChatList = ({
     })
   }, [chatCandidates, normalizedSearch])
 
-  const searchPlaceholder = "Найти по чату, имени или username"
+  const searchPlaceholder = t("listSearchPlaceholder")
 
   const renderSearchField = (id: string, autoFocus?: boolean) => (
     <label className={styles.userPickerSearch} htmlFor={id}>
@@ -179,19 +191,19 @@ const ChatList = ({
             className={styles.userPicker}
             role="dialog"
             aria-modal="true"
-            aria-label="Выбор пользователя для нового чата"
+            aria-label={t("userPickerAria")}
             onClick={(event) => event.stopPropagation()}
           >
             <div className={styles.userPickerHeader}>
               <div>
-                <h3 className={styles.userPickerTitle}>Новый чат</h3>
-                <p className={styles.userPickerSubtitle}>Выберите пользователя, которому хотите написать</p>
+                <h3 className={styles.userPickerTitle}>{t("userPickerTitle")}</h3>
+                <p className={styles.userPickerSubtitle}>{t("userPickerSubtitle")}</p>
               </div>
               <button
                 type="button"
                 className={styles.userPickerCloseButton}
                 onClick={closeUserPicker}
-                aria-label="Закрыть"
+                aria-label={t("close")}
               >
                 ✕
               </button>
@@ -241,7 +253,7 @@ const ChatList = ({
                       <span
                         className={candidate.hasDirectChat ? styles.userPickerBadgeExisting : styles.userPickerBadgeNew}
                       >
-                        {candidate.hasDirectChat ? "Уже есть чат" : "Новый"}
+                        {candidate.hasDirectChat ? t("badgeExistingChat") : t("badgeNew")}
                       </span>
                     </button>
                   </li>
@@ -250,7 +262,7 @@ const ChatList = ({
 
               {filteredCandidates.length === 0 && (
                 <li className={styles.userPickerEmpty}>
-                  {chatCandidates.length === 0 ? "Пока нет доступных пользователей" : "Никого не нашли по запросу"}
+                  {chatCandidates.length === 0 ? t("userPickerNoUsers") : t("userPickerNoMatch")}
                 </li>
               )}
             </ul>
@@ -265,8 +277,8 @@ const ChatList = ({
             <Link
               href="/verse-notes"
               className={`${styles.verseNotesButton} ${!verseNotesVisible ? styles.headerActionHidden : ""}`}
-              aria-label="Заметки по стихам"
-              title="Заметки по стихам"
+              aria-label={t("verseNotesAria")}
+              title={t("verseNotesTitle")}
               aria-hidden={!verseNotesVisible}
               tabIndex={verseNotesVisible ? 0 : -1}
             >
@@ -276,10 +288,10 @@ const ChatList = ({
               className={styles.newChatButton}
               onClick={openUserPicker}
               type="button"
-              aria-label="Создать новый чат"
-              title="Новый чат"
+              aria-label={t("newChatAria")}
+              title={t("newChatTitle")}
             >
-              <Image src="/icon-newChat.svg" alt="New Chat" width={24} height={24} className={styles.newChatIcon} />
+              <Image src="/icon-newChat.svg" alt={t("newChatImageAlt")} width={24} height={24} className={styles.newChatIcon} />
             </button>
           </div>
         </div>
@@ -299,7 +311,7 @@ const ChatList = ({
             : null}
 
           {!isLoading && filteredChatList.length === 0 && normalizedSearch ? (
-            <li className={styles.chatListNoResults}>Нет чатов по запросу</li>
+            <li className={styles.chatListNoResults}>{t("listNoResults")}</li>
           ) : null}
 
           {!isLoading &&
@@ -310,6 +322,9 @@ const ChatList = ({
                 const isCompactPreviewRow = chat.id !== GLOBAL_ROOM_ID
                 const showMenu = Boolean(chat.deletable && onDeleteChat)
                 const menuOpen = openMenuId === chat.id
+                const safeTitle = toRenderText(chat.title)
+                const safeTimeLabel = toRenderText(chat.timeLabel)
+                const safePreview = toRenderText(chat.preview)
 
                 const mainInner = (
                   <>
@@ -319,7 +334,7 @@ const ChatList = ({
                           ? `${styles.avatarWrapper} ${styles.avatarWrapperOnline}`
                           : styles.avatarWrapper
                       }
-                      title={chat.isOnline ? "В сети" : undefined}
+                      title={chat.isOnline ? t("onlineTitle") : undefined}
                     >
                       <span className={styles.avatarCircle}>
                         <AvatarWithFallback
@@ -339,9 +354,9 @@ const ChatList = ({
                     <div className={styles.chatInfo}>
                       <div className={styles.flex}>
                         <div className={styles.titleRow}>
-                          {chat.titleLoading ? <span className={styles.chatInlineSkeletonTitle} aria-hidden /> : <h3 className={styles.title}>{chat.title}</h3>}
+                          {chat.titleLoading ? <span className={styles.chatInlineSkeletonTitle} aria-hidden /> : <h3 className={styles.title}>{safeTitle}</h3>}
                         </div>
-                        <span className={styles.chatTime}>{chat.timeLabel ?? ""}</span>
+                        <span className={styles.chatTime}>{safeTimeLabel}</span>
                       </div>
 
                       <div className={styles.flex}>
@@ -355,7 +370,7 @@ const ChatList = ({
                                 : styles.chatPreview
                             }
                           >
-                            {chat.preview ?? ""}
+                            {safePreview}
                           </p>
                         )}
                         {unreadCount > 0 ? <span className={styles.unreadBadge}>{unreadCount}</span> : null}
@@ -391,7 +406,7 @@ const ChatList = ({
                             type="button"
                             ref={menuOpen ? menuTriggerRef : undefined}
                             className={styles.chatItemMenuButton}
-                            aria-label="Действия с чатом"
+                            aria-label={t("chatMenuAria")}
                             aria-haspopup="menu"
                             aria-expanded={menuOpen}
                             onClick={(event) => {
@@ -412,14 +427,12 @@ const ChatList = ({
                                   event.preventDefault()
                                   event.stopPropagation()
                                   setOpenMenuId(null)
-                                  if (
-                                    window.confirm("Удалить этот чат из списка? История у собеседника останется.")
-                                  ) {
+                                  if (window.confirm(t("deleteChatConfirm"))) {
                                     onDeleteChat?.(chat.id)
                                   }
                                 }}
                               >
-                                Удалить чат
+                                {t("deleteChat")}
                               </button>
                             </div>
                           ) : null}

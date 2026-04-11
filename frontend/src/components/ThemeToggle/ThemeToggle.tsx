@@ -1,7 +1,8 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { usePathname } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { usePathname } from "@/i18n/navigation"
 import { reapplyUserAppearanceForCurrentTheme } from "@/lib/userAppearance"
 import styles from "./ThemeToggle.module.scss"
 
@@ -13,6 +14,7 @@ function applyTheme(theme: ThemeMode) {
 }
 
 export default function ThemeToggle() {
+  const t = useTranslations("theme")
   // Совпадает с SSR и с <html data-theme="dark"> в layout — иначе гидрация ругается,
   // если в localStorage уже light (клиент читал стор до первого paint).
   const [theme, setTheme] = useState<ThemeMode>("dark")
@@ -61,8 +63,8 @@ export default function ThemeToggle() {
         type="button"
         className={`${styles.toggle} ${isLight ? styles.light : styles.dark}`}
         onClick={handleToggle}
-        aria-label={isLight ? "Pull the cord to switch to dark theme" : "Pull the cord to switch to light theme"}
-        title={isLight ? "Pull the cord (dark theme)" : "Pull the cord (light theme)"}
+        aria-label={isLight ? t("toDark") : t("toLight")}
+        title={isLight ? t("titleDark") : t("titleLight")}
       >
         <span className={styles.rope} />
         <span className={styles.lamp}>
