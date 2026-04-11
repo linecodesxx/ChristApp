@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
   Logger,
   Param,
   Patch,
@@ -89,9 +90,34 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me/avatar-likes')
+  getMyAvatarLikes(@Req() req: { user: { id: string } }) {
+    return this.usersService.getAvatarLikesReceivedCount(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   getAllUsers() {
     return this.usersService.getAllUsers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':userId/avatar-likes')
+  getUserAvatarLikes(
+    @Param('userId') userId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.usersService.getAvatarLikeState(userId, req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':userId/avatar-likes/toggle')
+  @HttpCode(200)
+  toggleUserAvatarLike(
+    @Param('userId') userId: string,
+    @Req() req: { user: { id: string } },
+  ) {
+    return this.usersService.toggleAvatarLike(userId, req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)

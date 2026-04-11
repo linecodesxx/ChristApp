@@ -3,8 +3,13 @@ export const AUTH_CHANGED_EVENT = "christapp-auth-changed";
 export const AUTH_COOKIE_NAME = "auth";
 export const AUTH_TOKEN_KEY = "token";
 export const LEGACY_AUTH_TOKEN_KEY = "jwt";
-/** Короткоживущий access token (sessionStorage, не refresh). */
-const ACCESS_SESSION_KEY = "christ_access_token";
+/**
+ * Access token в localStorage — переживает закрытие вкладки / PWA (в отличие от sessionStorage).
+ * Refresh по-прежнему в HttpOnly-куке; при истечении access сработает silent refresh в useAuth.
+ */
+const ACCESS_TOKEN_STORAGE_KEY = "christ_access_token";
+/** Раньше токен лежал только здесь — читаем для миграции со старых сессий. */
+const ACCESS_SESSION_LEGACY_KEY = "christ_access_token";
 
 let memoryAccessToken: string | null = null;
 
@@ -17,10 +22,24 @@ function readStoredAccessToken(): string | null {
     return null;
   }
 
-  const fromSession = window.sessionStorage.getItem(ACCESS_SESSION_KEY);
-  if (fromSession) {
-    const t = fromSession.replace(/^Bearer\s+/i, "").trim();
+  const fromPersist = window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY);
+  if (fromPersist) {
+    const t = fromPersist.replace(/^Bearer\s+/i, "").trim();
     if (t) return t;
+  }
+
+  const fromSessionLegacy = window.sessionStorage.getItem(ACCESS_SESSION_LEGACY_KEY);
+  if (fromSessionLegacy) {
+    const t = fromSessionLegacy.replace(/^Bearer\s+/i, "").trim();
+    if (t) {
+      try {
+        window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, t);
+        window.sessionStorage.removeItem(ACCESS_SESSION_LEGACY_KEY);
+      } catch {
+        // ignore quota / private mode
+      }
+      return t;
+    }
   }
 
   const legacy =
@@ -54,10 +73,15 @@ export function setAuthToken(token: string): void {
 
   const normalizedToken = token.replace(/^Bearer\s+/i, "").trim();
   memoryAccessToken = normalizedToken;
-  window.sessionStorage.setItem(ACCESS_SESSION_KEY, normalizedToken);
+  try {
+    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, normalizedToken);
+  } catch {
+    // private mode / quota — остаётся только memory + refresh по cookie
+  }
+  window.sessionStorage.removeItem(ACCESS_SESSION_LEGACY_KEY);
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
-  document.cookie = `${AUTH_COOKIE_NAME}=1; Path=/; SameSite=Lax`;
+  document.cookie = `${AUTH_COOKIE_NAME}=1; Path=/; SameSite=Lax; Max-Age=31536000`;
   window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
 }
 
@@ -67,7 +91,8 @@ export function clearAuthToken(): void {
   }
 
   memoryAccessToken = null;
-  window.sessionStorage.removeItem(ACCESS_SESSION_KEY);
+  window.sessionStorage.removeItem(ACCESS_SESSION_LEGACY_KEY);
+  window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   window.localStorage.removeItem(AUTH_TOKEN_KEY);
   window.localStorage.removeItem(LEGACY_AUTH_TOKEN_KEY);
   document.cookie = `${AUTH_COOKIE_NAME}=; Max-Age=0; Path=/; SameSite=Lax`;

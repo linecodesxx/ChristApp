@@ -31,6 +31,21 @@ model User {
   reactions         Reaction[]
   refreshSessions   RefreshSession[]
   voiceListens      VoiceMessageListen[] @relation("VoiceListens")
+  avatarLikesReceived AvatarLike[] @relation("AvatarLikeTarget")
+  avatarLikesGiven    AvatarLike[] @relation("AvatarLikeLiker")
+}
+
+/// Лайк аватара: кто (liker) поставил кому (target).
+model AvatarLike {
+  id           String   @id @default(uuid())
+  targetUserId String
+  likerUserId  String
+  createdAt    DateTime @default(now())
+  targetUser   User     @relation("AvatarLikeTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  likerUser    User     @relation("AvatarLikeLiker", fields: [likerUserId], references: [id], onDelete: Cascade)
+
+  @@unique([targetUserId, likerUserId])
+  @@index([targetUserId])
 }
 
 /// * Opaque refresh token (хеш в БД, сырое значение только в HttpOnly-куке).

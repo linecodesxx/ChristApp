@@ -4,7 +4,7 @@ import styles from "./ScriptureText.module.scss"
 
 export type ScriptureTextProps = {
   /** Raw HTML string from the Bible API (e.g. contains <i> for emphasis). */
-  html: string
+  html: string | undefined | null
   className?: string
   /** Root element; default `p` for block quotes. */
   as?: ElementType
@@ -16,7 +16,7 @@ export type ScriptureTextProps = {
  * Example input: `"Blessed <i>are</i> the pure in heart, For they shall see God."`
  */
 export function ScriptureText({ html, className, as: Component = "p", ...rest }: ScriptureTextProps) {
-  const safeHtml = sanitizeScriptureHtml(html)
+  const safeHtml = sanitizeScriptureHtml(typeof html === "string" ? html : "")
 
   const mergedClass = [styles.root, className].filter(Boolean).join(" ")
 

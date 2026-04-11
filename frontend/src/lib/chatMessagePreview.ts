@@ -1,5 +1,7 @@
 import { parseVoiceMessageUrl } from "@/lib/voiceMessage"
 import { parseStickerMessagePayload } from "@/lib/stickerMessage"
+import { parseVerseSharePayload } from "@/lib/verseShareMessage"
+import { scripturePlainText } from "@/lib/sanitizeScriptureHtml"
 
 export type ChatMessagePreviewInput = {
   content: string
@@ -22,6 +24,10 @@ export function chatMessagePreview(m: ChatMessagePreviewInput): string {
   }
   if (parseVoiceMessageUrl(t)) {
     return "Голосовое сообщение"
+  }
+  const verseShare = parseVerseSharePayload(t)
+  if (verseShare.payload) {
+    return scripturePlainText(verseShare.payload.text) || t
   }
   return m.content ?? ""
 }

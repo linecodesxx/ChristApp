@@ -1,7 +1,9 @@
 "use client"
 
-import { useCallback, useEffect, useRef, useState, memo, type ChangeEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, memo, type ChangeEvent } from "react"
 import styles from "./Verse.module.scss"
+import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
+import { scripturePlainText } from "@/lib/sanitizeScriptureHtml"
 import { saveVerse } from "@/lib/versesApi"
 import { VERSE_HIGHLIGHT_STORAGE_KEY, isValidHighlightHex } from "@/lib/verseHighlightStorage"
 import Image from "next/image"
@@ -82,7 +84,8 @@ function Verse({
   
   const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const verseReference = `${bookName ? `${bookName} ` : ""}${chapter ? `${chapter}:` : ""}${verse}`
-  const verseLine = `${verseReference} - ${text}`
+  const plainText = useMemo(() => scripturePlainText(text), [text])
+  const verseLine = `${verseReference} - ${plainText}`
   
   
 
@@ -315,7 +318,7 @@ function Verse({
             style={paintedColorStyle}
           >
             <sup className={verse === 1 ? styles.verseSupLarge : styles.verseSup}>{verse}</sup>
-            <span className={styles.verseText}>{text}</span>
+            <ScriptureText as="span" html={text} className={styles.verseText} />
           </span>
         </p>
 
