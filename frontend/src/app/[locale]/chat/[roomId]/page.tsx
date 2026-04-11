@@ -5,7 +5,7 @@ import styles from "./chatRoom.module.scss"
 import MessageInput from "@/components/MessageInput/MessageInput"
 import { isMessageFromCurrentUser, type AppReactionType, type Message, type MessageReply } from "@/types/message"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { io, type Socket } from "socket.io-client"
 import { useParams } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
@@ -29,6 +29,12 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
+import {
+  avatarLikesForUserQueryKey,
+  avatarLikesMeQueryKey,
+  fetchAvatarLikesForUser,
+  toggleAvatarLikeForUser,
+} from "@/lib/queries/avatarLikesQueries"
 
 const CHAT_SOCKET_URL = getDirectApiOrigin()
 const CHAT_HTTP_API = getHttpApiBase()
@@ -410,8 +416,6 @@ export default function ChatPageDetails() {
   const [roomReadStatesByUserId, setRoomReadStatesByUserId] = useState<Map<string, string>>(() => new Map())
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false)
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
-  const [isAvatarLiked, setIsAvatarLiked] = useState(false)
-  const [avatarLikeCount, setAvatarLikeCount] = useState(0)
   const userIdRef = useRef<string | undefined>(undefined)
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
@@ -1282,80 +1286,6 @@ export default function ChatPageDetails() {
     [users, directChatTargetUserId],
   )
 
-  const avatarLikeStorageKey = useMemo(
-    () => (directChatTargetUserId ? `chat:avatar-like:${directChatTargetUserId}` : null),
-    [directChatTargetUserId],
-  )
-
-  useEffect(() => {
-    let cancelled = false
-    const applyAvatarLikeState = (liked: boolean, count: number) => {
-      queueMicrotask(() => {
-        if (cancelled) return
-        setIsAvatarLiked(liked)
-        setAvatarLikeCount(count)
-      })
-    }
-
-    if (!avatarLikeStorageKey || typeof window === "undefined") {
-      applyAvatarLikeState(false, 0)
-      return () => {
-        cancelled = true
-      }
-    }
-
-    try {
-      const raw = window.localStorage.getItem(avatarLikeStorageKey)
-      if (!raw) {
-        applyAvatarLikeState(false, 0)
-        return () => {
-          cancelled = true
-        }
-      }
-      const parsed = JSON.parse(raw) as { liked?: boolean; count?: number }
-      const nextCount = Math.max(0, Number(parsed.count) || 0)
-      applyAvatarLikeState(Boolean(parsed.liked), nextCount)
-    } catch {
-      applyAvatarLikeState(false, 0)
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [avatarLikeStorageKey])
-
-  const persistAvatarLikeState = useCallback(
-    (liked: boolean, count: number) => {
-      if (!avatarLikeStorageKey || typeof window === "undefined") {
-        return
-      }
-      try {
-        window.localStorage.setItem(
-          avatarLikeStorageKey,
-          JSON.stringify({
-            liked,
-            count,
-          }),
-        )
-      } catch {
-        // ignore localStorage errors
-      }
-    },
-    [avatarLikeStorageKey],
-  )
-
-  const handleToggleAvatarLike = useCallback(() => {
-    setIsAvatarLiked((prevLiked) => {
-      const nextLiked = !prevLiked
-      setAvatarLikeCount((prevCount) => {
-        const nextCount = nextLiked ? prevCount + 1 : Math.max(0, prevCount - 1)
-        persistAvatarLikeState(nextLiked, nextCount)
-        return nextCount
-      })
-      return nextLiked
-    })
-  }, [persistAvatarLikeState])
-
   useEffect(() => {
     if (roomId === GLOBAL_ROOM_ID) {
       setRoomTitle(titleLabels.globalChatTitle)
@@ -1428,6 +1358,44 @@ export default function ChatPageDetails() {
     roomId !== GLOBAL_ROOM_ID &&
     !isShareWithJesusView
   const canOpenDirectUserProfile = Boolean(directChatTargetUser) && roomId !== GLOBAL_ROOM_ID && !isShareWithJesusView
+
+  const avatarLikesQueryEnabled =
+    Boolean(directChatTargetUserId) &&
+    roomId !== GLOBAL_ROOM_ID &&
+    !isShareWithJesusView &&
+    Boolean(getAuthToken())
+
+  const { data: peerAvatarLikes } = useQuery({
+    queryKey: avatarLikesForUserQueryKey(directChatTargetUserId ?? ""),
+    queryFn: () => fetchAvatarLikesForUser(directChatTargetUserId!),
+    enabled: avatarLikesQueryEnabled,
+  })
+
+  const isPeerSelf = Boolean(user?.id && directChatTargetUserId === user.id)
+  const avatarLikeCount = peerAvatarLikes?.receivedCount ?? 0
+  const isAvatarLiked = peerAvatarLikes?.likedByMe ?? false
+
+  const toggleAvatarLikeMutation = useMutation({
+    mutationFn: async () => {
+      if (!directChatTargetUserId) {
+        throw new Error("no peer")
+      }
+      return toggleAvatarLikeForUser(directChatTargetUserId)
+    },
+    onSuccess: () => {
+      if (directChatTargetUserId) {
+        void queryClient.invalidateQueries({ queryKey: avatarLikesForUserQueryKey(directChatTargetUserId) })
+      }
+      void queryClient.invalidateQueries({ queryKey: avatarLikesMeQueryKey })
+    },
+  })
+
+  const handleToggleAvatarLike = useCallback(() => {
+    if (!directChatTargetUserId || isPeerSelf) {
+      return
+    }
+    toggleAvatarLikeMutation.mutate()
+  }, [directChatTargetUserId, isPeerSelf, toggleAvatarLikeMutation])
 
   const directChatTargetJoinedAt = useMemo(() => {
     const createdAt = directChatTargetUser?.createdAt
@@ -2126,6 +2094,7 @@ export default function ChatPageDetails() {
               type="button"
               className={`${styles.avatarLikeButton} ${isAvatarLiked ? styles.avatarLikeButtonActive : ""}`}
               onClick={handleToggleAvatarLike}
+              disabled={isPeerSelf || toggleAvatarLikeMutation.isPending}
               aria-label="Лайкнуть аватар"
               title="Лайк"
             >

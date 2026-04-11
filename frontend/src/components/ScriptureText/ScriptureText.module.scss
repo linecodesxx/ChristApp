@@ -1,6 +1,7 @@
 .root {
   margin: 0;
-  line-height: 1.75;
+  /* ~Tailwind leading-relaxed */
+  line-height: 1.625;
   letter-spacing: 0.018em;
   font-style: normal;
   font-variant-numeric: proportional-nums;
@@ -19,7 +20,17 @@
     font-style: italic;
     font-weight: 400;
     letter-spacing: 0.022em;
-    color: color-mix(in srgb, var(--foreground) 58%, #b89f6a 42%);
+    /* Ties emphasis to surrounding text color (works on warm verse cards too) */
+    color: color-mix(in srgb, currentColor 66%, #b89f6a 34%);
+  }
+
+  :global(b),
+  :global(strong) {
+    font-family: inherit;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    font-style: normal;
+    color: color-mix(in srgb, currentColor 74%, #8a7a62 26%);
   }
 }
 

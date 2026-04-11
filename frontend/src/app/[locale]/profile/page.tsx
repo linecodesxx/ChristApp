@@ -4,6 +4,7 @@ import styles from "@/app/[locale]/profile/profile.module.scss"
 import { useAuth, type AuthUser } from "@/hooks/useAuth"
 import { getInitials } from "@/lib/utils"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
+import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { getAppStreak } from "@/lib/appStreak"
 import PersistenceAchievements from "@/components/PersistenceAchievements/PersistenceAchievements"
@@ -25,6 +26,7 @@ import { getHttpApiBase } from "@/lib/apiBase"
 import { currentUserQueryKey } from "@/lib/queries/authQueries"
 import { fetchSavedVersesForQuery, savedVersesQueryKey } from "@/lib/queries/versesQueries"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { avatarLikesMeQueryKey, fetchMyAvatarLikesReceived } from "@/lib/queries/avatarLikesQueries"
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react"
 import { useHydrated } from "@/hooks/useHydrated"
 import LanguageSwitcher from "@/components/LanguageSwitcher/LanguageSwitcher"
@@ -446,6 +448,12 @@ export default function ProfilePage() {
   const profileSaving = saveProfileMutation.isPending
   const appearanceSaving = resetAppearanceMutation.isPending
 
+  const { data: myAvatarLikes } = useQuery({
+    queryKey: avatarLikesMeQueryKey,
+    queryFn: fetchMyAvatarLikesReceived,
+    enabled: Boolean(user) && hydrated && Boolean(getAuthToken()),
+  })
+
   const openProfileEditFromSettings = () => {
     closeSettingsMenu()
     setShowProfileEdit(true)
@@ -660,6 +668,9 @@ export default function ProfilePage() {
           <span className={styles.username}>{user?.nickname ?? user?.username}</span>
           <span className={styles.userHandle}>@{user?.username}</span>
           <span>{t("memberSince", { date: formattedDate })}</span>
+          <span className={styles.avatarLikesLine}>
+            {t("avatarLikesReceived", { count: myAvatarLikes?.receivedCount ?? 0 })}
+          </span>
         </div>
       </div>
 
@@ -816,7 +827,7 @@ export default function ProfilePage() {
                     </strong>
                     <span className={styles.translation}>{verse.translation}</span>
                   </div>
-                  <p className={styles.verseText}>{verse.text}</p>
+                  <ScriptureText html={verse.text} className={styles.verseText} />
                   <span className={styles.savedDate}>
                     {hydrated ? new Date(verse.savedAt).toLocaleDateString(dateLocaleTag) : "\u2014"}
                   </span>

@@ -150,4 +150,56 @@ export class UsersService {
       select: profileSelect,
     });
   }
+
+  async getAvatarLikesReceivedCount(targetUserId: string) {
+    const count = await this.prisma.avatarLike.count({
+      where: { targetUserId },
+    });
+    return { receivedCount: count };
+  }
+
+  async getAvatarLikeState(targetUserId: string, viewerId: string) {
+    const [receivedCount, existing] = await Promise.all([
+      this.prisma.avatarLike.count({ where: { targetUserId } }),
+      this.prisma.avatarLike.findUnique({
+        where: {
+          targetUserId_likerUserId: { targetUserId, likerUserId: viewerId },
+        },
+      }),
+    ]);
+    return {
+      receivedCount: receivedCount,
+      likedByMe: Boolean(existing),
+    };
+  }
+
+  async toggleAvatarLike(targetUserId: string, likerUserId: string) {
+    if (targetUserId === likerUserId) {
+      throw new BadRequestException('Нельзя лайкнуть свой аватар');
+    }
+
+    const targetExists = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+    if (!targetExists) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    const existing = await this.prisma.avatarLike.findUnique({
+      where: {
+        targetUserId_likerUserId: { targetUserId, likerUserId },
+      },
+    });
+
+    if (existing) {
+      await this.prisma.avatarLike.delete({ where: { id: existing.id } });
+    } else {
+      await this.prisma.avatarLike.create({
+        data: { targetUserId, likerUserId },
+      });
+    }
+
+    return this.getAvatarLikeState(targetUserId, likerUserId);
+  }
 }

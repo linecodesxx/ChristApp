@@ -81,6 +81,7 @@
   "profile": {
     "title": "Профіль",
     "memberSince": "З нами з {date}",
+    "avatarLikesReceived": "❤ Лайків на аватар: {count}",
     "settingsAria": "Налаштування",
     "settingsAlt": "Налаштування",
     "menuQuick": "Швидкі налаштування",

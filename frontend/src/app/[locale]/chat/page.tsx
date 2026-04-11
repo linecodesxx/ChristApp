@@ -630,28 +630,30 @@ export default function ChatPage() {
       return
     }
 
+    const cache = chatListRuntimeCache
+
     const token = getAuthToken()
     const tokenUserId = token ? getUserIdFromJwt(token) : undefined
-    if (tokenUserId && chatListRuntimeCache.userId && tokenUserId !== chatListRuntimeCache.userId) {
+    if (tokenUserId && cache.userId && tokenUserId !== cache.userId) {
       return
     }
 
-    currentUserIdRef.current = chatListRuntimeCache.userId ?? currentUserIdRef.current
+    currentUserIdRef.current = cache.userId ?? currentUserIdRef.current
 
-    const cachedOnlineIds = new Set(chatListRuntimeCache.onlineUserIds)
+    const cachedOnlineIds = new Set(cache.onlineUserIds)
     onlineUserIdsRef.current = cachedOnlineIds
 
-    roomIdToDirectUserIdRef.current = new Map(chatListRuntimeCache.roomIdToDirectUserId)
-    directUserIdToRoomIdRef.current = new Map(chatListRuntimeCache.directUserIdToRoomId)
+    roomIdToDirectUserIdRef.current = new Map(cache.roomIdToDirectUserId)
+    directUserIdToRoomIdRef.current = new Map(cache.directUserIdToRoomId)
 
     let cancelled = false
     queueMicrotask(() => {
       if (cancelled) return
       setOnlineUserIds(cachedOnlineIds)
       setRooms(
-        chatListRuntimeCache.rooms.length ? chatListRuntimeCache.rooms : [createGlobalChatItem(GLOBAL_CHAT_TITLE)],
+        cache.rooms.length ? cache.rooms : [createGlobalChatItem(GLOBAL_CHAT_TITLE)],
       )
-      if (chatListRuntimeCache.rooms.length > 0) {
+      if (cache.rooms.length > 0) {
         setHasReceivedMyRooms(true)
       }
     })

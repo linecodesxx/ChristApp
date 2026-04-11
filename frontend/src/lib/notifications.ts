@@ -1,4 +1,5 @@
 import { hasActivePushSubscription } from "@/lib/push"
+import { scripturePlainText } from "@/lib/sanitizeScriptureHtml"
 
 const REPLY_META_PREFIX = "[[reply:"
 const REPLY_META_SUFFIX = "]]"
@@ -27,14 +28,15 @@ function stripReplyMetadata(rawBody: string) {
 
 export function normalizeNotificationBody(rawBody: string) {
   const withoutReply = stripReplyMetadata(String(rawBody ?? ""))
-  const withoutVerseMeta = withoutReply.startsWith(VERSE_SHARE_META_PREFIX)
-    ? (() => {
-        const suffixIndex = withoutReply.indexOf(VERSE_SHARE_META_SUFFIX, VERSE_SHARE_META_PREFIX.length)
-        if (suffixIndex === -1) return withoutReply
-        return withoutReply.slice(suffixIndex + VERSE_SHARE_META_SUFFIX.length)
-      })()
-    : withoutReply
-  return withoutVerseMeta.replace(/\s+/g, " ").trim()
+  if (withoutReply.startsWith(VERSE_SHARE_META_PREFIX)) {
+    const suffixIndex = withoutReply.indexOf(VERSE_SHARE_META_SUFFIX, VERSE_SHARE_META_PREFIX.length)
+    if (suffixIndex === -1) {
+      return withoutReply.replace(/\s+/g, " ").trim()
+    }
+    const afterMeta = withoutReply.slice(suffixIndex + VERSE_SHARE_META_SUFFIX.length).replace(/\s+/g, " ").trim()
+    return scripturePlainText(afterMeta) || afterMeta
+  }
+  return withoutReply.replace(/\s+/g, " ").trim()
 }
 
 function isClientNotificationSupported() {

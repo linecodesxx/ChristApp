@@ -259,6 +259,12 @@
         font-size: 12px;
         color: var(--text-muted);
       }
+
+      .avatarLikesLine {
+        margin-top: 2px;
+        font-size: 13px;
+        color: color-mix(in srgb, var(--foreground) 72%, #c4a265 28%);
+      }
     }
   }
 

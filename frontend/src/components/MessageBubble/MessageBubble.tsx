@@ -13,6 +13,7 @@ import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMes
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
 import { parseStickerMessagePayload } from "@/lib/stickerMessage"
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble"
+import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
 
 type MessageBubbleProps = {
   message: Message
@@ -310,7 +311,7 @@ function MessageBubble({
           <div className={styles.verseShareCard}>
             <p className={styles.verseShareAuthor}>{message.username || "Unknown"} поделился стихом</p>
             <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
-            <p className={styles.verseShareText}>{verseShare.payload.text}</p>
+            <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
           </div>
         )
       })()}

@@ -15,6 +15,7 @@ import {
 } from "@/lib/queries/bibleQueries"
 import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
 import styles from "./DailyBreadEnvelope.module.scss"
+import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
 
 export default function DailyBreadEnvelope() {
   const t = useTranslations("dailyBread")
@@ -73,7 +74,7 @@ export default function DailyBreadEnvelope() {
             ) : (
               <>
                 <p className={styles.reference}>{reference}</p>
-                <p className={styles.text}>{data.text}</p>
+                <ScriptureText html={data.text} className={styles.text} />
               </>
             )}
           </div>

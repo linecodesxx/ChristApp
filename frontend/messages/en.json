@@ -81,6 +81,7 @@
   "profile": {
     "title": "Profile",
     "memberSince": "With us since {date}",
+    "avatarLikesReceived": "❤ Avatar likes received: {count}",
     "settingsAria": "Settings",
     "settingsAlt": "Settings",
     "menuQuick": "Quick settings",

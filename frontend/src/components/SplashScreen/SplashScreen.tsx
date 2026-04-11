@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useLocale } from "next-intl"
 import { fetchRandomVerse } from "@/lib/bibleApi"
+import { scripturePlainText } from "@/lib/sanitizeScriptureHtml"
 import styles from "./SplashScreen.module.scss"
 
 const BRAND_TEXT = "Christ App"
@@ -17,7 +18,7 @@ function fallbackQuote(locale: string) {
 }
 
 function buildSplashQuote(text: string, reference: string, locale: string) {
-  const normalizedText = text.trim().replace(/\s+/g, " ")
+  const normalizedText = scripturePlainText(text)
   const shortText = normalizedText.length > 140 ? `${normalizedText.slice(0, 137).trimEnd()}...` : normalizedText
   if (!shortText) {
     return fallbackQuote(locale)

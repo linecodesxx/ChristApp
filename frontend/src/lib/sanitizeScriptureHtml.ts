@@ -24,3 +24,21 @@ export function sanitizeScriptureHtml(dirty: unknown): string {
     return ""
   }
 }
+
+/**
+ * Plain text for clipboard, splash typing, or previews — strips inline HTML from API strings.
+ */
+export function scripturePlainText(raw: unknown): string {
+  if (typeof raw !== "string") {
+    return ""
+  }
+  try {
+    return raw
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  } catch {
+    return ""
+  }
+}
