@@ -1,10 +1,10 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import Link from "next/link"
 import styles from "@/components/TabBar/TabBar.module.scss"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { useTranslations } from "next-intl"
+import { Link, usePathname } from "@/i18n/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { CHAT_UNREAD_CHANGED_EVENT } from "@/lib/chatUnreadEvents"
@@ -27,6 +27,7 @@ import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge"
 const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
 export default function TabBar() {
+  const t = useTranslations("nav")
   const pathname = usePathname()
   const queryClient = useQueryClient()
   const { socket } = usePresenceSocket()
@@ -135,7 +136,7 @@ export default function TabBar() {
         onTouchStart={() => prefetchTabBibleData(queryClient)}
       >
         <span className={`${styles.iconWrap} ${isRouteActive("/bible") ? styles.activeIcon : ""}`}>
-          <Image src="/icon-bible.svg" alt="Библия" width={24} height={24} />
+          <Image src="/icon-bible.svg" alt={t("bible")} width={24} height={24} />
         </span>
       </Link>
       {showAdminDashboardTab ? (
@@ -143,8 +144,8 @@ export default function TabBar() {
           className={styles.tabLink}
           href="/dashboard"
           prefetch
-          aria-label="Обзор"
-          title="Обзор"
+          aria-label={t("dashboard")}
+          title={t("dashboard")}
         >
           <span className={`${styles.iconWrap} ${isRouteActive("/dashboard") ? styles.activeIcon : ""}`}>
             <Image src="/icon-dashboard.svg" alt="Обзор" width={24} height={24} />
@@ -160,9 +161,9 @@ export default function TabBar() {
         onTouchStart={() => prefetchTabChatData(queryClient)}
       >
         <span className={`${styles.iconWrap} ${isRouteActive("/chat") ? styles.activeIcon : ""}`}>
-          <Image src="/icon-chat.svg" alt="Чат" width={24} height={24} loading="eager" />
+          <Image src="/icon-chat.svg" alt={t("chat")} width={24} height={24} loading="eager" />
           {unreadCount > 0 ? (
-            <span className={styles.unreadBadge} aria-label={`Непрочитанных сообщений: ${unreadCount}`}>
+            <span className={styles.unreadBadge} aria-label={t("unreadMessages", { count: unreadCount })}>
               {unreadCount > 99 ? "99+" : unreadCount}
             </span>
           ) : null}
@@ -177,7 +178,7 @@ export default function TabBar() {
         onTouchStart={() => prefetchTabProfileData(queryClient)}
       >
         <span className={`${styles.iconWrap} ${isRouteActive("/profile") ? styles.activeIcon : ""}`}>
-          <Image src="/icon-profile.svg" alt="Профиль" width={24} height={24} />
+          <Image src="/icon-profile.svg" alt={t("profile")} width={24} height={24} />
         </span>
       </Link>
     </nav>

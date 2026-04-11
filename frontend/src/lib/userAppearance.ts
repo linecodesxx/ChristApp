@@ -2,7 +2,7 @@
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF"
 export const SUGGESTED_THEME_BACKGROUND = "#2E2D2D"
 
-export const THEME_FONT_KEYS = ["inter", "pastah", "achiko", "bodoni-moda", "plus-jakarta-sans", "cinzel"] as const
+export const THEME_FONT_KEYS = ["inter", "achiko", "bodoni-moda"] as const
 export type ThemeFontKey = (typeof THEME_FONT_KEYS)[number]
 
 export function normalizeThemeFontKey(value: string | null | undefined): ThemeFontKey {
@@ -88,17 +88,11 @@ export function applyUserAppearanceToDocument(user: UserAppearanceFields | null 
     }
   }
 
-  const fontKey = user.themeFontKey
-  if (fontKey === "pastah") {
-    document.body.style.fontFamily = '"Pastah", "Inter", ui-sans-serif, system-ui, sans-serif'
-  } else if (fontKey === "achiko") {
+  const fontKey = normalizeThemeFontKey(user.themeFontKey)
+  if (fontKey === "achiko") {
     document.body.style.fontFamily = '"Achiko", "Inter", ui-sans-serif, system-ui, sans-serif'
   } else if (fontKey === "bodoni-moda") {
     document.body.style.fontFamily = 'var(--font-bodoni-moda), "Bodoni Moda", ui-serif, Georgia, serif'
-  } else if (fontKey === "plus-jakarta-sans") {
-    document.body.style.fontFamily = 'var(--font-plus-jakarta-sans), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif'
-  } else if (fontKey === "cinzel") {
-    document.body.style.fontFamily = 'var(--font-cinzel), "Cinzel", ui-serif, Georgia, serif'
   } else {
     document.body.style.removeProperty("font-family")
   }

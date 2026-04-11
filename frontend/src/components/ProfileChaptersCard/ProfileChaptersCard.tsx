@@ -1,6 +1,6 @@
 "use client"
 
-import profileStyles from "@/app/profile/profile.module.scss"
+import profileStyles from "@/app/[locale]/profile/profile.module.scss"
 import {
   TOTAL_BIBLE_CHAPTERS,
   type BibleLastRead,
@@ -8,23 +8,14 @@ import {
 import { useBibleReadingProgressSnapshot } from "@/hooks/useBibleReadingProgressSnapshot"
 import { prefetchTabBibleData } from "@/lib/tabPrefetch"
 import Image from "next/image"
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { useQueryClient } from "@tanstack/react-query"
+import { useMemo } from "react"
+import { useTranslations } from "next-intl"
 import styles from "./ProfileChaptersCard.module.scss"
 
 const RING_R = 15
 const RING_C = 2 * Math.PI * RING_R
-
-function buildSubtitle(readCount: number, lastRead: BibleLastRead | null, remaining: string): string {
-  if (readCount <= 0) {
-    return "Начни путь сегодня"
-  }
-  if (lastRead?.bookName) {
-    const tail = `${lastRead.bookName} · ${lastRead.chapter}`
-    return tail.length > 42 ? `Продолжить чтение` : `Продолжить · ${tail}`
-  }
-  return `Осталось ${remaining} до полного круга`
-}
 
 function ChaptersProgressRing({ fraction }: { fraction: number }) {
   const offset = RING_C * (1 - Math.min(1, Math.max(0, fraction)))
@@ -52,10 +43,22 @@ function ChaptersProgressRing({ fraction }: { fraction: number }) {
 }
 
 export default function ProfileChaptersCard() {
+  const t = useTranslations("profileChapters")
   const queryClient = useQueryClient()
   const { readCount, fraction, lastRead, remainingToFullCanon } = useBibleReadingProgressSnapshot()
   const hasProgress = readCount > 0
-  const subtitle = buildSubtitle(readCount, lastRead, String(remainingToFullCanon))
+  const subtitle = useMemo(() => {
+    if (readCount <= 0) {
+      return t("startToday")
+    }
+    if (lastRead?.bookName) {
+      const tail = `${lastRead.bookName} · ${lastRead.chapter}`
+      return tail.length > 42
+        ? t("continueReading")
+        : t("continueWith", { book: lastRead.bookName, chapter: lastRead.chapter })
+    }
+    return t("remaining", { count: remainingToFullCanon })
+  }, [readCount, lastRead, remainingToFullCanon, t])
 
   return (
     <li
@@ -74,8 +77,8 @@ export default function ProfileChaptersCard() {
         className={profileStyles.itemLink}
         aria-label={
           hasProgress
-            ? `Главы: прочитано ${readCount} из ${TOTAL_BIBLE_CHAPTERS}. ${subtitle}`
-            : "Главы: открыть Библию и начать чтение"
+            ? t("ariaWithProgress", { read: readCount, total: TOTAL_BIBLE_CHAPTERS, subtitle })
+            : t("ariaStart")
         }
         onPointerEnter={() => prefetchTabBibleData(queryClient)}
         onFocus={() => prefetchTabBibleData(queryClient)}

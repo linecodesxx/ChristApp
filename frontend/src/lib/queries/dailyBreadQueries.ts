@@ -7,9 +7,8 @@ export type DailyBreadVerse = {
   text: string
 }
 
-/** Один ключ на сессию кэша; staleTime сутки — «хлеб дня» не перезапрашивается при каждом заходе. */
-export const dailyBreadQueryKey = ["daily-bread"] as const
+export const dailyBreadQueryKey = (translation: string) => ["daily-bread", translation] as const
 
-export async function fetchDailyBreadForQuery(): Promise<DailyBreadVerse | null> {
-  return fetchRandomVerse("NRT")
+export async function fetchDailyBreadForQuery(translation: string): Promise<DailyBreadVerse | null> {
+  return fetchRandomVerse(translation)
 }

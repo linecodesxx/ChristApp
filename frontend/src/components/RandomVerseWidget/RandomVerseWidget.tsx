@@ -1,24 +1,59 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo } from "react"
+import { useLocale, useTranslations } from "next-intl"
+import { useQuery } from "@tanstack/react-query"
 import { useRandomVerse } from "@/hooks/useRandomVerse"
 import styles from "./RandomVerseWidget.module.scss"
+import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
 import { Volume2, ChevronRight } from "lucide-react"
+import {
+  bibleStaticQueryOptions,
+  bibleTranslationsQueryKey,
+  fetchBibleTranslationsForQuery,
+  type BibleTranslationItem,
+} from "@/lib/queries/bibleQueries"
+import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
 
-export default function RandomVerseWidget() {
+type RandomVerseWidgetProps = {
+  /** В блоке приветствия на дашборде: без лишних внешних отступов. */
+  embedInGreeting?: boolean
+}
+
+export default function RandomVerseWidget({ embedInGreeting }: RandomVerseWidgetProps) {
+  const t = useTranslations("randomVerse")
+  const locale = useLocale()
   const { verse, isLoading, error, getRandomVerse } = useRandomVerse()
 
+  const { data: translations = [] } = useQuery({
+    queryKey: bibleTranslationsQueryKey,
+    queryFn: fetchBibleTranslationsForQuery,
+    ...bibleStaticQueryOptions,
+  })
+
+  const bibleTranslation = useMemo(() => {
+    if (locale === "en") {
+      return "NKJV"
+    }
+    return pickTranslationShortName(translations as BibleTranslationItem[], locale)
+  }, [locale, translations])
+
   useEffect(() => {
-    getRandomVerse("NRT")
-  }, [getRandomVerse])
+    if (!bibleTranslation) {
+      return
+    }
+    void getRandomVerse(bibleTranslation)
+  }, [bibleTranslation, getRandomVerse])
 
   const handleGetNewVerse = () => {
-    getRandomVerse("NRT")
+    void getRandomVerse(bibleTranslation)
   }
+
+  const rootClass = embedInGreeting ? `${styles.container} ${styles.embedInGreeting}` : styles.container
 
   if (isLoading) {
     return (
-      <div className={styles.container}>
+      <div className={rootClass}>
         <div className={styles.skeleton} />
       </div>
     )
@@ -29,28 +64,27 @@ export default function RandomVerseWidget() {
   }
 
   return (
-    <div className={styles.container}>
+    <div className={rootClass}>
       <div className={styles.card}>
         <div className={styles.header}>
           <div className={styles.icon}>
             <Volume2 size={20} />
           </div>
           <div className={styles.title}>
-            <p className={styles.label}>Случайный стих</p>
+            <p className={styles.label}>{t("cardLabel")}</p>
             <p className={styles.reference}>
               {verse.book} {verse.chapter}:{verse.verse}
             </p>
           </div>
         </div>
 
-        <p className={styles.text}>{verse.text}</p>
+        <ScriptureText html={verse.text} className={styles.text} />
 
-        <button onClick={handleGetNewVerse} className={styles.getNewButton}>
-          Получить новый стих
+        <button type="button" onClick={handleGetNewVerse} className={styles.getNewButton}>
+          {t("refresh")}
           <ChevronRight size={16} />
         </button>
       </div>
     </div>
   )
 }
-

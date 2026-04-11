@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type R
 import { io, type Socket } from "socket.io-client"
 import { getDirectApiOrigin } from "@/lib/apiBase"
 import { getAuthToken } from "@/lib/auth"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 
 const WS_URL = getDirectApiOrigin()
 const TOKEN_SYNC_INTERVAL_MS = 4000

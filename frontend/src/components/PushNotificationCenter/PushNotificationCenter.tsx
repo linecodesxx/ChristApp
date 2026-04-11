@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { getUserIdFromJwt } from "@/lib/jwtUser"

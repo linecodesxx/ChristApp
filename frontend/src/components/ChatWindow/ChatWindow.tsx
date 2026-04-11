@@ -1,5 +1,8 @@
+"use client"
+
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import type { Message } from "@/types/message"
+import { useTranslations } from "next-intl"
+import type { AppReactionType, Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
 import MessageBubble from "@/components/MessageBubble/MessageBubble"
 
@@ -20,9 +23,10 @@ type ChatWindowProps = {
   /** Статусы активности собеседников в комнате. */
   typingStatuses?: Array<{ username: string; activity: "text" | "voice" }>
   readReceiptMessageId?: string | null
+  readReceiptUsersByMessageId?: Map<string, Array<{ id: string; avatarSrc?: string; label?: string }>>
   readReceiptAvatarSrc?: string
   readReceiptLabel?: string
-  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => void
+  onToggleReaction?: (message: Message, reaction: AppReactionType) => void
   resolveReactionAvatarUrl?: (userId: string) => string | undefined
   resolveReactionUserLabel?: (userId: string) => string | undefined
   onMissingReferencedMessage?: (messageId: string) => void
@@ -34,17 +38,6 @@ type ChatWindowProps = {
 /** Минимум сообщений в комнате, чтобы показать линию Recent. */
 const MIN_MESSAGES_FOR_RECENT_LINE = 14
 const DEFAULT_RECENT_MESSAGES_COUNT = 12
-
-function formatTypingLine(statuses: Array<{ username: string; activity: "text" | "voice" }>) {
-  if (statuses.length === 0) return ""
-  if (statuses.length === 1) {
-    const one = statuses[0]
-    return one.activity === "voice" ? `${one.username} записывает голосовое` : `${one.username} печатает`
-  }
-  const names = statuses.map((item) => item.username)
-  if (names.length === 2) return `${names[0]} и ${names[1]} печатают`
-  return `${names.slice(0, -1).join(", ")} и ${names[names.length - 1]} печатают`
-}
 
 function ChatWindow({
   messages,
@@ -60,6 +53,7 @@ function ChatWindow({
   topBanner,
   typingStatuses = [],
   readReceiptMessageId,
+  readReceiptUsersByMessageId,
   readReceiptAvatarSrc,
   readReceiptLabel,
   onToggleReaction,
@@ -69,11 +63,31 @@ function ChatWindow({
   roomKey,
   recentMessagesCount = DEFAULT_RECENT_MESSAGES_COUNT,
 }: ChatWindowProps) {
+  const t = useTranslations("chat")
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const didInitialScrollRef = useRef(false)
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map())
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const highlightTimerRef = useRef<number | null>(null)
+
+  const formatTypingLine = (statuses: Array<{ username: string; activity: "text" | "voice" }>) => {
+    if (statuses.length === 0) {
+      return ""
+    }
+    if (statuses.length === 1) {
+      const one = statuses[0]
+      return one.activity === "voice"
+        ? t("typingVoiceStatus", { name: one.username })
+        : t("typingTextStatus", { name: one.username })
+    }
+    const names = statuses.map((item) => item.username)
+    if (names.length === 2) {
+      return t("typingTwo", { first: names[0], second: names[1] })
+    }
+    const last = names[names.length - 1]
+    const head = names.slice(0, -1).join(", ")
+    return t("typingMany", { head, last })
+  }
 
   const recentSplitIndex = useMemo(() => {
     const n = messages.length
@@ -107,7 +121,7 @@ function ChatWindow({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: didInitialScrollRef.current ? "smooth" : "auto" })
     didInitialScrollRef.current = true
-  }, [messages, typingStatusesKey])
+  }, [messages.length, typingStatusesKey])
 
   const typingLine = formatTypingLine(typingStatuses)
   const typingBlock =
@@ -149,6 +163,9 @@ function ChatWindow({
 
   const renderBubble = (message: Message) => (
     <div key={message.id} ref={(element) => setMessageRef(message.id, element)}>
+      {(() => {
+        const readReceiptUsers = readReceiptUsersByMessageId?.get(message.id) ?? []
+        return (
       <MessageBubble
         message={message}
         currentUsername={currentUsername}
@@ -162,7 +179,8 @@ function ChatWindow({
         onDelete={onDeleteMessage}
         onEdit={onEditMessage}
         canDeleteOwnMessage={canDeleteOwnMessages}
-        showReadReceipt={Boolean(readReceiptMessageId && readReceiptMessageId === message.id)}
+        showReadReceipt={Boolean(readReceiptUsers.length || (readReceiptMessageId && readReceiptMessageId === message.id))}
+        readReceiptUsers={readReceiptUsers}
         readReceiptAvatarSrc={readReceiptAvatarSrc}
         readReceiptLabel={readReceiptLabel}
         onToggleReaction={onToggleReaction}
@@ -170,6 +188,8 @@ function ChatWindow({
         resolveReactionUserLabel={resolveReactionUserLabel}
         isHighlighted={highlightedMessageId === message.id}
       />
+        )
+      })()}
     </div>
   )
 
@@ -178,7 +198,7 @@ function ChatWindow({
       {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
       {messages.length === 0 ? (
         <>
-          <p className={styles.empty}>{topBanner ? "" : "Сообщений пока нет."}</p>
+          <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
           {typingBlock}
           <div ref={bottomRef} />
         </>
@@ -192,10 +212,10 @@ function ChatWindow({
               <div
                 className={styles.recentDivider}
                 role="separator"
-                aria-label="Недавние сообщения ниже"
+                aria-label={t("recentDividerAria")}
               >
                 <span className={styles.recentDividerLine} aria-hidden />
-                <span className={styles.recentDividerLabel}>Recent</span>
+                <span className={styles.recentDividerLabel}>{t("recentDividerLabel")}</span>
                 <span className={styles.recentDividerLine} aria-hidden />
               </div>
               {messages.slice(recentSplitIndex).map((message) => renderBubble(message))}

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter } from "@/i18n/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { apiFetch } from "@/lib/apiFetch"
 import { clearAppBadgeIfSupported } from "@/lib/appBadge"

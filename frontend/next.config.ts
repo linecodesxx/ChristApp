@@ -1,4 +1,7 @@
 import type { NextConfig } from "next"
+import createNextIntlPlugin from "next-intl/plugin"
+
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts")
 
 /** Разрешённые источники для next/image: локальные `/uploads/...` и аватары с Cloudinary (`avatarUrl` = `https://res.cloudinary.com/...`). */
 function uploadsRemotePatterns(): NonNullable<NonNullable<NextConfig["images"]>["remotePatterns"]> {
@@ -129,4 +132,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withNextIntl(nextConfig)

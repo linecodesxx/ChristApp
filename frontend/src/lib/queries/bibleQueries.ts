@@ -1,5 +1,12 @@
 import { fetchBooks, fetchChapters, fetchFullChapter, fetchTranslations } from "@/lib/bibleApi"
 
+export type BibleTranslationItem = {
+  short_name: string
+  full_name: string
+  language: string
+  updated: number
+}
+
 /** Текст Библии и справочники статичны — без фоновых refetch при фокусе PWA. */
 export const BIBLE_STATIC_GC_TIME_MS = 1000 * 60 * 60 * 24 * 7
 
@@ -24,8 +31,8 @@ export function bibleChapterTextQueryKey(translation: string, bookId: string, ch
   return ["chapter", translation, bookId, chapter] as const
 }
 
-export async function fetchBibleTranslationsForQuery() {
-  return fetchTranslations()
+export async function fetchBibleTranslationsForQuery(): Promise<BibleTranslationItem[]> {
+  return fetchTranslations() as Promise<BibleTranslationItem[]>
 }
 
 export async function fetchBibleBooksForQuery(translation: string) {

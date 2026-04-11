@@ -33,9 +33,9 @@ export class UpdateProfileDto {
 
   @IsOptional()
   @IsString()
-  @Matches(/^(|inter|pastah|achiko|bodoni-moda|plus-jakarta-sans|cinzel)$/, {
-    message:
-      'Шрифт: inter, pastah, achiko, bodoni-moda, plus-jakarta-sans, cinzel или пусто',
+  @MaxLength(32)
+  @Matches(/^(|inter|achiko|bodoni-moda)$/, {
+    message: 'Шрифт: inter, achiko, bodoni-moda или пусто',
   })
   themeFontKey?: string;
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 import styles from "@/components/PwaInstallPrompt/PwaInstallPrompt.module.scss"
 
 type BeforeInstallPromptEvent = Event & {

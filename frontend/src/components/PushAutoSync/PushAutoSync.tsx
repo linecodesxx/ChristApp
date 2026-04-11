@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname } from "@/i18n/navigation"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { fetchPushStatus, isPushSupportedInBrowser, syncBrowserPushSubscription } from "@/lib/push"
 

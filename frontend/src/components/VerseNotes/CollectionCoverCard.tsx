@@ -1,4 +1,4 @@
-import Link from "next/link"
+import { Link } from "@/i18n/navigation"
 import { Heart, Lightbulb, BookOpen, Leaf, Quote } from "lucide-react"
 import type { VerseNotesCollectionMeta } from "@/lib/verseNotesCollections"
 import styles from "./CollectionCoverCard.module.scss"

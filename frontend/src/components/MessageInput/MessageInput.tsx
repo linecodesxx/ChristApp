@@ -1,5 +1,6 @@
 "use client"
 
+import { useTranslations } from "next-intl"
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
 import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from "react"
@@ -60,7 +61,7 @@ export default function MessageInput({
   onCancelReply,
   onCancelEdit,
   disabled = false,
-  placeholder = "Напиши сообщение...",
+  placeholder,
   onTypingActivity,
   onSendVoice,
   onSendImage,
@@ -68,6 +69,7 @@ export default function MessageInput({
   onSendSticker,
   onVoiceRecordingActivity,
 }: MessageInputProps) {
+  const t = useTranslations("chat")
   const tabBarOverlay = useTabBarOverlayOptional()
   const tabBarOverlayRef = useRef(tabBarOverlay)
   tabBarOverlayRef.current = tabBarOverlay
@@ -89,6 +91,7 @@ export default function MessageInput({
   const imageEnabled = Boolean(onSendImage)
   const filesEnabled = Boolean(onSelectFiles)
   const stickerEnabled = Boolean(onSendSticker)
+  const composerPlaceholder = placeholder ?? t("composerDefaultPlaceholder")
 
   useEffect(() => {
     return () => {
@@ -258,7 +261,7 @@ export default function MessageInput({
 
     const tooLarge = selectedFiles.find((file) => file.size > MAX_ATTACHMENT_SIZE_BYTES)
     if (tooLarge) {
-      window.alert(`Файл "${tooLarge.name}" превышает лимит 50MB.`)
+      window.alert(t("fileTooLarge", { name: tooLarge.name }))
       return
     }
 
@@ -273,7 +276,7 @@ export default function MessageInput({
 
     const firstImageFile = selectedFiles.find((file) => file.type.startsWith("image/"))
     if (!firstImageFile || !onSendImage) {
-      window.alert("Выберите файл изображения.")
+      window.alert(t("pickImageFile"))
       return
     }
     try {
@@ -316,7 +319,7 @@ export default function MessageInput({
       {editingMessage ? (
         <div className={styles.replyingTo}>
           <div className={styles.replyingToMeta}>
-            <span className={styles.replyingToLabel}>Редактирование сообщения</span>
+            <span className={styles.replyingToLabel}>{t("editingMessageBanner")}</span>
             <span className={styles.replyingToText}>
               {chatMessagePreview({
                 content: editingMessage.content,
@@ -328,7 +331,7 @@ export default function MessageInput({
           <button
             type="button"
             className={styles.replyingToClose}
-            aria-label="Отменить редактирование"
+            aria-label={t("cancelEditAria")}
             onClick={onCancelEdit}
           >
             ×
@@ -338,13 +341,15 @@ export default function MessageInput({
       {replyToMessage ? (
         <div className={styles.replyingTo}>
           <div className={styles.replyingToMeta}>
-            <span className={styles.replyingToLabel}>Ответ на {replyToMessage.username}</span>
+            <span className={styles.replyingToLabel}>
+              {t("replyToBanner", { name: replyToMessage.username })}
+            </span>
             <span className={styles.replyingToText}>{replyText}</span>
           </div>
           <button
             type="button"
             className={styles.replyingToClose}
-            aria-label="Отменить ответ"
+            aria-label={t("cancelReplyAria")}
             onClick={onCancelReply}
           >
             ×
@@ -367,8 +372,8 @@ export default function MessageInput({
         <button
           type="button"
           className={styles.iconButton}
-          aria-label="Прикрепить файл"
-          title={filesEnabled || imageEnabled ? "Прикрепить файлы" : "Скоро доступно"}
+          aria-label={t("attachFileAria")}
+          title={filesEnabled || imageEnabled ? t("attachFileTitle") : t("attachSoonTitle")}
           disabled={disabled || mode === "voice" || (!imageEnabled && !filesEnabled)}
           onClick={() => imageFileInputRef.current?.click()}
         >
@@ -408,9 +413,9 @@ export default function MessageInput({
             }}
             rows={1}
             maxLength={MAX_MESSAGE_LENGTH}
-            placeholder={placeholder}
+            placeholder={composerPlaceholder}
             className={styles.input}
-            aria-label="Сообщение"
+            aria-label={t("composerMessageAria")}
             readOnly={disabled || isSending}
           />
         )}
@@ -419,8 +424,8 @@ export default function MessageInput({
           <button
             type="button"
             className={styles.iconButton}
-            aria-label="Текстовое сообщение"
-            title="Клавиатура"
+            aria-label={t("composerMessageAria")}
+            title={t("composerKeyboardTitle")}
             onClick={backToTextMode}
             disabled={disabled}
           >
@@ -430,7 +435,7 @@ export default function MessageInput({
           <button
             type="button"
             className={`${styles.iconButton}${isSending ? ` ${styles.iconButtonSending}` : ""}`}
-            aria-label="Отправить сообщение"
+            aria-label={t("sendMessageAria")}
             aria-busy={isSending || undefined}
             onPointerDown={handleSendPointerDown}
             onClick={() => void submit()}
@@ -442,8 +447,8 @@ export default function MessageInput({
           <button
             type="button"
             className={styles.iconButton}
-            aria-label="Голосовое сообщение"
-            title="Голосовое"
+            aria-label={t("voiceMessageAria")}
+            title={t("voiceMessageTitle")}
             onClick={openVoiceMode}
             disabled={disabled}
           >
@@ -453,7 +458,7 @@ export default function MessageInput({
           <button
             type="button"
             className={`${styles.iconButton}${isSending ? ` ${styles.iconButtonSending}` : ""}`}
-            aria-label="Отправить сообщение"
+            aria-label={t("sendMessageAria")}
             aria-busy={isSending || undefined}
             onPointerDown={handleSendPointerDown}
             onClick={() => void submit()}
@@ -468,8 +473,8 @@ export default function MessageInput({
             <button
               type="button"
               className={styles.iconButton}
-              aria-label="Открыть стикеры"
-              title="Стикеры"
+              aria-label={t("openStickersAria")}
+              title={t("stickersTitle")}
               onClick={() => setIsStickerPickerOpen((prev) => !prev)}
               disabled={disabled || mode === "voice"}
             >

@@ -1,5 +1,7 @@
 "use client"
 
+import { useTranslations } from "next-intl"
+import { Link } from "@/i18n/navigation"
 import { useBackendWarmupStatus } from "@/hooks/useBackendWarmupStatus"
 import styles from "./LoginServerWarmupPanel.module.scss"
 
@@ -8,6 +10,7 @@ type LoginServerWarmupPanelProps = {
 }
 
 export default function LoginServerWarmupPanel({ enabled = true }: LoginServerWarmupPanelProps) {
+  const t = useTranslations("login")
   const { reachable, checking, elapsedLabel, hint, showPanel } = useBackendWarmupStatus(enabled)
 
   if (!showPanel) {
@@ -25,24 +28,26 @@ export default function LoginServerWarmupPanel({ enabled = true }: LoginServerWa
           className={`${styles.dot} ${checking ? styles.dotChecking : reachable === false ? styles.dotWarning : styles.dotNeutral}`}
           aria-hidden
         />
-        <p className={styles.title}>{checking ? "Подключаемся к серверу" : "Сервер запускается или недоступен"}</p>
+        <p className={styles.title}>
+          {checking ? t("warmupConnecting") : t("warmupUnavailable")}
+        </p>
       </div>
 
       {checking ? (
         <>
-          <p className={styles.body}>Проверяем связь с API. Обычно это занимает несколько секунд.</p>
-          <p className={styles.footer}>Не закрывайте страницу, проверка продолжается автоматически.</p>
+          <p className={styles.body}>{t("warmupCheckingBody")}</p>
+          <p className={styles.footer}>{t("warmupCheckingFooter")}</p>
         </>
       ) : (
         <>
           <p className={styles.body}>{hint}</p>
           <p className={styles.timer}>
-            Ждём ответа уже: <strong>{elapsedLabel}</strong>
+            {t("warmupWaitLabel")} <strong>{elapsedLabel}</strong>
           </p>
-          <p className={styles.footer}>Проверка повторяется автоматически каждые несколько секунд.</p>
-          <a href="/offline" className={styles.offlineLink}>
-            Открыть офлайн-экран
-          </a>
+          <p className={styles.footer}>{t("warmupRetryFooter")}</p>
+          <Link href="/offline" className={styles.offlineLink}>
+            {t("offlineScreen")}
+          </Link>
         </>
       )}
     </div>

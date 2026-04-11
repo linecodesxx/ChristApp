@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
-import { memo } from "react"
+import { AnimatePresence, motion } from "framer-motion"
+import { memo, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
 import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
-import { type Message, isMessageFromCurrentUser } from "@/types/message"
+import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useHydrated } from "@/hooks/useHydrated"
+import { useLongPress } from "@/hooks/useLongPress"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
@@ -24,9 +25,10 @@ type MessageBubbleProps = {
   onEdit?: (message: Message) => void
   canDeleteOwnMessage?: boolean
   showReadReceipt?: boolean
+  readReceiptUsers?: Array<{ id: string; avatarSrc?: string; label?: string }>
   readReceiptAvatarSrc?: string
   readReceiptLabel?: string
-  onToggleReaction?: (message: Message, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => void
+  onToggleReaction?: (message: Message, reaction: AppReactionType) => void
   onReplyPreviewClick?: (replyMessageId: string) => void
   resolveReactionAvatarUrl?: (userId: string) => string | undefined
   resolveReactionUserLabel?: (userId: string) => string | undefined
@@ -35,7 +37,7 @@ type MessageBubbleProps = {
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
-const REACTION_OPTIONS: Array<"🤍" | "😂" | "❤️" | "🔥" | "😊"> = ["🤍", "😂", "❤️", "🔥", "😊"]
+const REACTION_OPTIONS: AppReactionType[] = ["🤍", "😂", "❤️", "🔥", "😊", "😧", "🥲"]
 
 function MessageBubble({
   message,
@@ -48,6 +50,7 @@ function MessageBubble({
   onEdit,
   canDeleteOwnMessage = false,
   showReadReceipt = false,
+  readReceiptUsers = [],
   readReceiptAvatarSrc,
   readReceiptLabel = "Просмотрено",
   onToggleReaction,
@@ -58,7 +61,6 @@ function MessageBubble({
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
-  const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
 
@@ -83,15 +85,12 @@ function MessageBubble({
   const showAvatar = Boolean(avatarSrc || (onAvatarClick && message.senderId && !isOwnMessage))
 
   const reactionGroups = useMemo(() => {
-    const grouped = new Map<
-      "🤍" | "😂" | "❤️" | "🔥" | "😊",
-      { emoji: "🤍" | "😂" | "❤️" | "🔥" | "😊"; count: number; reactedByMe: boolean; latestUserId: string }
-    >()
+    const grouped = new Map<AppReactionType, { emoji: AppReactionType; count: number; reactedByMe: boolean; latestUserId: string }>()
     const currentUserId = currentUser?.id
     const allowed = new Set(REACTION_OPTIONS)
     for (const reaction of message.reactions ?? []) {
       if (!allowed.has(reaction.type)) continue
-      const emoji = reaction.type as "🤍" | "😂" | "❤️" | "🔥" | "😊"
+      const emoji = reaction.type as AppReactionType
       const existing = grouped.get(emoji)
       if (existing) {
         existing.count += 1
@@ -109,41 +108,43 @@ function MessageBubble({
       })
     }
     return REACTION_OPTIONS.map((emoji) => grouped.get(emoji)).filter(Boolean) as Array<{
-      emoji: "🤍" | "😂" | "❤️" | "🔥" | "😊"
+      emoji: AppReactionType
       count: number
       reactedByMe: boolean
       latestUserId: string
     }>
   }, [currentUser?.id, message.reactions])
 
-  useEffect(() => {
-    if (!isReactionPickerOpen) return
-    const handlePointerDownOutside = (event: MouseEvent | globalThis.MouseEvent | TouchEvent | globalThis.TouchEvent) => {
-      const target = event.target as Node | null
-      if (!target) return
-      if (reactionPickerRef.current?.contains(target)) return
-      setIsReactionPickerOpen(false)
+  const longPressHandlers = useLongPress<HTMLElement>(() => {
+    if (!onToggleReaction || isReactionPickerOpen) return
+
+    skipNextClickRef.current = true
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(50)
     }
-    document.addEventListener("mousedown", handlePointerDownOutside)
-    document.addEventListener("touchstart", handlePointerDownOutside)
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDownOutside)
-      document.removeEventListener("touchstart", handlePointerDownOutside)
-    }
-  }, [isReactionPickerOpen])
+    setIsReactionPickerOpen(true)
+  })
 
   const handleReplyIntent = () => {
     onReply?.(message)
   }
 
   const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    longPressHandlers.onTouchStart(event)
+
     const firstTouch = event.touches[0]
     if (!firstTouch) return
 
     touchStartRef.current = { x: firstTouch.clientX, y: firstTouch.clientY }
   }
 
+  const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
+    longPressHandlers.onTouchMove(event)
+  }
+
   const handleTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    longPressHandlers.onTouchEnd(event)
+
     const start = touchStartRef.current
     touchStartRef.current = null
     if (!start) return
@@ -159,6 +160,11 @@ function MessageBubble({
       skipNextClickRef.current = true
       handleReplyIntent()
     }
+  }
+
+  const handleTouchCancel = (event: TouchEvent<HTMLElement>) => {
+    longPressHandlers.onTouchCancel(event)
+    touchStartRef.current = null
   }
 
   const handleClick = () => {
@@ -180,7 +186,12 @@ function MessageBubble({
     setIsReactionPickerOpen((prev) => !prev)
   }
 
-  const handleReactionClick = (event: MouseEvent<HTMLButtonElement>, reaction: "🤍" | "😂" | "❤️" | "🔥" | "😊") => {
+  const handleReactionPickerClose = (event: MouseEvent<HTMLElement>) => {
+    event.stopPropagation()
+    setIsReactionPickerOpen(false)
+  }
+
+  const handleReactionClick = (event: MouseEvent<HTMLButtonElement>, reaction: AppReactionType) => {
     event.stopPropagation()
     onToggleReaction?.(message, reaction)
     setIsReactionPickerOpen(false)
@@ -205,7 +216,14 @@ function MessageBubble({
     }
   }
 
-  const articleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`
+  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`
+  const interactiveBubbleProps = {
+    onClick: handleClick,
+    onTouchStart: handleTouchStart,
+    onTouchMove: handleTouchMove,
+    onTouchEnd: handleTouchEnd,
+    onTouchCancel: handleTouchCancel,
+  }
 
   const bubbleBody = (
     <>
@@ -328,7 +346,7 @@ function MessageBubble({
           {message.isEdited ? " · изменено" : ""}
         </span>
         {onToggleReaction ? (
-          <div className={styles.reactionAnchor} ref={reactionPickerRef}>
+          <div className={styles.reactionAnchor}>
             <button
               type="button"
               className={styles.reactionTrigger}
@@ -338,21 +356,44 @@ function MessageBubble({
             >
               +
             </button>
-            {isReactionPickerOpen ? (
-              <div className={styles.reactionPicker}>
-                {REACTION_OPTIONS.map((emoji) => (
-                  <button
-                    key={emoji}
+            <AnimatePresence>
+              {isReactionPickerOpen ? (
+                <>
+                  <motion.button
+                    key="reaction-overlay"
                     type="button"
-                    className={styles.emojiButton}
-                    onClick={(event) => handleReactionClick(event, emoji)}
-                    aria-label={`Реакция ${emoji}`}
+                    className={styles.reactionOverlay}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.16, ease: "easeOut" }}
+                    onClick={handleReactionPickerClose}
+                    aria-label="Закрыть панель реакций"
+                  />
+                  <motion.div
+                    key="reaction-picker"
+                    className={styles.reactionPicker}
+                    initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                    transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.72 }}
+                    onClick={(event) => event.stopPropagation()}
                   >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            ) : null}
+                    {REACTION_OPTIONS.map((emoji) => (
+                      <button
+                        key={emoji}
+                        type="button"
+                        className={styles.emojiButton}
+                        onClick={(event) => handleReactionClick(event, emoji)}
+                        aria-label={`Реакция ${emoji}`}
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              ) : null}
+            </AnimatePresence>
           </div>
         ) : null}
       </div>
@@ -387,18 +428,44 @@ function MessageBubble({
       ) : null}
       {isOwnMessage && showReadReceipt ? (
         <div className={styles.readReceiptRow} aria-label={readReceiptLabel}>
-          <AvatarWithFallback
-            src={readReceiptAvatarSrc}
-            initials="•"
-            colorSeed={message.id}
-            width={12}
-            height={12}
-            imageClassName={styles.readReceiptAvatarImg}
-            fallbackClassName={styles.readReceiptAvatarFallback}
-            fallbackTag="span"
-            fallbackTint="onError"
-          />
-          <span className={styles.readReceiptText}>{readReceiptLabel}</span>
+          {readReceiptUsers.length > 0 ? (
+            <>
+              <span className={styles.readReceiptAvatarStack}>
+                {readReceiptUsers.slice(0, 3).map((reader) => (
+                  <AvatarWithFallback
+                    key={reader.id}
+                    src={reader.avatarSrc}
+                    initials={getInitials(reader.label ?? "U")}
+                    colorSeed={reader.id}
+                    width={12}
+                    height={12}
+                    imageClassName={styles.readReceiptAvatarImg}
+                    fallbackClassName={styles.readReceiptAvatarFallback}
+                    fallbackTag="span"
+                    fallbackTint="onError"
+                  />
+                ))}
+              </span>
+              <span className={styles.readReceiptText}>
+                {readReceiptUsers.length === 1 ? readReceiptLabel : String(readReceiptUsers.length)}
+              </span>
+            </>
+          ) : (
+            <>
+              <AvatarWithFallback
+                src={readReceiptAvatarSrc}
+                initials="•"
+                colorSeed={message.id}
+                width={12}
+                height={12}
+                imageClassName={styles.readReceiptAvatarImg}
+                fallbackClassName={styles.readReceiptAvatarFallback}
+                fallbackTag="span"
+                fallbackTint="onError"
+              />
+              <span className={styles.readReceiptText}>{readReceiptLabel}</span>
+            </>
+          )}
         </div>
       ) : null}
     </>
@@ -406,7 +473,7 @@ function MessageBubble({
 
   if (isOwnMessage) {
     return (
-      <article className={articleClassName} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <article className={bubbleClassName} {...interactiveBubbleProps}>
         {bubbleBody}
       </article>
     )
@@ -414,7 +481,7 @@ function MessageBubble({
 
   if (showAvatar) {
     return (
-      <article className={styles.row} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+      <article className={styles.row}>
         <button
           type="button"
           className={styles.avatarBtn}
@@ -433,13 +500,15 @@ function MessageBubble({
             fallbackTint="onError"
           />
         </button>
-        <div className={bubble}>{bubbleBody}</div>
+        <div className={bubbleClassName} {...interactiveBubbleProps}>
+          {bubbleBody}
+        </div>
       </article>
     )
   }
 
   return (
-    <article className={articleClassName} onClick={handleClick} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
+    <article className={bubbleClassName} {...interactiveBubbleProps}>
       {bubbleBody}
     </article>
   )
