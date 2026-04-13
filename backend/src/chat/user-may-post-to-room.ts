@@ -2,7 +2,7 @@ import type { PrismaService } from 'src/prisma/prisma.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
 import { userMayAccessRoomByTitle } from 'src/chat/room-access.util';
 
-/** Пользователь может отправлять сообщения в комнату (общий чат или участник с доступом по title). */
+/** Користувач може надсилати повідомлення в кімнату (загальний чат або учасник з доступом за title). */
 export async function canUserPostToRoom(
   prisma: PrismaService,
   userId: string,

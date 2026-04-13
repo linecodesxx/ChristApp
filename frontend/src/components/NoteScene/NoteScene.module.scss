@@ -1,10 +1,10 @@
-/* Ancient Parchment scene — визуал отделён от логики в NoteScene.tsx */
+/* Ancient Parchment scene — візуал відділено від логіки в NoteScene.tsx */
 
 .root {
   --note-ink: #2c2c2c;
   --note-parchment-base: #e8dcc4;
   --note-parchment-mid: #dcc9a8;
-  /* Свет свечи слева */
+  /* Світло свічки ліворуч */
   --note-candle-light: #f7e2b1;
 
   position: fixed;
@@ -33,7 +33,7 @@
 }
 
 /*
- * Фон (снизу вверх): тёмная база поверх приложения → тёплое боке → размытие (backdrop-filter).
+ * Фон (знизу вгору): темна база поверх застосунку → тепле боке → розмиття (backdrop-filter).
  */
 .backdropStack {
   position: absolute;
@@ -80,7 +80,7 @@
   inset: 0;
   backdrop-filter: blur(48px) saturate(1.45);
   -webkit-backdrop-filter: blur(48px) saturate(1.45);
-  /* Лёгкая вуаль поверх тёмного слоя — усиливает глубину, блюр всё ещё «стекает» снизу */
+  /* Легка вуаль поверх темного шару — підсилює глибину, блюр все ще «стікає» знизу */
   background: rgba(8, 6, 5, 0.12);
 }
 
@@ -105,7 +105,7 @@
   overflow: visible;
 }
 
-/* Пергамент забирал 80% ширины и не сжимался — вместе со свечой (150px) ряд не помещался,
+/* Пергамент забирав 80% ширини і не стискався — разом зі свічкою (150px) ряд не вміщався,
    flex центрировал группу и свеча оказывалась за левым краем экрана. */
 .parchmentColumn {
   display: flex;

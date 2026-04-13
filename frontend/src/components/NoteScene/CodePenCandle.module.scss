@@ -1,7 +1,7 @@
 /**
- * Свеча по мотивам pure CSS candle (структура как в CodePen Takuma_BMe / BaVdNLK):
+ * Свічка за мотивами pure CSS candle (структура як у CodePen Takuma_BMe / BaVdNLK):
  * holder → candle → blinking-glow, thread, glow, flame.
- * Размеры в «дизайн-пространстве» 150×300, затем scale снизу вверх.
+ * Розміри в «дизайн-просторі» 150×300, далі scale знизу вгору.
  */
 
 .holder {
@@ -117,7 +117,7 @@
   top: -48px;
   transform: translateX(-50%);
   border-radius: 50% 50% 35% 35%;
-  /* В оригинале был холодный синий — здесь только тёплый янтарь */
+  /* В оригіналі був холодний синій — тут лише теплий бурштин */
   background: rgba(255, 140, 40, 0.45);
   box-shadow:
     0 -40px 30px 0 #dc8a0c,
@@ -149,7 +149,7 @@
   background: #ff6000;
   filter: blur(50px);
   opacity: 0.85;
-  /* В CodePen — очень быстрый blinkIt; для сцены заметок — мягкое «дыхание» */
+  /* У CodePen — дуже швидкий blinkIt; для сцени нотаток — м'яке «дихання» */
   animation: codepenCandleBreatheGlow 3.2s ease-in-out infinite;
 }
 
@@ -188,7 +188,7 @@
   }
 }
 
-/* Мягкое мерцание: только opacity у тела пламени (transform занят другими keyframes). */
+/* М'яке мерехтіння: лише opacity у тіла полум'я (transform зайнятий іншими keyframes). */
 @keyframes codepenCandleFlicker {
   0%,
   100% {
@@ -208,7 +208,7 @@
   }
 }
 
-/* Лёгкое «дыхание» размера внутри пламени. */
+/* Легке «дихання» розміру всередині полум'я. */
 @keyframes codepenCandleFlickerCore {
   0%,
   100% {

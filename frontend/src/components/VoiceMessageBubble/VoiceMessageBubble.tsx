@@ -13,7 +13,7 @@ type VoiceMessageComponentProps = {
 }
 
 /**
- * Формирует время в формате MM:SS
+ * Формує час у форматі MM:SS
  */
 function formatDuration(seconds: number): string {
   const mins = Math.floor(seconds / 60)

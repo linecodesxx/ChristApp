@@ -10,7 +10,7 @@
   .header {
     position: relative;
 
-    /* Одна карточка: заголовок «Профиль» + язык (слева от шестерёнки) + шестерёнка */
+    /* Одна картка: заголовок «Профіль» + мова (ліворуч від шестерні) + шестерня */
     .profileHeaderBar {
       display: flex;
       align-items: center;
@@ -277,7 +277,7 @@
     border-radius: 12px;
     border: 1px solid var(--line-soft);
     background: var(--surface-elevated);
-    /* Achiko часто без кириллицы — форма редактирования остаётся на Inter. */
+    /* Achiko часто без кирилиці — форма редагування лишається на Inter. */
     font-family: var(--font-inter), "Inter", system-ui, sans-serif;
   }
 
@@ -456,7 +456,7 @@
       }
     }
 
-    /* Подписи «Серия дней» / «Хранитель стихов» = карточка глав (.subtitle): один размер на мобиле и десктопе. */
+    /* Підписи «Серія днів» / «Хранитель віршів» = картка глав (.subtitle): один розмір на мобільному й десктопі. */
     .item p.statCardLabel {
       max-width: none;
       min-height: 3.2em;
@@ -529,7 +529,7 @@
       text-align: center;
       text-decoration: none;
       -webkit-tap-highlight-color: transparent;
-      /* Как у карточки — иначе hover-фон даёт «вложенный прямоугольник» с острыми углами */
+      /* Як у картки — інакше hover-фон дає «вкладений прямокутник» з гострими кутами */
       border-radius: inherit;
 
       &:focus-visible {
@@ -736,7 +736,7 @@
         }
       }
 
-      /* Десктоп: как у подписи «Главы» (.list .item p = 12px), без урезания statCardLabel. */
+      /* Десктоп: як у підпису «Глави» (.list .item p = 12px), без урізання statCardLabel. */
       .item p.statCardLabel {
         min-height: 2.2em;
         font-size: 10px;

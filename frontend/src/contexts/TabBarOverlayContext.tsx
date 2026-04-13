@@ -29,7 +29,7 @@ export function useTabBarOverlay() {
   return ctx
 }
 
-/** Для TabBar и разметки вне обязательного провайдера (например тесты). */
+/** Для TabBar і розмітки поза обов'язковим провайдером (наприклад, тести). */
 export function useTabBarOverlayOptional(): TabBarOverlayContextValue | null {
   return useContext(TabBarOverlayContext)
 }

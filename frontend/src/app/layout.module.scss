@@ -1,5 +1,5 @@
-/* Таб фиксирован (TabBar): bottom 12px + min-height ~80px + padding — итого ~92px; небольшой зазор до контента. */
-/* 40px — суммарные вертикальные отступы body (globals). display:flex — дочерние экраны могут flex:1 и заполнять высоту без дыры над табом. */
+/* Таб зафіксований (TabBar): bottom 12px + min-height ~80px + padding — разом ~92px; невеликий відступ до контенту. */
+/* 40px — сумарні вертикальні відступи body (globals). display:flex — дочірні екрани можуть мати flex:1 і заповнювати висоту без дірки над табом. */
 .main {
   box-sizing: border-box;
   width: 100%;
@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
 
-  /* Резерв под фиксированный island-tabbar (80px высота + 12px bottom + воздух). */
+  /* Резерв під фіксований island-tabbar (80px висота + 12px bottom + повітря). */
   @media (min-width: 768px) {
     padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
@@ -19,13 +19,13 @@
   }
 }
 
-/* Offline-экран: без desktop-ограничения ширины контейнера. */
+/* Offline-екран: без desktop-обмеження ширини контейнера. */
 .mainOffline {
   max-width: none;
   margin: 0;
 }
 
-/* Когда открыт ввод в чате, нижний таб скрыт — не резервируем под него место. */
+/* Коли відкрито введення в чаті, нижній таб прихований — не резервуємо під нього місце. */
 .mainComposerFocused {
   height: calc(100svh - 0px);
   height: calc(100dvh - 0px);
@@ -36,12 +36,12 @@
   }
 }
 
-/* Открыта комната чата: TabBar скрыт — убираем запас снизу под таб. */
+/* Відкрита кімната чату: TabBar прихований — прибираємо запас знизу під таб. */
 .mainChatRoom {
   padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
 
   @media (max-width: 1023px) {
-    /* С body.chatRoomPage без нижнего padding: только верх 10px. */
+    /* З body.chatRoomPage без нижнього padding: лише верх 10px. */
     height: calc(100svh - 10px);
     padding-bottom: 0;
   }

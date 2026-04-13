@@ -34,7 +34,7 @@ export default function TabBar() {
   const tabBarOverlay = useTabBarOverlayOptional()
   const narrowForChatComposer = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const [authEpoch, setAuthEpoch] = useState(0)
-  /** Токен в localStorage недоступен на SSR — иначе число вкладок и active-иконка не совпадают с клиентом (hydration error). */
+  /** Токен у localStorage недоступний на SSR — інакше кількість вкладок і active-іконка не збігаються з клієнтом (hydration error). */
   const [tabBarClientReady, setTabBarClientReady] = useState(false)
 
   const token = getAuthToken()
@@ -62,7 +62,7 @@ export default function TabBar() {
   }, [queryClient, userId])
 
   const hiddenRoutes = ["/", "/register", "/offline"]
-  /** Список чатов — таб виден; открытая комната — таб скрыт, больше места под переписку. */
+  /** Список чатів — таб видимий; відкрита кімната — таб прихований, більше місця під листування. */
   const hideOnActiveChatRoom = pathname.startsWith("/chat/")
   const shouldHideTabBar =
     hideOnActiveChatRoom || hiddenRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`))

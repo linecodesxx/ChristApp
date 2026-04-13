@@ -1,7 +1,7 @@
 import { getHttpApiBase } from "@/lib/apiBase"
 import { apiFetch } from "@/lib/apiFetch"
 
-/** Без завершающего `/`, иначе получится `//push/...` и часть прокси отдаёт 404/500. */
+/** Без завершального `/`, інакше вийде `//push/...` і частина проксі віддає 404/500. */
 const API_URL = getHttpApiBase().replace(/\/+$/, "")
 
 export type PushServerStatus = {

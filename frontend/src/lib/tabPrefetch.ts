@@ -24,7 +24,7 @@ import {
 import { fetchSavedVersesForQuery, savedVersesQueryKey } from "@/lib/queries/versesQueries"
 import { fetchUsersDirectory, usersDirectoryQueryKey } from "@/lib/queries/usersQueries"
 
-/** Prefetch при наведении на таб «Чат». */
+/** Prefetch при наведенні на таб «Чат». */
 export function prefetchTabChatData(queryClient: QueryClient) {
   const token = getAuthToken()
   if (!token) return
@@ -44,7 +44,7 @@ export function prefetchTabChatData(queryClient: QueryClient) {
   })
 }
 
-/** Prefetch при наведении на таб «Профиль». */
+/** Prefetch при наведенні на таб «Профіль». */
 export function prefetchTabProfileData(queryClient: QueryClient) {
   const token = getAuthToken()
   if (!token) return
@@ -65,7 +65,7 @@ export function prefetchTabProfileData(queryClient: QueryClient) {
 }
 
 /**
- * Prefetch Библии до перехода на таб: переводы, список книг, список глав и текст главы
+ * Prefetch Біблії до переходу на таб: переклади, список книг, список глав і текст глави
  * (ключи совпадают с BibleReader / bibleQueries).
  */
 export function prefetchTabBibleData(queryClient: QueryClient, localeHint?: string) {
@@ -101,7 +101,7 @@ export function prefetchTabBibleData(queryClient: QueryClient, localeHint?: stri
               chapter = Number(parsed.chapter) || 1
             }
           } catch {
-            // ignore invalid JSON
+            // ігноруємо невалідний JSON
           }
 
           const books = queryClient.getQueryData<Array<{ id: string }>>(bibleBooksQueryKey(translation))

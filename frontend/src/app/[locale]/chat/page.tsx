@@ -114,7 +114,7 @@ function createDirectRoomItem({
   }
 }
 
-/** Порядок: «Поделись с Иисусом» → общий чат → личные (по lastActivityAt, новые сверху). */
+/** Порядок: «Поділися з Ісусом» → загальний чат → приватні (за lastActivityAt, нові зверху). */
 function orderChatListRows(rooms: ChatListItem[], sortLocale: string): ChatListItem[] {
   const shareWithJesusRoom = rooms.find((room) => room.id === SHARE_WITH_JESUS_CHAT_ID)
   const globalRoom = rooms.find((room) => room.id === GLOBAL_ROOM_ID)
@@ -237,7 +237,7 @@ function areSetsEqual(leftSet: Set<string>, rightSet: Set<string>) {
   return true
 }
 
-/** Сравнение времени последней активности по миллисекундам (разные ISO-строки одного момента не дают ложного обновления). */
+/** Порівняння часу останньої активності за мілісекундами (різні ISO-рядки одного моменту не дають хибного оновлення). */
 function lastActivityInstantMs(value: string | null | undefined): number | null {
   if (value == null || value === "") {
     return null
@@ -278,12 +278,12 @@ function formatChatTimeLabel(createdAt: string) {
   })
 }
 
-/** Единый ключ для сопоставления roomId из API и ref (Postgres/Prisma иногда отдают UUID в другом регистре). */
+/** Єдиний ключ для зіставлення roomId з API і ref (Postgres/Prisma інколи віддають UUID в іншому регістрі). */
 function summaryRoomKey(roomId: string): string {
   return roomId.trim().toLowerCase()
 }
 
-/** Нормализация id для маппинга «собеседник в списке ↔ roomId на сервере» (dm:title и JWT могут отличаться регистром). */
+/** Нормалізація id для мапінгу «співрозмовник у списку ↔ roomId на сервері» (dm:title і JWT можуть відрізнятися регістром). */
 function canonicalChatUuidKey(id: string): string {
   return summaryRoomKey(id)
 }
@@ -393,7 +393,7 @@ export default function ChatPage() {
   const [rooms, setRooms] = useState<ChatListItem[]>(() => [createGlobalChatItem(GLOBAL_CHAT_TITLE)])
   const [hasReceivedMyRooms, setHasReceivedMyRooms] = useState(false)
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set())
-  // Эти refs нужны socket listeners, чтобы всегда читать актуальное состояние между рендерами.
+  // Ці refs потрібні socket listeners, щоб завжди читати актуальний стан між рендерами.
   const roomsRef = useRef<ChatListItem[]>([createGlobalChatItem(GLOBAL_CHAT_TITLE)])
   const usersRef = useRef(users)
   const onlineUserIdsRef = useRef<Set<string>>(new Set())
@@ -424,7 +424,7 @@ export default function ChatPage() {
           return room
         }
 
-        // В списке id личного чата = userId собеседника; onlineUserIds с сокета могут отличаться регистром UUID.
+        // У списку id приватного чату = userId співрозмовника; onlineUserIds із сокета можуть відрізнятися регістром UUID.
         const isOnline =
           nextOnlineIds.has(room.id) || nextOnlineIds.has(canonicalChatUuidKey(room.id))
         if (room.isOnline === isOnline) {
@@ -685,7 +685,7 @@ export default function ChatPage() {
     void refreshUnreadSummary()
   }, [refreshUnreadSummary, user?.id])
 
-  /** Повторный запрос сводки после появления маппинга userId ↔ roomId (устраняет гонку с первым fetch). */
+  /** Повторний запит зведення після появи мапінгу userId ↔ roomId (усуває гонку з першим fetch). */
   useEffect(() => {
     const size = directUserIdToRoomIdRef.current.size
     if (size === lastDirectMapSizeRef.current) {
@@ -806,7 +806,7 @@ export default function ChatPage() {
       currentUserIdRef.current = getUserIdFromJwt(token)
     }
 
-    /** Только запрос списка комнат; сводку непрочитанных обновляет `myRooms` (иначе двойной fetch и дёрганье порядка). */
+    /** Лише запит списку кімнат; зведення непрочитаного оновлює `myRooms` (інакше подвійний fetch і смикання порядку). */
     const syncRoomsFromServer = () => {
       requestMyRooms(socket)
     }
@@ -886,7 +886,7 @@ export default function ChatPage() {
                 titleLoading,
                 previous,
                 isOnline: onlineUserIdsRef.current.has(targetUserId),
-                /** Не затирать время последнего сообщения датой создания комнаты — иначе список прыгает до прихода unread-summary. */
+                /** Не перезаписувати час останнього повідомлення датою створення кімнати — інакше список стрибає до приходу unread-summary. */
                 lastActivityAt: previous?.lastActivityAt ?? room.createdAt,
                 avatarUrl: resolvedAvatarUrl,
               }),

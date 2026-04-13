@@ -7,7 +7,7 @@ export type BibleTranslationItem = {
   updated: number
 }
 
-/** Текст Библии и справочники статичны — без фоновых refetch при фокусе PWA. */
+/** Текст Біблії та довідники статичні — без фонових refetch при фокусі PWA. */
 export const BIBLE_STATIC_GC_TIME_MS = 1000 * 60 * 60 * 24 * 7
 
 export const bibleStaticQueryOptions = {

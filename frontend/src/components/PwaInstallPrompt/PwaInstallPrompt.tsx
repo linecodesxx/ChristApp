@@ -62,7 +62,7 @@ export default function PwaInstallPrompt() {
     try {
       localStorage.setItem(IOS_DISMISS_KEY, JSON.stringify({ at: Date.now() }))
     } catch {
-      /* ignore */
+      /* ігноруємо */
     }
     resetSheet()
   }, [resetSheet])
@@ -116,7 +116,7 @@ export default function PwaInstallPrompt() {
       await ev.prompt()
       await ev.userChoice
     } catch {
-      /* ignore */
+      /* ігноруємо */
     }
     abortChromiumInstall()
   }, [abortChromiumInstall])

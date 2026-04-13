@@ -1,13 +1,13 @@
-/** Синхронно с BibleReader / prefetch таба «Библия». */
+/** Синхронно з BibleReader / prefetch таба «Біблія». */
 export const BIBLE_LAST_READ_STORAGE_KEY = "lastRead"
 
-/** Уникальные ключи «книга|глава», засчитанные после дочитывания до конца. */
+/** Унікальні ключі «книга|глава», зараховані після дочитування до кінця. */
 export const BIBLE_READ_CHAPTERS_STORAGE_KEY = "bibleReadChaptersV1"
 
-/** Событие на том же окне (storage не срабатывает в той же вкладке). */
+/** Подія в тому ж вікні (storage не спрацьовує в тій самій вкладці). */
 export const BIBLE_READING_PROGRESS_CHANGED_EVENT = "christapp:bible-reading-progress"
 
-/** Протестантский канон, всего глав (для кольца и «осталось до круга»). */
+/** Протестантський канон, усього глав (для кільця й «залишилось до кола»). */
 export const TOTAL_BIBLE_CHAPTERS = 1189
 
 export type BibleLastRead = {

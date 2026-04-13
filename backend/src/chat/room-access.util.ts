@@ -1,9 +1,9 @@
-/** Префикс комнаты «Поделись с Иисусом» (title = share-with-jesus:{ownerUserId}). */
+/** Префікс кімнати «Поділися з Ісусом» (title = share-with-jesus:{ownerUserId}). */
 export const SHARE_WITH_JESUS_ROOM_PREFIX = 'share-with-jesus:';
 
 /**
- * Доступ к комнате по title: для dm: и share-with-jesus: — только «законные» userId.
- * Остальные комнаты: достаточно membership (проверяется отдельно).
+ * Доступ до кімнати за title: для dm: і share-with-jesus: — лише «валідні» userId.
+ * Для інших кімнат достатньо membership (перевіряється окремо).
  */
 export function userMayAccessRoomByTitle(userId: string, title: string): boolean {
   if (title.startsWith('dm:')) {

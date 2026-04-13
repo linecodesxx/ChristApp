@@ -61,7 +61,7 @@ export class CloudinaryService {
     });
   }
 
-  /** Картинки в чат (папка `christapp/chat-images`). */
+  /** Зображення в чат (папка `christapp/chat-images`). */
   async uploadChatImage(buffer: Buffer): Promise<string> {
     if (!this.ready) {
       throw new Error('Cloudinary is not configured');
@@ -97,8 +97,8 @@ export class CloudinaryService {
   }
 
   /**
-   * Аватар: один ресурс на пользователя (public_id = userId), перезапись при новой загрузке.
-   * В БД сохраняется только secure_url.
+  * Аватар: один ресурс на користувача (public_id = userId), перезапис при новому завантаженні.
+  * У БД зберігається лише secure_url.
    */
   async uploadUserAvatar(buffer: Buffer, userId: string): Promise<string> {
     if (!this.ready) {

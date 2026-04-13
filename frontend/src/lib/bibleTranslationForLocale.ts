@@ -2,7 +2,7 @@ import type { BibleTranslationItem } from "@/lib/queries/bibleQueries"
 
 const APP_LOCALES = new Set(["en", "ru", "ua"])
 
-/** Первая сегмент-папка в пути: /en/bible → en */
+/** Перша сегмент-папка в шляху: /en/bible → en */
 export function getAppLocaleFromPathname(pathname: string): string {
   const seg = pathname.split("/").filter(Boolean)[0] ?? ""
   return APP_LOCALES.has(seg) ? seg : "ru"
@@ -16,8 +16,8 @@ export function getAppLocaleFromWindow(): string {
 }
 
 /**
- * Подбирает short_name перевода по языку интерфейса (список с /bible/get-languages).
- * При пустом списке — консервативные коды из env или NRT/WEB.
+ * Підбирає short_name перекладу за мовою інтерфейсу (список з /bible/get-languages).
+ * За порожнього списку — консервативні коди з env або NRT/WEB.
  */
 export function pickTranslationShortName(
   translations: BibleTranslationItem[],

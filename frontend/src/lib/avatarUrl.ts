@@ -1,6 +1,6 @@
 import { getHttpApiBase } from "@/lib/apiBase"
 
-/** Публичный URL картинки аватара (относительный путь с API или абсолютный). */
+/** Публічний URL зображення аватара (відносний шлях з API або абсолютний). */
 export function resolvePublicAvatarUrl(avatarUrl: string | null | undefined): string | undefined {
   if (avatarUrl == null) return undefined
   const raw = String(avatarUrl).trim()

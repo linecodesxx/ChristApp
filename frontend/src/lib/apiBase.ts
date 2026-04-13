@@ -1,10 +1,10 @@
 const PROXY_PATH = "/api/nest"
 
 /**
- * База для HTTP к Nest (fetch из браузера).
- * Рекомендуется: в каждой среде задать `NEXT_PUBLIC_API_URL` (локально `http://localhost:3001`,
- * на проде `https://api...`) и настроить `CORS_ORIGIN` на бэкенде под origin фронта.
- * Если переменная не задана — относительный `/api/nest` (прокси в `next.config`, CORS для fetch не нужен).
+ * База для HTTP до Nest (fetch із браузера).
+ * Рекомендовано: у кожному середовищі задати `NEXT_PUBLIC_API_URL` (локально `http://localhost:3001`,
+ * на проді `https://api...`) і налаштувати `CORS_ORIGIN` на бекенді під origin фронтенду.
+ * Якщо змінну не задано — відносний `/api/nest` (проксі у `next.config`, CORS для fetch не потрібен).
  */
 export function getHttpApiBase(): string {
   const explicit = process.env.NEXT_PUBLIC_API_URL?.trim()
@@ -15,8 +15,8 @@ export function getHttpApiBase(): string {
 }
 
 /**
- * Реальный хост Nest: WebSocket (Socket.io) и случаи, когда нужен абсолютный origin.
- * При прокси HTTP задайте `NEXT_PUBLIC_WS_URL`, если API не на 127.0.0.1:3001.
+ * Реальний хост Nest: WebSocket (Socket.io) і випадки, коли потрібен абсолютний origin.
+ * При HTTP-проксі задайте `NEXT_PUBLIC_WS_URL`, якщо API не на 127.0.0.1:3001.
  */
 export function getDirectApiOrigin(): string {
   const ws = process.env.NEXT_PUBLIC_WS_URL?.trim()

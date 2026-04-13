@@ -65,7 +65,7 @@
         min-width: 0;
       }
 
-      /* Весь стих: номер + текст; выбрано, цвет ещё не задан */
+      /* Увесь вірш: номер + текст; вибрано, колір ще не задано */
       .selectionRing {
         display: inline-flex;
         align-items: baseline;
@@ -80,7 +80,7 @@
         box-sizing: border-box;
       }
 
-      /* После выбора цвета в плашке (или из localStorage) */
+      /* Після вибору кольору в плашці (або з localStorage) */
       .painted {
         display: inline-flex;
         align-items: baseline;
@@ -110,7 +110,7 @@
     .inlineActions {
       position: fixed;
       left: 50%;
-      /* Выше фиксированного TabBar (~96px + safe-area из layout.module.scss) */
+      /* Вище зафіксованого TabBar (~96px + safe-area з layout.module.scss) */
       bottom: calc(128px + env(safe-area-inset-bottom, 0px));
       transform: translateX(-50%);
       z-index: 160;

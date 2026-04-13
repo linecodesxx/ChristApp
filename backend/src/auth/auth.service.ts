@@ -28,6 +28,8 @@ const USER_SAFE_SELECT = {
   themeFontKey: true,
 } as const;
 
+const REFRESH_TOKEN_TTL_DAYS = 30;
+
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -49,9 +51,13 @@ export class AuthService {
     this.accessExpiresIn =
       this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
     const daysRaw = this.config.get<string>('JWT_REFRESH_DAYS')?.trim();
-    const days = daysRaw ? Number.parseInt(daysRaw, 10) : 90;
+    const days = daysRaw ? Number.parseInt(daysRaw, 10) : REFRESH_TOKEN_TTL_DAYS;
     this.refreshTtlMs =
-      (Number.isFinite(days) && days > 0 ? days : 90) * 24 * 60 * 60 * 1000;
+      (Number.isFinite(days) && days > 0 ? days : REFRESH_TOKEN_TTL_DAYS) *
+      24 *
+      60 *
+      60 *
+      1000;
   }
 
   private isCookieSecure(): boolean {

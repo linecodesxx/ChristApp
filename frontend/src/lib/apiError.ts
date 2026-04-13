@@ -25,7 +25,7 @@ export function getApiErrorMessage(payload: unknown, fallback: string): string {
   return fallback
 }
 
-/** Разбор тела ответа после `await res.text()` (один раз читает body). */
+/** Розбір тіла відповіді після `await res.text()` (один раз читає body). */
 export function messageFromApiResponseBody(responseText: string, httpStatus: number, fallback: string): string {
   const trimmed = responseText.trim()
   if (!trimmed) {
@@ -56,7 +56,7 @@ export function messageFromApiResponseBody(responseText: string, httpStatus: num
 }
 
 /**
- * Сообщение для TypeError «Failed to fetch» и сетевых сбоев (без тела ответа от API).
+ * Повідомлення для TypeError «Failed to fetch» і мережевих збоїв (без тіла відповіді від API).
  */
 export function getNetworkFailureHint(err: unknown): string {
   if (err instanceof DOMException && err.name === "AbortError") {

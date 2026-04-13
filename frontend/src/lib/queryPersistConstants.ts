@@ -1,4 +1,4 @@
-/** Ключ localStorage для TanStack Query Persist (сбрасывать при logout). */
+/** Ключ localStorage для TanStack Query Persist (скидати при logout). */
 export const REACT_QUERY_PERSIST_KEY = "CHRISTAPP_RQ_CACHE_V2"
 
 export function clearPersistedReactQueryCache() {
@@ -6,6 +6,6 @@ export function clearPersistedReactQueryCache() {
     if (typeof window === "undefined") return
     window.localStorage.removeItem(REACT_QUERY_PERSIST_KEY)
   } catch {
-    // ignore
+    // ігноруємо
   }
 }

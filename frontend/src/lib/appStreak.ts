@@ -45,13 +45,13 @@ function writeState(state: StreakState) {
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
   } catch {
-    // ignore quota / private mode
+    // ігноруємо quota / private mode
   }
 }
 
 /**
- * Вызывать после авторизации (можно несколько раз за сессию — инкремент не чаще раза в календарный день).
- * Возвращает актуальное значение серии после записи.
+ * Викликати після авторизації (можна кілька разів за сесію — інкремент не частіше разу на календарний день).
+ * Повертає актуальне значення серії після запису.
  */
 export function recordDailyVisit(): number {
   if (typeof window === "undefined") {
@@ -78,7 +78,7 @@ export function recordDailyVisit(): number {
   return nextStreak
 }
 
-/** Текущая серия для UI: сегодня или вчера (ещё не заходили сегодня, но цепочка не оборвана). */
+/** Поточна серія для UI: сьогодні або вчора (ще не заходили сьогодні, але ланцюжок не обірвано). */
 export function getAppStreak(): number {
   const s = readState()
   const today = getLocalYmd(new Date())

@@ -84,7 +84,7 @@ export default function ProfilePage() {
   const [dayStreak, setDayStreak] = useState(0)
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND)
   const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter")
-  /** Блок «Постоянство / стрики» по умолчанию скрыт; открывается только по кнопке «Серия дней». */
+  /** Блок «Постійність / стріки» за замовчуванням прихований; відкривається лише кнопкою «Серія днів». */
   const [isPersistenceOpen, setIsPersistenceOpen] = useState(false)
 
   useEffect(() => {
@@ -792,7 +792,11 @@ export default function ProfilePage() {
             height={16}
           />
           <span className={styles.rewardValue}>{verseKeeperProgressUI}</span>
-          {verseKeeperUnlockedUI ? <span className={styles.rewardState}>{t("verseKeeperGot")}</span> : null}
+          {verseKeeperUnlockedUI ? (
+            <span className={styles.rewardState}>{t("verseKeeperGot")}</span>
+          ) : (
+            <span className={styles.rewardStatePlaceholder} aria-hidden />
+          )}
           <p className={styles.statCardLabel}>{t("verseKeeper")}</p>
         </li>
       </ul>
@@ -806,7 +810,7 @@ export default function ProfilePage() {
         </div>
       ) : null}
 
-      {/* СЕКЦИЯ СОХРАНЁННЫХ СТИХОВ — до hydrated не опираемся на persist-кэш RQ (иначе mismatch SSR/клиент). */}
+      {/* СЕКЦІЯ ЗБЕРЕЖЕНИХ ВІРШІВ — до hydrated не спираємося на persist-кеш RQ (інакше mismatch SSR/клієнт). */}
       <div className={styles.savedVersesSection}>
         <div className={styles.sectionHeader}>
           <span>{t("savedVerses", { count: hydrated ? savedVerses.length : 0 })}</span>

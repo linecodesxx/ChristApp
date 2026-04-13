@@ -16,7 +16,7 @@ export default async function BookPage({ params }: Props) {
 
   // if (!selectedBook) return <div>Книга не найдена</div>;
 
-  // // parse optional chapter/verse from query
+  // // розібрати необов'язкові chapter/verse із query
   // const chapterId = searchParams?.chapter ? parseInt(searchParams.chapter) : undefined;
   // const verseId = searchParams?.verse ? parseInt(searchParams.verse) : undefined;
 

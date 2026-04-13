@@ -70,7 +70,7 @@ function resolveLastReadBookAndChapter(
       if (parsed.chapter) chapterToLoad = parsed.chapter;
     }
   } catch {
-    // ignore
+    // ігноруємо
   }
 
   const maxChapter = bookToLoad.chapters;
@@ -79,7 +79,7 @@ function resolveLastReadBookAndChapter(
   return { book: bookToLoad, chapter: chapterToLoad };
 }
 
-/** Книги из кэша RQ без ожидания useQuery (важно при remount после ухода с вкладки). */
+/** Книги з кешу RQ без очікування useQuery (важливо при remount після виходу з вкладки). */
 function getCachedBooks(queryClient: QueryClient, translation: string): BookType[] {
   return queryClient.getQueryData<BookType[]>(bibleBooksQueryKey(translation)) ?? [];
 }
@@ -90,7 +90,7 @@ export default function BibleReader() {
   const { user, users } = useAuth();
   const { socket } = usePresenceSocket();
   const queryClient = useQueryClient();
-  /** После layout: включаем запросы на клиенте без лишнего кадра со скелетом при наличии кэша. */
+  /** Після layout: вмикаємо запити на клієнті без зайвого кадру зі скелетом за наявності кешу. */
   const [isMounted, setIsMounted] = useState(false);
 
   const [translation, setTranslation] = useState("NRT");
@@ -114,12 +114,12 @@ export default function BibleReader() {
   const touchStartX = useRef(0);
   const versesSectionRef = useRef<HTMLDivElement | null>(null);
   const chapterReadSentinelRef = useRef<HTMLDivElement | null>(null);
-  /** Чтобы не перезатирать книгу/главу при каждом новом reference `books` из useQuery. */
+  /** Щоб не перезаписувати книгу/главу при кожному новому reference `books` з useQuery. */
   const readerLayoutTranslationRef = useRef<string | null>(null);
-  /** На мобиле: прячем нижние стрелки при прокрутке текста главы. */
+  /** На мобільному: ховаємо нижні стрілки під час прокрутки тексту глави. */
   const [floatingNavScrolledAway, setFloatingNavScrolledAway] = useState(false);
 
-  // ===== LOAD CHAPTER =====
+  // ===== ЗАВАНТАЖЕННЯ ГЛАВИ =====
   const loadChapter = useCallback((book: BookType, chapter: number) => {
     setCurrentBook(book);
     setCurrentChapter(chapter);
@@ -131,7 +131,7 @@ export default function BibleReader() {
     );
   }, []);
 
-  // ===== HIGHLIGHTS =====
+  // ===== ПІДСВІЧУВАННЯ =====
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -179,8 +179,8 @@ export default function BibleReader() {
   });
 
   /**
-   * Клиент + позиция чтения до отрисовки: при возврате с «Чатов» кэш книг уже в QueryClient,
-   * а useQuery с enabled:false ещё не отдал бы data — без этого каждый раз скелетон.
+  * Клієнт + позиція читання до відмальовування: при поверненні з «Чатів» кеш книг уже в QueryClient,
+  * а useQuery з enabled:false ще не віддав би data — без цього щоразу скелетон.
    */
   useLayoutEffect(() => {
     setIsMounted(true);
@@ -204,9 +204,9 @@ export default function BibleReader() {
     setCurrentBook((prev) => prev ?? resolved.book);
   }, [queryClient, translation, books]);
 
-  // ===== TESTAMENT FILTER =====
+  // ===== ФІЛЬТР ЗАПОВІТУ =====
   const oldTestamentBooks = books.filter((b) => {
-    // ID первых 39 книг – Ветхий Завет (GEN…MAL)
+    // ID перших 39 книг – Старий Завіт (GEN…MAL)
     const oldIds = [
       "GEN",
       "EXO",
@@ -255,7 +255,7 @@ export default function BibleReader() {
   const testamentBooks =
     selectedTestament === "old" ? oldTestamentBooks : newTestamentBooks;
 
-  // ===== NAVIGATION =====
+  // ===== НАВІГАЦІЯ =====
   const isFirstChapter = currentBook ? currentChapter === 1 && oldTestamentBooks.indexOf(currentBook) === 0 : false;
   const isLastChapter = currentBook ? currentChapter === currentBook.chapters : false;
   const isLastBook = currentBook ? newTestamentBooks.indexOf(currentBook) !== -1 && currentBook.id === newTestamentBooks[newTestamentBooks.length - 1].id : false;
@@ -489,7 +489,7 @@ export default function BibleReader() {
           clearVerseSelectionClipboard();
         }
       } catch {
-        // ignore localStorage errors
+        // ігноруємо помилки localStorage
       }
     },
     [activeActionsVerseKey, currentBook, currentChapter, verses, highlights],
@@ -519,11 +519,11 @@ export default function BibleReader() {
     return () => el.removeEventListener("scroll", onScroll);
   }, [currentBook?.id, currentChapter, versesIsLoading, hasVersesData, memomizedVerses.length]);
 
-  /** Скелетон только без книги или при первой загрузке текста главы без кэша (isMounted не нужен — layout уже подставил книгу). */
+  /** Скелетон лише без книги або при першому завантаженні тексту глави без кешу (isMounted не потрібен — layout уже підставив книгу). */
   const showReaderSkeleton =
     !currentBook || (versesIsLoading && !hasVersesData);
 
-  /** Глава считается прочитанной, если низ текста ~2 с в зоне видимости области прокрутки главы. */
+  /** Глава вважається прочитаною, якщо низ тексту ~2 с у зоні видимості області прокрутки глави. */
   useEffect(() => {
     if (!currentBook || (versesIsLoading && !hasVersesData)) return;
 
@@ -704,7 +704,7 @@ export default function BibleReader() {
         </div>
       )}
 
-      {/* FLOATING NAV: ниже 900px — fixed у низа; при прокрутке главы уезжают вниз */}
+      {/* FLOATING NAV: нижче 900px — fixed внизу; під час прокрутки глави з'їжджають вниз */}
       <div
         className={`${styles.floatingNavRow} ${floatingNavScrolledAway ? styles.floatingNavRowHidden : ""}`}
       >

@@ -7,12 +7,12 @@ import styles from "./VoiceInput.module.scss"
 type VoiceInputProps = {
   onSend: (blob: Blob) => void | Promise<void>
   disabled?: boolean
-  /** Встроено в одну строку с полем ввода (без отдельной карточки) */
+  /** Вбудовано в один рядок із полем введення (без окремої картки) */
   embedded?: boolean
   onRecordingActivity?: (active: boolean) => void
 }
 
-/** Лимит записи: 1 минута */
+/** Ліміт запису: 1 хвилина */
 export const MAX_RECORDING_MS = 60_000
 const MAX_SECONDS = 60
 
@@ -259,7 +259,7 @@ export default function VoiceInput({
         try {
           mr.stop()
         } catch {
-          // ignore
+          // ігноруємо
         }
       }
       mediaRecorderRef.current = null

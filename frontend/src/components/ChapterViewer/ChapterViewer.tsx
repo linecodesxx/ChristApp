@@ -28,7 +28,7 @@ export default function ChapterViewer({ book }: Props) {
     }
   }
 
-  // Swipe
+  // Свайп
   const touchStartXRef = useRef(0)
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -45,7 +45,7 @@ export default function ChapterViewer({ book }: Props) {
 
   return (
     <div className={styles.viewer} onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}>
-      {/* HEADER ВОЗВРАЩЁН */}
+      {/* HEADER ПОВЕРНУТО */}
       <div className={styles.header}>
         <div className={styles.headerChapterData}>
           <h1 className={styles.headerBookTitle}>{book.name}</h1>
@@ -64,7 +64,7 @@ export default function ChapterViewer({ book }: Props) {
         </div>
       </div>
 
-      {/* Стихи */}
+      {/* Вірші */}
       <section className={styles.sectionChapter}>
         <h1 className={styles.bookTitle}>{book.name}</h1>
 
@@ -73,7 +73,7 @@ export default function ChapterViewer({ book }: Props) {
         ))}
       </section>
 
-      {/* Floating arrows */}
+      {/* Плаваючі стрілки */}
       <div className={styles.floatingNav}>
         <button onClick={prevChapter} disabled={currentChapter === 0}>
           <Image src="/icon-left-arrow.svg" alt="Previous Chapter" width={24} height={24} />

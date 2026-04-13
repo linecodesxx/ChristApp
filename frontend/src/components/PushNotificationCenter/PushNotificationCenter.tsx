@@ -211,7 +211,7 @@ export default function PushNotificationCenter() {
   const isBootstrapping =
     Boolean(token && userId) && !pushStatusQuery.data && pushStatusQuery.isPending
 
-  // После выдачи разрешения управление push отображаем только в профиле.
+  // Після надання дозволу керування push відображаємо лише в профілі.
   const shouldShowBanner = permissionState !== "granted" || isProfileRoute
 
   const handleRequestPermission = async () => {

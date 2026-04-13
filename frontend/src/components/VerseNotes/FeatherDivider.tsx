@@ -1,12 +1,12 @@
 import styles from "./FeatherDivider.module.scss"
 
-/** Тонкий разделитель с символом пера — вместо грубой линии */
+/** Тонкий розділювач із символом пера — замість грубої лінії */
 export default function FeatherDivider({
   className,
   active = false,
 }: {
   className?: string
-  /** Подсветка при наборе текста в форме заметки */
+  /** Підсвітка під час набору тексту у формі нотатки */
   active?: boolean
 }) {
   return (

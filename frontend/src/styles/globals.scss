@@ -1,4 +1,4 @@
-/* Achiko — локальный файл в public/fonts/. */
+/* Achiko — локальний файл у public/fonts/. */
 @font-face {
   font-family: "Achiko";
   src: url("/fonts/Achiko_1.otf") format("opentype");
@@ -75,7 +75,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Убираем системное синее выделение тапа; фокус клавиатуры — через :focus-visible у компонентов */
+/* Прибираємо системне синє виділення тапу; фокус клавіатури — через :focus-visible у компонентів */
 *,
 *::before,
 *::after {
@@ -105,7 +105,7 @@ body.offlinePage {
   padding: 0;
 }
 
-/* Только экран комнаты чата на узкой ширине: убираем нижний отступ body, чтобы не было полосы под полем ввода (клавиатура). */
+/* Лише екран кімнати чату на вузькій ширині: прибираємо нижній відступ body, щоб не було смуги під полем введення (клавіатура). */
 @media (max-width: 1023px) {
   body.chatRoomPage {
     padding-bottom: 0;

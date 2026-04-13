@@ -20,13 +20,13 @@ function parseJwtPayload(token: string): JwtPayloadPreview | null {
   }
 }
 
-/** Достаёт `sub` из JWT без проверки подписи (только для ключей кеша / UI). */
+/** Дістає `sub` із JWT без перевірки підпису (лише для ключів кешу / UI). */
 export function getUserIdFromJwt(token: string): string | undefined {
   const parsedPayload = parseJwtPayload(token)
   return typeof parsedPayload?.sub === "string" ? parsedPayload.sub : undefined
 }
 
-/** `username` из access_token (без проверки подписи) — для условного UI до загрузки /auth/me. */
+/** `username` з access_token (без перевірки підпису) — для умовного UI до завантаження /auth/me. */
 export function getUsernameFromJwt(token: string): string | undefined {
   const parsedPayload = parseJwtPayload(token)
   return typeof parsedPayload?.username === "string" ? parsedPayload.username : undefined

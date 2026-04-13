@@ -1,9 +1,9 @@
 import styles from "./BibleReadingSkeleton.module.scss"
 
 type BibleReadingSkeletonProps = {
-  /** Полная высота экрана (маршрут loading / старая страница главы). */
+  /** Повна висота екрана (маршрут loading / стара сторінка глави). */
   variant?: "fullscreen" | "embedded"
-  /** Только полоски по центру — для корневого app/loading при любых переходах. */
+  /** Лише смужки по центру — для кореневого app/loading за будь-яких переходів. */
   minimal?: boolean
 }
 

@@ -15,8 +15,8 @@ function applyTheme(theme: ThemeMode) {
 
 export default function ThemeToggle() {
   const t = useTranslations("theme")
-  // Совпадает с SSR и с <html data-theme="dark"> в layout — иначе гидрация ругается,
-  // если в localStorage уже light (клиент читал стор до первого paint).
+  // Збігається з SSR і з <html data-theme="dark"> у layout — інакше гідрація лається,
+  // якщо в localStorage уже light (клієнт читав стор до першого paint).
   const [theme, setTheme] = useState<ThemeMode>("dark")
   const [hasHydratedTheme, setHasHydratedTheme] = useState(false)
   const pathname = usePathname()
@@ -28,7 +28,7 @@ export default function ThemeToggle() {
         setTheme(saved)
       }
     } catch {
-      // ignore
+      // ігноруємо
     }
     setHasHydratedTheme(true)
   }, [])

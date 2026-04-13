@@ -16,7 +16,7 @@ export class UpdateProfileDto {
   @MaxLength(40)
   nickname?: string;
 
-  /** Пустая строка — сбросить на дефолт темы приложения. */
+  /** Порожній рядок — скинути до теми застосунку за замовчуванням. */
   @IsOptional()
   @IsString()
   @Matches(/^(|#[0-9A-Fa-f]{6})$/, {

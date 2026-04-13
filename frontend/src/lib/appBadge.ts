@@ -1,4 +1,4 @@
-/** Счётчик на иконке PWA (Badging API). Поддерживается не везде (часто только установленное PWA). */
+/** Лічильник на іконці PWA (Badging API). Підтримується не всюди (часто лише встановлене PWA). */
 
 type BadgeNavigator = Navigator & {
   setAppBadge?: (contents?: number) => Promise<void>
@@ -24,7 +24,7 @@ export async function syncAppBadgeFromUnreadCount(totalUnread: number) {
       await nav.setAppBadge(0)
     }
   } catch {
-    // iOS / обычный Safari часто не поддерживают
+    // iOS / звичайний Safari часто не підтримують
   }
 }
 

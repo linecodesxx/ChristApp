@@ -1,4 +1,4 @@
-// Все типы, связанные с чатами и сокетами
+// Усі типи, пов'язані з чатами та сокетами
 
 export type IncomingSocketMessage = {
   id?: string | number

@@ -25,7 +25,7 @@ const noopStorage: Storage = {
 
 function shouldPersistQuery(query: { queryKey: readonly unknown[] }) {
   const root = query.queryKey[0]
-  /** Push/unread — персонально и часто меняется; персист давал пустые превью/бейджи после загрузки. */
+  /** Push/unread — персонально і часто змінюється; персист давав порожні прев'ю/бейджі після завантаження. */
   if (root === "push") {
     return false
   }
@@ -50,7 +50,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
             retry: 1,
-            /** Плавный UX: при refetch показываем предыдущие данные (аналог stale-while-revalidate на уровне UI). */
+            /** Плавний UX: під час refetch показуємо попередні дані (аналог stale-while-revalidate на рівні UI). */
             placeholderData: (prev: unknown) => prev,
           },
           mutations: {
@@ -73,7 +73,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       client={queryClient}
       persistOptions={{
         persister,
-        /** Согласовано с gcTime статичных запросов Библии (7 дней). */
+        /** Узгоджено з gcTime статичних запитів Біблії (7 днів). */
         maxAge: 1000 * 60 * 60 * 24 * 7,
         dehydrateOptions: {
           shouldDehydrateQuery: (query) =>

@@ -10,7 +10,7 @@ type FallbackTint = "always" | "onError"
 type AvatarWithFallbackProps = {
   src?: string | null
   initials: string
-  /** Стабильный seed для цвета (id пользователя и т.п.). */
+  /** Стабільний seed для кольору (id користувача тощо). */
   colorSeed: string
   width: number
   height: number
@@ -20,14 +20,14 @@ type AvatarWithFallbackProps = {
   alt?: string
   loading?: "eager" | "lazy"
   /**
-   * `always` — фон инициалов из seed всегда (в т.ч. когда src нет).
-   * `onError` — цвет из seed только после ошибки загрузки картинки (404 и т.д.); если src нет — только стили класса.
+  * `always` — фон ініціалів із seed завжди (зокрема коли src немає).
+  * `onError` — колір із seed лише після помилки завантаження зображення (404 тощо); якщо src немає — лише стилі класу.
    */
   fallbackTint?: FallbackTint
 }
 
 /**
- * Показывает фото; при 404/ошибке загрузки — инициалы на фоне цвета из seed (как getAvatarColor).
+ * Показує фото; при 404/помилці завантаження — ініціали на тлі кольору із seed (як getAvatarColor).
  */
 export default function AvatarWithFallback({
   src,

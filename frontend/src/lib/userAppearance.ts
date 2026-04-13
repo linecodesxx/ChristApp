@@ -1,4 +1,4 @@
-/** Примеры из настроек (можно сохранить в профиле). */
+/** Приклади з налаштувань (можна зберегти в профілі). */
 export const SUGGESTED_THEME_FOREGROUND = "#FFFFFF"
 export const SUGGESTED_THEME_BACKGROUND = "#2E2D2D"
 
@@ -20,7 +20,7 @@ export type UserAppearanceFields = {
   themeFontKey?: string | null
 }
 
-/** Последнее состояние для повторного применения при смене light/dark (см. ThemeToggle). */
+/** Останній стан для повторного застосування при зміні light/dark (див. ThemeToggle). */
 let cachedAppearanceUser: UserAppearanceFields | null | undefined
 
 function normalizeHex(input: string | null | undefined): string | undefined {
@@ -35,7 +35,7 @@ function normalizeHex(input: string | null | undefined): string | undefined {
   return /^#[0-9A-Fa-f]{6}$/.test(withHash) ? withHash : undefined
 }
 
-/** Повторно применить внешний вид после смены `data-theme` (inline --foreground не должен ломать светлую палитру). */
+/** Повторно застосувати зовнішній вигляд після зміни `data-theme` (inline --foreground не має ламати світлу палітру). */
 export function reapplyUserAppearanceForCurrentTheme(): void {
   if (typeof document === "undefined" || cachedAppearanceUser === undefined) {
     return
@@ -43,7 +43,7 @@ export function reapplyUserAppearanceForCurrentTheme(): void {
   applyUserAppearanceToDocument(cachedAppearanceUser)
 }
 
-/** Применить кастомные цвета/шрифт поверх data-theme (light/dark). */
+/** Застосувати кастомні кольори/шрифт поверх data-theme (light/dark). */
 export function applyUserAppearanceToDocument(user: UserAppearanceFields | null | undefined): void {
   if (typeof document === "undefined") {
     return
@@ -66,8 +66,8 @@ export function applyUserAppearanceToDocument(user: UserAppearanceFields | null 
   const fg = normalizeHex(user.themeForegroundHex ?? undefined)
   const bg = normalizeHex(user.themeBackgroundHex ?? undefined)
 
-  // Кастомные hex из профиля рассчитаны на тёмный фон (часто белый текст). В светлой теме inline-переменные
-  // перебивают палитру из globals.scss — убираем их, чтобы работали --foreground / --surface из [data-theme="light"].
+  // Кастомні hex з профілю розраховані на темний фон (часто білий текст). У світлій темі inline-змінні
+  // перебивають палітру з globals.scss — прибираємо їх, щоб працювали --foreground / --surface із [data-theme="light"].
   if (isLight) {
     root.style.removeProperty("--foreground")
     root.style.removeProperty("--book-title-color")
