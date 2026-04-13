@@ -30,5 +30,16 @@ export async function fetchRoomMessagesOrThrow({
     throw new Error(`Не удалось загрузить историю комнаты (${response.status})`)
   }
 
-  return (await response.json()) as Array<Record<string, unknown>>
+  const text = await response.text()
+  const trimmed = text.trim()
+  if (!trimmed) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed)
+    return Array.isArray(parsed) ? (parsed as Array<Record<string, unknown>>) : []
+  } catch {
+    throw new Error("История комнаты пришла в неверном формате")
+  }
 }

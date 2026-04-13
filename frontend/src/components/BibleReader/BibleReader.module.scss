@@ -201,6 +201,24 @@
                 pointer-events: none;
             }
         }
+
+        @media (min-width: 900px) {
+            &.floatingNavRowHidden {
+                .floatingNavLeft,
+                .floatingNavRight {
+                    opacity: 0;
+                    pointer-events: none;
+                }
+
+                .floatingNavLeft {
+                    transform: translate(calc(-100% - 24px), -50%) scale(0.94);
+                }
+
+                .floatingNavRight {
+                    transform: translate(24px, -50%) scale(0.94);
+                }
+            }
+        }
     }
 
     .floatingNavLeft,
@@ -221,6 +239,9 @@
         @media (min-width: 900px) {
             top: 50%;
             bottom: auto;
+            transition:
+                opacity 0.24s ease,
+                transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
         }
 
         .navButton {

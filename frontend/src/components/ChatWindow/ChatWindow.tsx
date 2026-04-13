@@ -33,6 +33,9 @@ type ChatWindowProps = {
   roomKey?: string
   /** Скільки останніх повідомлень вважати «recent» (нижче розділювача). */
   recentMessagesCount?: number
+  hideSenderNames?: boolean
+  hideOwnSenderName?: boolean
+  senderNameMode?: "inline" | "compact-above"
 }
 
 /** Мінімум повідомлень у кімнаті, щоб показати лінію Recent. */
@@ -62,6 +65,9 @@ function ChatWindow({
   onMissingReferencedMessage,
   roomKey,
   recentMessagesCount = DEFAULT_RECENT_MESSAGES_COUNT,
+  hideSenderNames = false,
+  hideOwnSenderName = false,
+  senderNameMode = "inline",
 }: ChatWindowProps) {
   const t = useTranslations("chat")
   const bottomRef = useRef<HTMLDivElement | null>(null)
@@ -187,6 +193,9 @@ function ChatWindow({
         resolveReactionAvatarUrl={resolveReactionAvatarUrl}
         resolveReactionUserLabel={resolveReactionUserLabel}
         isHighlighted={highlightedMessageId === message.id}
+        hideSenderName={hideSenderNames}
+        hideOwnSenderName={hideOwnSenderName}
+        senderNameMode={senderNameMode}
       />
         )
       })()}

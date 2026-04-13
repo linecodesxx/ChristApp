@@ -83,7 +83,13 @@ export async function fetchPushStatus(token: string): Promise<PushServerStatus |
       return null
     }
 
-    return (await response.json()) as PushServerStatus
+    const text = await response.text()
+    const trimmed = text.trim()
+    if (!trimmed) {
+      return null
+    }
+
+    return JSON.parse(trimmed) as PushServerStatus
   } catch {
     return null
   }
@@ -102,7 +108,13 @@ export async function fetchUnreadSummary(token: string): Promise<UnreadSummaryRe
       return null
     }
 
-    return (await response.json()) as UnreadSummaryResponse
+    const text = await response.text()
+    const trimmed = text.trim()
+    if (!trimmed) {
+      return null
+    }
+
+    return JSON.parse(trimmed) as UnreadSummaryResponse
   } catch {
     return null
   }

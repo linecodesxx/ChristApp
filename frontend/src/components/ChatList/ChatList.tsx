@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent as ReactTouchEvent } from "react"
 import Image from "next/image"
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
@@ -74,8 +74,15 @@ const ChatList = ({
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
+  const [swipeOpenChatId, setSwipeOpenChatId] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const menuTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const swipeGestureRef = useRef<{ chatId: string; x0: number; y0: number } | null>(null)
+  const swipeOpenChatIdRef = useRef<string | null>(null)
+  const openMenuIdRef = useRef<string | null>(null)
+
+  swipeOpenChatIdRef.current = swipeOpenChatId
+  openMenuIdRef.current = openMenuId
 
   const normalizedSearch = searchValue.trim().toLowerCase()
 
@@ -140,21 +147,31 @@ const ChatList = ({
   }, [isUserPickerOpen])
 
   useEffect(() => {
-    if (!openMenuId) {
+    if (!openMenuId && !swipeOpenChatId) {
       return
     }
 
-    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+    const onPointerDown = (event: Event) => {
       const target = event.target as Node
       if (menuRef.current?.contains(target) || menuTriggerRef.current?.contains(target)) {
         return
       }
+      const el = target instanceof Element ? target : null
+      const hitItem = el?.closest?.("[data-chat-item-id]")
+      const hitId = hitItem instanceof HTMLElement ? hitItem.dataset.chatItemId ?? null : null
+
       setOpenMenuId(null)
+
+      const openSwipe = swipeOpenChatIdRef.current
+      if (openSwipe && hitId !== openSwipe) {
+        setSwipeOpenChatId(null)
+      }
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setOpenMenuId(null)
+        setSwipeOpenChatId(null)
       }
     }
 
@@ -166,7 +183,65 @@ const ChatList = ({
       document.removeEventListener("touchstart", onPointerDown)
       window.removeEventListener("keydown", onKeyDown)
     }
-  }, [openMenuId])
+  }, [openMenuId, swipeOpenChatId])
+
+  const handleSwipeTouchStart = useCallback((chatId: string, event: ReactTouchEvent) => {
+    if (event.touches.length !== 1) {
+      return
+    }
+    const t = event.touches[0]
+    swipeGestureRef.current = { chatId, x0: t.clientX, y0: t.clientY }
+  }, [])
+
+  const handleSwipeTouchMove = useCallback((chatId: string, event: ReactTouchEvent) => {
+    const g = swipeGestureRef.current
+    if (!g || g.chatId !== chatId || event.touches.length !== 1) {
+      return
+    }
+    const t = event.touches[0]
+    const dx = t.clientX - g.x0
+    const dy = t.clientY - g.y0
+    if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+      event.preventDefault()
+    }
+  }, [])
+
+  const handleSwipeTouchEnd = useCallback((chatId: string, event: ReactTouchEvent) => {
+    const g = swipeGestureRef.current
+    if (!g || g.chatId !== chatId) {
+      return
+    }
+    swipeGestureRef.current = null
+    const t = event.changedTouches[0]
+    if (!t) {
+      return
+    }
+    const dx = t.clientX - g.x0
+    const dy = t.clientY - g.y0
+    if (Math.abs(dx) < 28 && Math.abs(dy) < 28) {
+      return
+    }
+    if (Math.abs(dx) < Math.abs(dy) * 1.15) {
+      return
+    }
+    const threshold = 44
+    const rowOpen = swipeOpenChatIdRef.current === chatId || openMenuIdRef.current === chatId
+    if (dx < -threshold && !rowOpen) {
+      setSwipeOpenChatId(chatId)
+      setOpenMenuId(null)
+      return
+    }
+    if (dx > threshold && rowOpen) {
+      setSwipeOpenChatId((cur) => (cur === chatId ? null : cur))
+      setOpenMenuId((cur) => (cur === chatId ? null : cur))
+    }
+  }, [])
+
+  const handleSwipeTouchCancel = useCallback((chatId: string) => {
+    if (swipeGestureRef.current?.chatId === chatId) {
+      swipeGestureRef.current = null
+    }
+  }, [])
 
   const closeUserPicker = () => {
     setIsUserPickerOpen(false)
@@ -316,12 +391,38 @@ const ChatList = ({
 
           {!isLoading &&
             filteredChatList.map((chat) => (
-            <li key={chat.id} className={styles.chatItem} data-menu-open={openMenuId === chat.id ? "" : undefined}>
+            <li
+              key={chat.id}
+              className={styles.chatItem}
+              data-chat-item-id={chat.id}
+              data-has-chat-menu={Boolean(chat.deletable && onDeleteChat) ? "" : undefined}
+              data-menu-open={openMenuId === chat.id ? "" : undefined}
+              data-swipe-open={
+                Boolean(chat.deletable && onDeleteChat) &&
+                (swipeOpenChatId === chat.id || openMenuId === chat.id)
+                  ? ""
+                  : undefined
+              }
+            >
               {(() => {
                 const unreadCount = typeof chat.unread === "number" ? chat.unread : chat.unread ? 1 : 0
                 const isCompactPreviewRow = chat.id !== GLOBAL_ROOM_ID
                 const showMenu = Boolean(chat.deletable && onDeleteChat)
                 const menuOpen = openMenuId === chat.id
+                const closeSwipeOnMainTap = (event: MouseEvent<HTMLAnchorElement | HTMLDivElement>) => {
+                  if (!showMenu) {
+                    return
+                  }
+                  if (openMenuId === chat.id) {
+                    return
+                  }
+                  if (swipeOpenChatId !== chat.id) {
+                    return
+                  }
+                  event.preventDefault()
+                  event.stopPropagation()
+                  setSwipeOpenChatId(null)
+                }
                 const safeTitle = toRenderText(chat.title)
                 const safeTimeLabel = toRenderText(chat.timeLabel)
                 const safePreview = toRenderText(chat.preview)
@@ -352,14 +453,14 @@ const ChatList = ({
                       {chat.isOnline ? <span className={styles.avatarOnlineDot} aria-hidden /> : null}
                     </div>
                     <div className={styles.chatInfo}>
-                      <div className={styles.flex}>
+                      <div className={styles.titleBlock}>
                         <div className={styles.titleRow}>
                           {chat.titleLoading ? <span className={styles.chatInlineSkeletonTitle} aria-hidden /> : <h3 className={styles.title}>{safeTitle}</h3>}
                         </div>
                         <span className={styles.chatTime}>{safeTimeLabel}</span>
                       </div>
 
-                      <div className={styles.flex}>
+                      <div className={styles.previewRow}>
                         {chat.titleLoading ? (
                           <span className={styles.chatInlineSkeletonPreview} aria-hidden />
                         ) : (
@@ -387,57 +488,68 @@ const ChatList = ({
                       onMouseEnter={() => onPrefetchChat?.(chat.id)}
                       onFocus={() => onPrefetchChat?.(chat.id)}
                       onTouchStart={() => onPrefetchChat?.(chat.id)}
+                      onClickCapture={closeSwipeOnMainTap}
                     >
                       {mainInner}
                     </Link>
                   ) : (
-                    <div className={styles.chatItemMainLink}>{mainInner}</div>
+                    <div className={styles.chatItemMainLink} onClickCapture={closeSwipeOnMainTap}>
+                      {mainInner}
+                    </div>
                   )
 
                 return (
                   <div className={styles.chatItemWrapper}>
                     <div className={styles.chatItemContent}>
-                      <div className={styles.chatItemSwipeClip}>
-                        <div className={styles.chatItemSwipeTrack}>{linkOrStatic}</div>
-                      </div>
-                      {showMenu ? (
-                        <div className={styles.chatItemMenuWrap} data-open={menuOpen ? "true" : undefined}>
-                          <button
-                            type="button"
-                            ref={menuOpen ? menuTriggerRef : undefined}
-                            className={styles.chatItemMenuButton}
-                            aria-label={t("chatMenuAria")}
-                            aria-haspopup="menu"
-                            aria-expanded={menuOpen}
-                            onClick={(event) => {
-                              event.preventDefault()
-                              event.stopPropagation()
-                              setOpenMenuId((current) => (current === chat.id ? null : chat.id))
-                            }}
-                          >
-                            ⋯
-                          </button>
-                          {menuOpen ? (
-                            <div ref={menuRef} className={styles.chatItemMenu} role="menu">
+                      <div
+                        className={styles.chatItemSwipeClip}
+                        onTouchStart={showMenu ? (e) => handleSwipeTouchStart(chat.id, e) : undefined}
+                        onTouchMove={showMenu ? (e) => handleSwipeTouchMove(chat.id, e) : undefined}
+                        onTouchEnd={showMenu ? (e) => handleSwipeTouchEnd(chat.id, e) : undefined}
+                        onTouchCancel={showMenu ? () => handleSwipeTouchCancel(chat.id) : undefined}
+                      >
+                        <div className={styles.chatItemSwipeTrack}>
+                          {linkOrStatic}
+                          {showMenu ? (
+                            <div className={styles.chatItemMenuWrap} data-open={menuOpen ? "true" : undefined}>
                               <button
                                 type="button"
-                                role="menuitem"
-                                className={styles.chatItemMenuItem}
+                                ref={menuOpen ? menuTriggerRef : undefined}
+                                className={styles.chatItemMenuButton}
+                                aria-label={t("chatMenuAria")}
+                                aria-haspopup="menu"
+                                aria-expanded={menuOpen}
                                 onClick={(event) => {
                                   event.preventDefault()
                                   event.stopPropagation()
-                                  setOpenMenuId(null)
-                                  if (window.confirm(t("deleteChatConfirm"))) {
-                                    onDeleteChat?.(chat.id)
-                                  }
+                                  setOpenMenuId((current) => (current === chat.id ? null : chat.id))
                                 }}
                               >
-                                {t("deleteChat")}
+                                ⋯
                               </button>
+                              {menuOpen ? (
+                                <div ref={menuRef} className={styles.chatItemMenu} role="menu">
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className={styles.chatItemMenuItem}
+                                    onClick={(event) => {
+                                      event.preventDefault()
+                                      event.stopPropagation()
+                                      setOpenMenuId(null)
+                                      if (window.confirm(t("deleteChatConfirm"))) {
+                                        onDeleteChat?.(chat.id)
+                                      }
+                                    }}
+                                  >
+                                    {t("deleteChat")}
+                                  </button>
+                                </div>
+                              ) : null}
                             </div>
                           ) : null}
                         </div>
-                      ) : null}
+                      </div>
                     </div>
                   </div>
                 )

@@ -67,11 +67,16 @@ export class AuthService {
     return this.config.get<string>('NODE_ENV') === 'production';
   }
 
+  private refreshCookieSameSite(): 'none' | 'lax' {
+    // SameSite=None requires Secure=true in modern browsers.
+    return this.isCookieSecure() ? 'none' : 'lax';
+  }
+
   private refreshCookieOptions(maxAgeMs: number) {
     return {
       httpOnly: true,
       secure: this.isCookieSecure(),
-      sameSite: 'lax' as const,
+      sameSite: this.refreshCookieSameSite(),
       path: '/',
       maxAge: maxAgeMs,
     };
@@ -82,7 +87,7 @@ export class AuthService {
       path: '/',
       httpOnly: true,
       secure: this.isCookieSecure(),
-      sameSite: 'lax',
+      sameSite: this.refreshCookieSameSite(),
     });
   }
 

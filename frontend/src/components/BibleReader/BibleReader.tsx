@@ -512,7 +512,8 @@ export default function BibleReader() {
     if (!el) return undefined;
     const threshold = 40;
     const onScroll = () => {
-      setFloatingNavScrolledAway(el.scrollTop > threshold);
+      const away = el.scrollTop > threshold;
+      setFloatingNavScrolledAway((prev) => (prev === away ? prev : away));
     };
     el.addEventListener("scroll", onScroll, { passive: true });
     onScroll();

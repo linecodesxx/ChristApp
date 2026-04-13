@@ -1,7 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
-import { memo, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
+import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
 import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/types/message"
@@ -34,11 +34,16 @@ type MessageBubbleProps = {
   resolveReactionAvatarUrl?: (userId: string) => string | undefined
   resolveReactionUserLabel?: (userId: string) => string | undefined
   isHighlighted?: boolean
+  hideSenderName?: boolean
+  hideOwnSenderName?: boolean
+  senderNameMode?: "inline" | "compact-above"
 }
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
 const REACTION_OPTIONS: AppReactionType[] = ["🤍", "😂", "❤️", "🔥", "😊", "😧", "🥲"]
+
+type ReactionPickerPlacement = { left: number; bottom: number; width: number }
 
 function MessageBubble({
   message,
@@ -59,11 +64,56 @@ function MessageBubble({
   resolveReactionAvatarUrl,
   resolveReactionUserLabel,
   isHighlighted = false,
+  hideSenderName = false,
+  hideOwnSenderName = false,
+  senderNameMode = "inline",
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
+  const reactionTriggerRef = useRef<HTMLButtonElement | null>(null)
+  const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
+  const [reactionPickerPlacement, setReactionPickerPlacement] = useState<ReactionPickerPlacement | null>(null)
+
+  const updateReactionPickerPlacement = useCallback(() => {
+    const trigger = reactionTriggerRef.current
+    const picker = reactionPickerRef.current
+    if (!trigger || !picker || typeof window === "undefined") {
+      return
+    }
+    const rect = trigger.getBoundingClientRect()
+    const pad = 8
+    const maxW = Math.min(380, window.innerWidth - 2 * pad)
+    const fallbackContentW = REACTION_OPTIONS.length * 42 + 24
+    const contentW = Math.max(picker.scrollWidth, fallbackContentW)
+    const w = Math.min(contentW, maxW)
+    let left = rect.right - w
+    left = Math.max(pad, Math.min(left, window.innerWidth - pad - w))
+    setReactionPickerPlacement({
+      left,
+      bottom: window.innerHeight - rect.top + 12,
+      width: w,
+    })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!isReactionPickerOpen) {
+      setReactionPickerPlacement(null)
+      return
+    }
+    updateReactionPickerPlacement()
+    const rafId = window.requestAnimationFrame(() => {
+      updateReactionPickerPlacement()
+    })
+    window.addEventListener("scroll", updateReactionPickerPlacement, true)
+    window.addEventListener("resize", updateReactionPickerPlacement)
+    return () => {
+      window.cancelAnimationFrame(rafId)
+      window.removeEventListener("scroll", updateReactionPickerPlacement, true)
+      window.removeEventListener("resize", updateReactionPickerPlacement)
+    }
+  }, [isReactionPickerOpen, updateReactionPickerPlacement])
 
   const date = new Date(message.createdAt)
   const formattedDate = hydrated
@@ -218,6 +268,7 @@ function MessageBubble({
   }
 
   const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`
+  const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen)
   const interactiveBubbleProps = {
     onClick: handleClick,
     onTouchStart: handleTouchStart,
@@ -236,6 +287,11 @@ function MessageBubble({
       ) : null}
 
       {(() => {
+        const senderName = message.username || "Unknown"
+        const canShowSenderName =
+          !hideSenderName && !(hideOwnSenderName && isOwnMessage)
+        const showCompactSender = senderNameMode === "compact-above" && canShowSenderName
+
         if (stickerPayload) {
           return (
             <div className={styles.stickerMessage}>
@@ -261,10 +317,13 @@ function MessageBubble({
         if (message.type === "IMAGE" && imgUrl) {
           return (
             <div className={styles.imageMessage}>
-              <p className={styles.imageMessageMeta}>
-                <strong>{message.username || "Unknown"}</strong>
-                <span> — фото</span>
-              </p>
+              {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+              {canShowSenderName && !showCompactSender ? (
+                <p className={styles.imageMessageMeta}>
+                  <strong>{senderName}</strong>
+                  <span> — фото</span>
+                </p>
+              ) : null}
               <a
                 className={styles.imageLink}
                 href={imgUrl}
@@ -290,29 +349,42 @@ function MessageBubble({
           }
           return (
             <VoiceMessageBubble
-              username={message.username || "Unknown"}
+              username={senderName}
               src={playerSrc}
               isOwn={isOwnMessage}
               message={message}
+              hideSenderName={showCompactSender || !canShowSenderName}
+              compactSenderLabel={showCompactSender ? senderName : undefined}
             />
           )
         }
 
         const verseShare = parseVerseSharePayload(message.content)
         if (!verseShare.payload) {
+          const showInlineAuthor = canShowSenderName && !showCompactSender
           return (
-            <p className={styles.messageContent}>
-              <strong>{message.username || "Unknown"}:</strong> {message.content}
-            </p>
+            <>
+              {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+              <p className={styles.messageContent}>
+                {showInlineAuthor ? <strong>{senderName}:</strong> : null}
+                {showInlineAuthor ? " " : null}
+                {message.content}
+              </p>
+            </>
           )
         }
 
         return (
-          <div className={styles.verseShareCard}>
-            <p className={styles.verseShareAuthor}>{message.username || "Unknown"} поделился стихом</p>
-            <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
-            <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
-          </div>
+          <>
+            {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+            <div className={styles.verseShareCard}>
+              {canShowSenderName && !showCompactSender ? (
+                <p className={styles.verseShareAuthor}>{senderName} поделился стихом</p>
+              ) : null}
+              <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
+              <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
+            </div>
+          </>
         )
       })()}
 
@@ -349,6 +421,7 @@ function MessageBubble({
         {onToggleReaction ? (
           <div className={styles.reactionAnchor}>
             <button
+              ref={reactionTriggerRef}
               type="button"
               className={styles.reactionTrigger}
               onClick={handleReactionPickerToggle}
@@ -372,6 +445,7 @@ function MessageBubble({
                     aria-label="Закрыть панель реакций"
                   />
                   <motion.div
+                    ref={reactionPickerRef}
                     key="reaction-picker"
                     className={styles.reactionPicker}
                     initial={{ opacity: 0, scale: 0.92, y: 12 }}
@@ -379,6 +453,19 @@ function MessageBubble({
                     exit={{ opacity: 0, scale: 0.96, y: 12 }}
                     transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.72 }}
                     onClick={(event) => event.stopPropagation()}
+                    style={
+                      reactionPickerPlacement
+                        ? {
+                            position: "fixed",
+                            left: reactionPickerPlacement.left,
+                            bottom: reactionPickerPlacement.bottom,
+                            width: reactionPickerPlacement.width,
+                            right: "auto",
+                            top: "auto",
+                            zIndex: 200,
+                          }
+                        : undefined
+                    }
                   >
                     {REACTION_OPTIONS.map((emoji) => (
                       <button
@@ -474,7 +561,11 @@ function MessageBubble({
 
   if (isOwnMessage) {
     return (
-      <article className={bubbleClassName} {...interactiveBubbleProps}>
+      <article
+        className={bubbleClassName}
+        data-reaction-picker-open={reactionPickerOpen ? "" : undefined}
+        {...interactiveBubbleProps}
+      >
         {bubbleBody}
       </article>
     )
@@ -482,7 +573,7 @@ function MessageBubble({
 
   if (showAvatar) {
     return (
-      <article className={styles.row}>
+      <article className={styles.row} data-reaction-picker-open={reactionPickerOpen ? "" : undefined}>
         <button
           type="button"
           className={styles.avatarBtn}
@@ -509,7 +600,11 @@ function MessageBubble({
   }
 
   return (
-    <article className={bubbleClassName} {...interactiveBubbleProps}>
+    <article
+      className={bubbleClassName}
+      data-reaction-picker-open={reactionPickerOpen ? "" : undefined}
+      {...interactiveBubbleProps}
+    >
       {bubbleBody}
     </article>
   )

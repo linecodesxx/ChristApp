@@ -3,6 +3,12 @@
   align-items: flex-start;
   gap: 8px;
   max-width: 100%;
+  position: relative;
+  z-index: 0;
+
+  &[data-reaction-picker-open] {
+    z-index: 48;
+  }
 }
 
 .avatarBtn {
@@ -41,8 +47,9 @@
 
 .bubble {
   position: relative;
+  z-index: 0;
   display: flex;
-  max-width: 250px;
+  max-width: 200px;
   height: auto;
   padding: 15px 15px;
   padding: 7px 12px 0;
@@ -57,11 +64,16 @@
   transition: all 0.2s ease-in-out;
   word-break: break-word;
   cursor: pointer;
+  overflow: visible;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+
+  &[data-reaction-picker-open] {
+    z-index: 48;
+  }
 }
 
 .stickerBubble {
@@ -186,6 +198,16 @@
   word-break: break-word;
 }
 
+.senderCompact {
+  margin: 0 0 3px;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  line-height: 1.15;
+}
+
 .verseShareCard {
   position: relative;
   overflow: hidden;
@@ -236,6 +258,10 @@
   }
 }
 
+html[data-theme="dark"] .myBubble {
+  background: var(--my-bubble-dark-bg) !important;
+}
+
 .date {
   display: inline-flex;
   color: var(--text-muted);
@@ -247,11 +273,14 @@
 }
 
 .metaRow {
+  position: relative;
+  z-index: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   padding-top: 5px;
+  overflow: visible;
 }
 
 .metaActions {
@@ -277,6 +306,7 @@
 
 .reactionAnchor {
   position: relative;
+  z-index: 4;
   display: inline-flex;
   align-items: center;
 }
@@ -301,7 +331,7 @@
 .reactionOverlay {
   position: fixed;
   inset: 0;
-  z-index: 29;
+  z-index: 190;
   border: none;
   padding: 0;
   background: transparent;
@@ -312,8 +342,15 @@
   right: 0;
   bottom: calc(100% + 12px);
   display: flex;
+  flex-wrap: nowrap;
   gap: 8px;
   padding: 8px 10px;
+  box-sizing: border-box;
+  max-width: min(380px, calc(100vw - 16px));
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
   border-radius: 999px;
   border: 1px solid color-mix(in srgb, rgba(255, 255, 255, 0.88) 72%, transparent);
   background: color-mix(in srgb, rgba(255, 255, 255, 0.76) 80%, transparent);
@@ -323,13 +360,14 @@
     0 22px 48px -28px rgba(91, 75, 55, 0.38),
     0 8px 18px -14px rgba(91, 75, 55, 0.24),
     inset 0 1px 0 rgba(255, 255, 255, 0.58);
-  z-index: 30;
+  z-index: 200;
 }
 
 .emojiButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
   width: 34px;
   height: 34px;
   border: 1px solid transparent;
@@ -493,6 +531,10 @@ html[data-theme="dark"] .myBubble {
 
 html[data-theme="dark"] .messageContent {
   color: #f1efef;
+}
+
+html[data-theme="dark"] .senderCompact {
+  color: color-mix(in srgb, var(--text-muted) 82%, #ffffff 18%);
 }
 
 html[data-theme="dark"] .reactionTrigger,
