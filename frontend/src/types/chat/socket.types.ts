@@ -33,6 +33,7 @@ export type DirectRoomOpenedPayload = {
 export type RoomHistoryPayload = {
   roomId: string
   messages: IncomingSocketMessage[]
+  plasmaBackground?: boolean
 }
 
 export type OnlineUsersPayload = {

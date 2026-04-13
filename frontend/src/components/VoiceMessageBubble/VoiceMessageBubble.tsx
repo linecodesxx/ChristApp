@@ -10,6 +10,8 @@ type VoiceMessageComponentProps = {
   src: string
   isOwn: boolean
   message: Message
+  hideSenderName?: boolean
+  compactSenderLabel?: string
 }
 
 /**
@@ -26,6 +28,8 @@ export default function VoiceMessageBubble({
   src,
   isOwn,
   message,
+  hideSenderName = false,
+  compactSenderLabel,
 }: VoiceMessageComponentProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [duration, setDuration] = useState<number>(0)
@@ -68,15 +72,18 @@ export default function VoiceMessageBubble({
 
   return (
     <div className={`${styles.voiceMessage} ${isOwn ? styles.voiceMessageOwn : ""}`}>
+      {compactSenderLabel ? <p className={styles.voiceCompactSender}>{compactSenderLabel}</p> : null}
       <div className={styles.voiceHeader}>
         <div className={styles.voiceIcon}>
           <Volume2 size={20} strokeWidth={2} />
         </div>
         <div className={styles.voiceInfo}>
-          <p className={styles.voiceUsername}>
-            {username}
-            <span style={{ marginLeft: "4px", fontSize: "11px", opacity: "0.6" }}>— голосовое</span>
-          </p>
+          {!hideSenderName ? (
+            <p className={styles.voiceUsername}>
+              {username}
+              <span style={{ marginLeft: "4px", fontSize: "11px", opacity: "0.6" }}>— голосовое</span>
+            </p>
+          ) : null}
           <div className={styles.voiceDuration}>
             <span className={styles.currentTime}>{currentTimeStr}</span>
             <span className={styles.separator}>/</span>

@@ -29,6 +29,8 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
+import PlasmaRoomBackground from "@/components/PlasmaRoomBackground/PlasmaRoomBackground"
+import { Sparkles } from "lucide-react"
 import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
@@ -90,6 +92,7 @@ type DirectRoomOpenedPayload = {
 type RoomHistoryPayload = {
   roomId: string
   messages: IncomingSocketMessage[]
+  plasmaBackground?: boolean
 }
 
 type OnlineUsersPayload = {
@@ -416,6 +419,7 @@ export default function ChatPageDetails() {
   const [roomReadStatesByUserId, setRoomReadStatesByUserId] = useState<Map<string, string>>(() => new Map())
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false)
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
+  const [plasmaBackgroundEnabled, setPlasmaBackgroundEnabled] = useState(false)
   const userIdRef = useRef<string | undefined>(undefined)
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
@@ -574,6 +578,7 @@ export default function ChatPageDetails() {
 
     socket.emit("leaveRoom", joinedRoomId)
     joinedRoomRef.current = undefined
+    setPlasmaBackgroundEnabled(false)
   }, [])
 
   useEffect(() => {
@@ -713,6 +718,7 @@ export default function ChatPageDetails() {
 
     const onDisconnect = () => {
       setIsSocketConnected(false)
+      setPlasmaBackgroundEnabled(false)
       setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
       setOnlineCount(0)
       setOnlineUserIds(new Set())
@@ -828,12 +834,19 @@ export default function ChatPageDetails() {
     }
     socket.on("deleteMessageResult", onDeleteMessageResult)
 
-    const onRoomHistory = ({ roomId: historyRoomId, messages: history }: RoomHistoryPayload) => {
+    const onRoomHistory = ({
+      roomId: historyRoomId,
+      messages: history,
+      plasmaBackground,
+    }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return
       }
 
       awaitingRoomHistoryRef.current = false
+      if (typeof plasmaBackground === "boolean") {
+        setPlasmaBackgroundEnabled(plasmaBackground)
+      }
 
       const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(history, user?.username)
 
@@ -856,6 +869,15 @@ export default function ChatPageDetails() {
       void queryClient.setQueryData(chatRoomHistoryQueryKey(historyRoomId), history)
     }
     socket.on("roomHistory", onRoomHistory)
+
+    const onRoomPlasma = (payload: { roomId?: string; enabled?: boolean }) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || !payload?.roomId || payload.roomId !== joinedId) {
+        return
+      }
+      setPlasmaBackgroundEnabled(Boolean(payload.enabled))
+    }
+    socket.on("roomPlasma", onRoomPlasma)
 
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
       queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), rooms)
@@ -1124,6 +1146,7 @@ export default function ChatPageDetails() {
       socket.off("messageDeleted", onMessageDeleted)
       socket.off("deleteMessageResult", onDeleteMessageResult)
       socket.off("roomHistory", onRoomHistory)
+      socket.off("roomPlasma", onRoomPlasma)
       socket.off("myRooms", onMyRooms)
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("userInvitedToRoom", onInvitedToRoom)
@@ -1285,6 +1308,12 @@ export default function ChatPageDetails() {
     () => users.find((existingUser) => existingUser.id === directChatTargetUserId),
     [users, directChatTargetUserId],
   )
+
+  const hideSenderNamesInMessages = Boolean(
+    directChatTargetUser && roomId !== GLOBAL_ROOM_ID && !isShareWithJesusView,
+  )
+  const useCompactSenderNamesInGlobal = roomId === GLOBAL_ROOM_ID
+  const hideOwnSenderNameInGlobal = roomId === GLOBAL_ROOM_ID
 
   useEffect(() => {
     if (roomId === GLOBAL_ROOM_ID) {
@@ -1903,7 +1932,14 @@ export default function ChatPageDetails() {
   ] as const
 
   return (
-    <section className={`${styles.chat} container`}>
+    <section
+      className={`${styles.chat} container${plasmaBackgroundEnabled ? ` ${styles.chatPlasmaOn}` : ""}`}
+    >
+      {plasmaBackgroundEnabled && effectiveSocketRoomId ? (
+        <div className={styles.plasmaBackdrop}>
+          <PlasmaRoomBackground key={effectiveSocketRoomId} />
+        </div>
+      ) : null}
       <div className={styles.header}>
         <div
           className={`${styles.headerContent} ${headerPresenceClass} ${globalOnlineStatusHighlight ? styles.globalOnlineStatus : ""}`}
@@ -1980,6 +2016,25 @@ export default function ChatPageDetails() {
               />
             </button>
           ) : null}
+          <button
+            type="button"
+            className={`${styles.plasmaToggle} ${plasmaBackgroundEnabled ? styles.plasmaToggleActive : ""}`}
+            disabled={!isSocketConnected || !effectiveSocketRoomId || Boolean(authError)}
+            aria-pressed={plasmaBackgroundEnabled}
+            aria-label={t("plasmaBackgroundAria")}
+            title={plasmaBackgroundEnabled ? t("plasmaBackgroundOff") : t("plasmaBackgroundOn")}
+            onClick={() => {
+              const socket = socketRef.current
+              const id = effectiveSocketRoomId
+              if (!socket?.connected || !id) {
+                setSendNotice(t("roomNotReady"))
+                return
+              }
+              socket.emit("setRoomPlasma", { roomId: id, enabled: !plasmaBackgroundEnabled })
+            }}
+          >
+            <Sparkles size={18} strokeWidth={2} aria-hidden />
+          </button>
         </div>
       </div>
 
@@ -2034,6 +2089,9 @@ export default function ChatPageDetails() {
             usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username
           }
           roomKey={effectiveSocketRoomId ?? routeRoomId}
+          hideSenderNames={hideSenderNamesInMessages}
+          hideOwnSenderName={hideOwnSenderNameInGlobal}
+          senderNameMode={useCompactSenderNamesInGlobal ? "compact-above" : "inline"}
         />
       )}
 

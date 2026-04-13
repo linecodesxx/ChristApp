@@ -101,6 +101,16 @@
   flex: 1;
 }
 
+.voiceCompactSender {
+  margin: 0 0 2px;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
 .voiceUsername {
   margin: 0;
   font-family: "Inter", sans-serif;

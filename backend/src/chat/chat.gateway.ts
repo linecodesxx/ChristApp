@@ -57,6 +57,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // Загальний чат — це просто кімната
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
+  /** Спільний «plasma» фон кімнати (лише в пам’яті WS; без БД). */
+  private readonly roomPlasmaBackground = new Map<string, boolean>();
+
   private static readonly DISCONNECT_GRACE_MS = 3000;
   private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️', '🔥', '😊', '😧', '🥲']);
 
@@ -323,6 +326,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       client.emit('roomHistory', {
         roomId,
         messages: history,
+        plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
       });
 
       client.emit('roomReadStates', {
@@ -355,6 +359,34 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       client.emit('error', 'Ошибка загрузки истории');
     }
+  }
+
+  @SubscribeMessage('setRoomPlasma')
+  async handleSetRoomPlasma(
+    @MessageBody() body: { roomId: string; enabled?: boolean },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      return;
+    }
+
+    const roomId =
+      typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) {
+      client.emit('error', 'roomId обязателен');
+      return;
+    }
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) {
+      client.emit('error', 'Нет доступа');
+      return;
+    }
+
+    const enabled = Boolean(body?.enabled);
+    this.roomPlasmaBackground.set(roomId, enabled);
+    this.server.to(roomId).emit('roomPlasma', { roomId, enabled });
   }
 
   @SubscribeMessage('markRoomRead')

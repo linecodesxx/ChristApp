@@ -56,6 +56,7 @@
 }
 
 .chat {
+  position: relative;
   color: var(--foreground);
   background: var(--background);
   border-radius: 30px;
@@ -72,8 +73,61 @@
   gap: 10px;
   min-height: 0;
 
+  &.chatPlasmaOn {
+    background: color-mix(in srgb, var(--background) 78%, transparent);
+  }
+
   @media (max-width: 1023px) {
     padding-bottom: 0;
+  }
+
+  .plasmaBackdrop {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  & > *:not(.plasmaBackdrop) {
+    position: relative;
+    z-index: 1;
+  }
+
+  .plasmaToggle {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--surface-elevated) 86%, transparent);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition:
+      background-color 0.2s ease,
+      border-color 0.2s ease,
+      color 0.2s ease,
+      transform 0.15s ease;
+
+    &:hover {
+      color: color-mix(in srgb, #d4af37 88%, var(--foreground));
+      border-color: color-mix(in srgb, #d4af37 42%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface-elevated));
+    }
+
+    &:active {
+      transform: scale(0.96);
+    }
+  }
+
+  .plasmaToggleActive {
+    color: color-mix(in srgb, #d4af37 95%, #fff);
+    border-color: color-mix(in srgb, #d4af37 55%, var(--line-soft));
+    background: color-mix(in srgb, #d4af37 14%, var(--surface-elevated));
   }
 
   .header {
@@ -592,8 +646,22 @@ html[data-theme="dark"] .chat {
   box-shadow: 1px 1px 20px 0px #474545;
 
   .header {
+    top: 0;
+    z-index: 4;
     color: var(--foreground);
-    background: var(--background);
+    border-color: color-mix(in srgb, var(--line-soft) 55%, rgba(212, 175, 55, 0.22));
+    background: linear-gradient(
+      165deg,
+      color-mix(in srgb, rgba(32, 28, 24, 0.82) 88%, rgba(212, 175, 55, 0.06)) 0%,
+      color-mix(in srgb, rgba(22, 20, 18, 0.76) 92%, rgba(212, 175, 55, 0.04)) 48%,
+      color-mix(in srgb, rgba(18, 16, 14, 0.72) 94%, transparent) 100%
+    );
+    backdrop-filter: blur(18px) saturate(165%);
+    -webkit-backdrop-filter: blur(18px) saturate(165%);
+    box-shadow:
+      0 1px 0 rgba(255, 248, 220, 0.06) inset,
+      0 18px 40px -28px rgba(0, 0, 0, 0.65),
+      0 0 0 1px color-mix(in srgb, rgba(0, 0, 0, 0.35) 40%, transparent);
 
     .headerContent {
       .wrapContent {
