@@ -1,4 +1,4 @@
-/** Путь к нашему Next.js proxy (обходит CORS и даёт одинаковое поведение SSR/клиент). */
+/** Шлях до нашого Next.js proxy (обходить CORS і дає однакову поведінку SSR/клієнт). */
 function buildProxyUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`
   const base =
@@ -9,7 +9,7 @@ function buildProxyUrl(path: string): string {
   return `${base}/api/bibleProxy${normalized}`
 }
 
-// ===== BASE FETCH =====
+// ===== БАЗОВИЙ FETCH =====
 async function safeFetch(url: string) {
   try {
     const res = await fetch(url, { cache: "no-store" })
@@ -39,7 +39,7 @@ async function safeFetch(url: string) {
   }
 }
 
-// ===== FETCH BOOKS =====
+// ===== ОТРИМАТИ КНИГИ =====
 export async function fetchBooks(translation: string) {
   if (!translation) return []
 
@@ -54,7 +54,7 @@ export async function fetchBooks(translation: string) {
   return data
 }
 
-// ===== FETCH CHAPTERS =====
+// ===== ОТРИМАТИ ГЛАВИ =====
 export async function fetchChapters(bookId: string, translation: string) {
   const books = await fetchBooks(translation)
 
@@ -74,7 +74,7 @@ export async function fetchChapters(bookId: string, translation: string) {
   )
 }
 
-// ===== FETCH FULL CHAPTER =====
+// ===== ОТРИМАТИ ПОВНУ ГЛАВУ =====
 export async function fetchFullChapter(book: string, chapter: number, translation: string) {
   if (!translation) return []
 
@@ -91,7 +91,7 @@ export async function fetchFullChapter(book: string, chapter: number, translatio
   return data
 }
 
-// ===== FETCH TRANSLATIONS =====
+// ===== ОТРИМАТИ ПЕРЕКЛАДИ =====
 export async function fetchTranslations() {
   const data = await safeFetch(buildProxyUrl("/bible/get-languages"))
 
@@ -112,7 +112,7 @@ export async function fetchTranslations() {
   )
 }
 
-// ===== FETCH RANDOM VERSE =====
+// ===== ОТРИМАТИ ВИПАДКОВИЙ ВІРШ =====
 const NT_BOOK_IDS = new Set([
   "MAT",
   "MRK",
@@ -213,7 +213,7 @@ function isAllowedRandomBook(book: { id?: string; name?: string }) {
 export async function fetchRandomVerse(translation: string) {
   if (!translation) return null
 
-  // Get all books
+  // Отримати всі книги
   const books = await fetchBooks(translation)
   if (!books.length) return null
 
@@ -225,7 +225,7 @@ export async function fetchRandomVerse(translation: string) {
     return null
   }
 
-  // Select random book
+  // Вибрати випадкову книгу
   const randomBook = allowedBooks[Math.floor(Math.random() * allowedBooks.length)] as {
     id?: string
     name?: string
@@ -233,18 +233,18 @@ export async function fetchRandomVerse(translation: string) {
   }
   if (!randomBook?.id || !randomBook?.name) return null
 
-  // Get chapters for random book
+  // Отримати глави для випадкової книги
   const chapters = await fetchChapters(randomBook.id, translation)
   if (!chapters.length) return null
 
-  // Select random chapter
+  // Вибрати випадкову главу
   const randomChapter = chapters[Math.floor(Math.random() * chapters.length)]
 
-  // get-text ожидает код книги (AMO, GEN…), не локализованное имя — иначе 404.
+  // get-text очікує код книги (AMO, GEN…), а не локалізовану назву — інакше 404.
   const verses = await fetchFullChapter(randomBook.id, randomChapter, translation)
   if (!verses.length) return null
 
-  // Select random verse
+  // Вибрати випадковий вірш
   const randomVerse = verses[Math.floor(Math.random() * verses.length)] as {
     verse?: number | string
     text?: string

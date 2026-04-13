@@ -7,11 +7,11 @@ export type VerseNotesCollectionId =
 
 export type VerseNotesCollectionMeta = {
   id: VerseNotesCollectionId
-  /** Заголовок на обложке-сборнике */
+  /** Заголовок на обкладинці-збірці */
   title: string
-  /** Короткая подпись под названием */
+  /** Короткий підпис під назвою */
   tagline: string
-  /** Класс фона карточки (см. CollectionCoverCard.module.scss) */
+  /** Клас фону картки (див. CollectionCoverCard.module.scss) */
   coverVariant: "gratitude" | "love" | "prayer" | "insights" | "sermons"
 }
 

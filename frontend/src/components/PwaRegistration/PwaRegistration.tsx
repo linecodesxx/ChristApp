@@ -20,10 +20,10 @@ export default function PwaRegistration() {
         })
 
         registration.update().catch(() => {
-          // Ignore update errors; browser will retry on next navigation.
+          // Ігноруємо помилки оновлення; браузер повторить спробу при наступній навігації.
         })
       } catch {
-        // Service worker registration can fail in unsupported/private contexts.
+        // Реєстрація service worker може впасти в непідтримуваних/приватних контекстах.
       }
     }
 

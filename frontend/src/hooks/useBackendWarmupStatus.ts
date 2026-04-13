@@ -79,7 +79,7 @@ export function useBackendWarmupStatus(enabled: boolean) {
       : 0
 
   return {
-    /** null — ещё ни разу не закончили первую проверку */
+    /** null — ще жодного разу не завершили першу перевірку */
     reachable,
     checking,
     elapsedLabel: formatElapsed(elapsedSec),

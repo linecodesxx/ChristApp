@@ -12,9 +12,9 @@ export type MessageReply = {
 export type Message = {
   sender?: string
   id: string
-  /** Отображаемое имя (ник). */
+  /** Відображуване ім'я (нік). */
   username: string
-  /** Уникальный @username (латиница, нижний регистр). */
+  /** Унікальний @username (латиниця, нижній регістр). */
   handle?: string
   senderId?: string
   content: string

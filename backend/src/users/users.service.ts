@@ -26,7 +26,7 @@ const profileSelect = {
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  // Получить всех пользователей
+  // Отримати всіх користувачів
   async getAllUsers() {
     return this.prisma.user.findMany({
       select: {
@@ -42,7 +42,7 @@ export class UsersService {
     });
   }
 
-  // Получить одного пользователя по id
+  // Отримати одного користувача за id
   async getUserById(id: string) {
     const user = await this.prisma.user.findUnique({
       where: { id },

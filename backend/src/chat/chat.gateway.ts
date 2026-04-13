@@ -54,7 +54,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
   server: Server;
 
-  // Общий чат — это просто комната
+  // Загальний чат — це просто кімната
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
@@ -67,10 +67,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private pushService: PushService,
   ) {}
 
-  // userId → количество активных соединений
+  // userId → кількість активних з'єднань
   private onlineUsers = new Map<string, number>();
 
-  // таймер для "мягкого" оффлайна (если вкладка быстро перезагружается)
+  // таймер для "м'якого" офлайну (якщо вкладка швидко перезавантажується)
   private pendingDisconnectTimers = new Map<
     string,
     ReturnType<typeof setTimeout>
@@ -149,10 +149,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       if (!user) return undefined;
 
-      // Создаем объект, который соответствует интерфейсу SocketUser
+      // Створюємо об'єкт, що відповідає інтерфейсу SocketUser
       const socketUser = {
         ...user,
-        nickname: user.nickname ?? user.username, // Если ника нет, берем логин
+        nickname: user.nickname ?? user.username, // Якщо ніка немає, беремо логін
       };
 
       client.data.user = socketUser;
@@ -162,7 +162,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ================= CONNECTION =================
+  // ================= ПІДКЛЮЧЕННЯ =================
   async handleConnection(client: SocketWithUser) {
     const user = await this.resolveSocketUser(client);
     if (!user) {
@@ -175,12 +175,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     console.log('✅ Connected:', user.username);
 
     try {
-      // Подключаем к общему чату
+      // Підключаємо до загального чату
       client.join(this.GLOBAL_ROOM);
 
       await this.emitMyRooms(client, user.id);
 
-      // Обновляем онлайн-статус
+      // Оновлюємо онлайн-статус
       const userId = user.id;
       const previousConnections = this.onlineUsers.get(userId) || 0;
       const reconnectTimer = this.pendingDisconnectTimers.get(userId);
@@ -197,7 +197,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         this.server.emit('userPresenceChanged', { userId, isOnline: true, lastSeenAt: null });
       }
 
-      // Рассылаем глобальный онлайн
+      // Розсилаємо глобальний онлайн
       this.emitOnlinePresence();
     } catch (err) {
       const reason = err instanceof Error ? err.message : String(err);
@@ -208,8 +208,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // ================= RESOLVE SHARE WITH JESUS ROOM =================
   /**
-   * Быстро резолвит комнату «Поделись с Иисусом» для текущего пользователя и гарантирует членство.
-   * Возвращает только roomId владельцу (поэтому другой пользователь не сможет получить чужой roomId через этот метод).
+  * Швидко резолвить кімнату «Поділися з Ісусом» для поточного користувача та гарантує членство.
+  * Повертає roomId лише власнику (тому інший користувач не зможе отримати чужий roomId через цей метод).
    */
   @SubscribeMessage('resolveShareWithJesusRoomId')
   async handleResolveShareWithJesusRoomId(
@@ -231,7 +231,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  // ================= DISCONNECT =================
+  // ================= ВІДКЛЮЧЕННЯ =================
   async handleDisconnect(client: SocketWithUser) {
     const user = client.data.user;
     if (!user) return;
@@ -241,7 +241,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     if (!currentConnections) return;
 
     if (currentConnections === 1) {
-      // Ждем немного перед удалением (если вкладка перезагружается)
+      // Трохи чекаємо перед видаленням (якщо вкладка перезавантажується)
       const timer = setTimeout(() => {
         this.pendingDisconnectTimers.delete(userId);
 
@@ -263,7 +263,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ================= JOIN ROOM =================
+  // ================= ПРИЄДНАННЯ ДО КІМНАТИ =================
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
     @MessageBody()
@@ -286,17 +286,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      // Проверяем доступ к комнате
+      // Перевіряємо доступ до кімнати
       const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
       if (!hasAccess) {
         client.emit('error', 'Нет доступа');
         return;
       }
 
-      // 🔹 Добавляем сокет в комнату
+      // 🔹 Додаємо сокет у кімнату
       await client.join(roomId);
 
-      // 🔹 Отправляем историю комнаты
+      // 🔹 Надсилаємо історію кімнати
       const history = await this.messagesService.getRoomMessages(
         roomId,
         limit,
@@ -311,7 +311,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         },
       });
 
-      // Комната открыта у пользователя: считаем текущий срез прочитанным.
+      // Кімната відкрита у користувача: вважаємо поточний зріз прочитаним.
       const readAt = new Date();
       await this.messagesService.markRoomAsRead(roomId, user.id, readAt);
       client.to(roomId).emit('roomReadUpdated', {
@@ -413,7 +413,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
-  // ================= LEAVE ROOM =================
+  // ================= ВИХІД ІЗ КІМНАТИ =================
   @SubscribeMessage('leaveRoom')
   async handleLeaveRoom(
     @MessageBody() roomId: string,
@@ -421,7 +421,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   ) {
     const user = client.data.user;
 
-    // 🔹 Удаляем сокет из комнаты
+    // 🔹 Видаляємо сокет із кімнати
     await client.leave(roomId);
 
     if (user) {
@@ -433,7 +433,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  /** Убрать себя из комнаты (личные чаты и прочие, кроме общего и «Поделись с Иисусом»). */
+  /** Видалити себе з кімнати (приватні чати та інші, окрім загального і «Поділися з Ісусом»). */
   @SubscribeMessage('removeSelfFromRoom')
   async handleRemoveSelfFromRoom(
     @MessageBody() body: { roomId: string },
@@ -526,7 +526,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.emitMyRooms(client, user.id);
   }
 
-  // ================= CREATE PRIVATE ROOM =================
+  // ================= СТВОРЕННЯ ПРИВАТНОЇ КІМНАТИ =================
   @SubscribeMessage('createPrivateRoom')
   async handleCreatePrivateRoom(
     @MessageBody() body: { title: string },
@@ -578,7 +578,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.emitMyRooms(client, user.id);
   }
 
-  // ================= OPEN DIRECT ROOM =================
+  // ================= ВІДКРИТТЯ DIRECT-КІМНАТИ =================
   @SubscribeMessage('openDirectRoom')
   async handleOpenDirectRoom(
     @MessageBody() body: { targetUserId: string },
@@ -679,7 +679,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ================= INVITE USER TO ROOM =================
+  // ================= ЗАПРОШЕННЯ КОРИСТУВАЧА ДО КІМНАТИ =================
   @SubscribeMessage('inviteUserToRoom')
   async handleInviteUserToRoom(
     @MessageBody() body: { roomId: string; userId: string },
@@ -789,7 +789,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ================= MY ROOMS =================
+  // ================= МОЇ КІМНАТИ =================
   @SubscribeMessage('getMyRooms')
   async handleGetMyRooms(@ConnectedSocket() client: SocketWithUser) {
     const user = await this.resolveSocketUser(client);
@@ -801,7 +801,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     await this.emitMyRooms(client, user.id);
   }
 
-  // ================= SEND MESSAGE =================
+  // ================= НАДСИЛАННЯ ПОВІДОМЛЕННЯ =================
   @SubscribeMessage('sendMessage')
   async handleMessage(
     @MessageBody() body: { roomId: string; content: string },
@@ -817,7 +817,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    // Не отправляем пустые сообщения
+    // Не надсилаємо порожні повідомлення
     if (!content?.trim()) return;
 
     try {
@@ -990,7 +990,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   /**
-   * После сохранения сообщения в БД: read receipt, сокет и push (как при sendMessage).
+  * Після збереження повідомлення в БД: read receipt, сокет і push (як при sendMessage).
    */
   async broadcastNewChatMessage(
     roomId: string,

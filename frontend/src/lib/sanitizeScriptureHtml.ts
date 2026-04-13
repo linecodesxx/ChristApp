@@ -1,14 +1,14 @@
 import DOMPurify from "isomorphic-dompurify"
 
-/** Inline markup occasionally returned by Bible APIs (emphasis, small caps, etc.). */
+/** Inline-розмітка, яку інколи повертають Bible API (акценти, small caps тощо). */
 const SANITIZE_CONFIG = {
   ALLOWED_TAGS: ["i", "em", "b", "strong", "sup", "sub", "small", "br", "span"],
   ALLOWED_ATTR: ["class"],
 }
 
 /**
- * Strips scripts/event handlers and limits tags to safe inline formatting.
- * Returns an empty string if input is unusable or sanitization fails.
+ * Видаляє scripts/event handlers і обмежує теги до безпечного inline-форматування.
+ * Повертає порожній рядок, якщо вхідні дані непридатні або санітизація не вдалась.
  */
 export function sanitizeScriptureHtml(dirty: unknown): string {
   if (typeof dirty !== "string") {
@@ -26,7 +26,7 @@ export function sanitizeScriptureHtml(dirty: unknown): string {
 }
 
 /**
- * Plain text for clipboard, splash typing, or previews — strips inline HTML from API strings.
+ * Plain text для буфера обміну, splash typing або прев'ю — прибирає inline HTML з API-рядків.
  */
 export function scripturePlainText(raw: unknown): string {
   if (typeof raw !== "string") {

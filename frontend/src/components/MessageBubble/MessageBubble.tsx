@@ -272,7 +272,7 @@ function MessageBubble({
                 rel="noopener noreferrer"
                 onClick={(event) => event.stopPropagation()}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element -- внешний Cloudinary URL */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- зовнішній Cloudinary URL */}
                 <img src={imgUrl} alt="" className={styles.chatImage} loading="lazy" />
               </a>
             </div>
@@ -286,7 +286,7 @@ function MessageBubble({
           try {
             playerSrc = decodeURIComponent(cleanUrl)
           } catch {
-            /* бэкенд кладёт encodeURIComponent(URL); если строка уже «голая» — оставляем cleanUrl */
+            /* бекенд кладе encodeURIComponent(URL); якщо рядок уже «голий» — лишаємо cleanUrl */
           }
           return (
             <VoiceMessageBubble

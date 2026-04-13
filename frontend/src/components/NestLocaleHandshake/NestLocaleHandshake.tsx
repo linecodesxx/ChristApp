@@ -1,14 +1,14 @@
 import { fetchNestWithAcceptLanguage } from "@/lib/server/fetchNestWithAcceptLanguage"
 
 /**
- * Серверный пример: запрос к Nest через `/api/nest` с заголовком Accept-Language из текущей локали.
- * Результат не отображается — только демонстрация интеграции для серверных компонентов.
+ * Серверний приклад: запит до Nest через `/api/nest` із заголовком Accept-Language з поточної локалі.
+ * Результат не відображається — лише демонстрація інтеграції для серверних компонентів.
  */
 export default async function NestLocaleHandshake() {
   try {
     await fetchNestWithAcceptLanguage("/health")
   } catch {
-    // Не блокируем страницу входа при недоступном API
+    // Не блокуємо сторінку входу при недоступному API
   }
   return null
 }

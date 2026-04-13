@@ -16,7 +16,7 @@ export type ChatListItem = {
   titleLoading?: boolean
   preview?: string
   timeLabel?: string
-  /** ISO-время последней активности — для сортировки личных чатов (новые сверху под общим чатом). */
+  /** ISO-час останньої активності — для сортування приватних чатів (нові зверху під загальним чатом). */
   lastActivityAt?: string
   avatarInitials?: string
   avatarImage?: string
@@ -24,15 +24,15 @@ export type ChatListItem = {
   unread?: boolean | number
   href?: string
   isOnline?: boolean
-  /** Показать меню «⋯» с удалением (общий чат и служебные строки — без меню). */
+  /** Показати меню «⋯» з видаленням (загальний чат і службові рядки — без меню). */
   deletable?: boolean
 }
 
 export type ChatCreateCandidate = {
   id: string
-  /** Отображаемое имя (ник). */
+  /** Відображуване ім'я (нік). */
   username: string
-  /** @username для поиска. */
+  /** @username для пошуку. */
   handle: string
   email: string
   isOnline: boolean

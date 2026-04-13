@@ -2,15 +2,15 @@ import styles from "./CrossLoader.module.scss"
 
 export type CrossLoaderProps = {
   className?: string
-  /** Текст для скринридеров */
+  /** Текст для скринрідерів */
   label?: string
-  /** fullscreen — на всю доступную высоту контента; inline — компактный блок */
+  /** fullscreen — на всю доступну висоту контенту; inline — компактний блок */
   variant?: "fullscreen" | "inline"
 }
 
 /**
- * Заглушка загрузки: анимация прорисовки золотого креста (SVG + stroke-dashoffset).
- * Длина контура задана через pathLength — без JS, корректно при SSR.
+ * Заглушка завантаження: анімація промальовування золотого хреста (SVG + stroke-dashoffset).
+ * Довжина контуру задана через pathLength — без JS, коректно при SSR.
  */
 export default function CrossLoader({
   className,

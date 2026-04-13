@@ -3,7 +3,7 @@
   z-index: 150;
   left: max(16px, env(safe-area-inset-left, 0px));
   right: max(16px, env(safe-area-inset-right, 0px));
-  /* Над индикатором «домой» и выше края экрана в PWA (раньше padding: 10px 0 затирал safe-area) */
+  /* Над індикатором «додому» і вище краю екрана в PWA (раніше padding: 10px 0 затирав safe-area) */
   bottom: calc(12px + env(safe-area-inset-bottom, 0px));
   display: flex;
   justify-content: space-around;

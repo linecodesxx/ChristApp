@@ -3,9 +3,9 @@
 import { useSyncExternalStore } from "react"
 
 /**
- * `false` на сервере и при гидрации; `true` после монтирования на клиенте.
- * Реализация через useSyncExternalStore — без расхождений SSR/клиента (см. getServerSnapshot).
- * `queueMicrotask` в subscribe гарантирует повторный рендер после commit (пустой subscribe в React 19 может не дать обновления).
+ * `false` на сервері й під час гідрації; `true` після монтування на клієнті.
+ * Реалізація через useSyncExternalStore — без розбіжностей SSR/клієнта (див. getServerSnapshot).
+ * `queueMicrotask` у subscribe гарантує повторний рендер після commit (порожній subscribe у React 19 може не дати оновлення).
  */
 export function useHydrated() {
   return useSyncExternalStore(

@@ -154,7 +154,7 @@ function persistLastSentPreview(roomKey: string, message: string, directUserId?:
 
     window.localStorage.setItem(LAST_SENT_PREVIEW_STORAGE_KEY, JSON.stringify(parsed))
   } catch {
-    // ignore localStorage errors
+    // ігноруємо помилки localStorage
   }
 }
 
@@ -383,7 +383,7 @@ export default function ChatPageDetails() {
   const locale = useLocale()
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
   const queryClient = useQueryClient()
-  // Runtime refs нужны для socket callbacks, чтобы избежать stale state внутри listeners.
+  // Runtime refs потрібні для socket callbacks, щоб уникнути stale state усередині listeners.
   const socketRef = useRef<Socket | null>(null)
   const usersRef = useRef(users)
   const currentRoomRef = useRef<string | undefined>(undefined)
@@ -392,14 +392,14 @@ export default function ChatPageDetails() {
   const openingDirectRoomRef = useRef<Set<string>>(new Set())
   const messageIdsRef = useRef<Set<string>>(new Set())
   const lastMyRoomsEmitAtRef = useRef(0)
-  /** true после joinRoom до прихода roomHistory (в т.ч. при skipLoadingSpinner). */
+  /** true після joinRoom до приходу roomHistory (зокрема при skipLoadingSpinner). */
   const awaitingRoomHistoryRef = useRef(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [roomTitle, setRoomTitle] = useState<string>("")
   const [roomRawTitle, setRoomRawTitle] = useState<string>("")
   const [isSocketConnected, setIsSocketConnected] = useState(false)
   const [isHistoryLoading, setIsHistoryLoading] = useState(true)
-  /** Только фатальные случаи (нет токена). Обрывы сокета не показываем вместо чата. */
+  /** Лише фатальні випадки (немає токена). Обриви сокета не показуємо замість чату. */
   const [authError, setAuthError] = useState<string | null>(null)
   const [sendNotice, setSendNotice] = useState<string | null>(null)
   const [replyToMessage, setReplyToMessage] = useState<Message | null>(null)
@@ -494,7 +494,7 @@ export default function ChatPageDetails() {
   const roomHistoryQuery = useQuery({
     queryKey: chatRoomHistoryQueryKey(effectiveSocketRoomId),
     enabled: Boolean(user?.id && effectiveSocketRoomId),
-    /** Иначе глобальный placeholderData подставляет историю предыдущей комнаты при смене чата. */
+    /** Інакше глобальний placeholderData підставляє історію попередньої кімнати під час зміни чату. */
     placeholderData: undefined,
     queryFn: async () => {
       const token = getAuthToken()
@@ -651,7 +651,7 @@ export default function ChatPageDetails() {
     }
   }, [loading, user, roomId, router])
 
-  // Полный жизненный цикл socket: connect/disconnect, история, новые сообщения, presence.
+  // Повний життєвий цикл socket: connect/disconnect, історія, нові повідомлення, presence.
   useEffect(() => {
     if (loading) return
 
@@ -1143,7 +1143,7 @@ export default function ChatPageDetails() {
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
-  // Синхронизируем socket-room при смене URL (используем routeRoomId: slug «share-with-jesus», global, uuid).
+  // Синхронізуємо socket-room під час зміни URL (використовуємо routeRoomId: slug «share-with-jesus», global, uuid).
   useEffect(() => {
     if (loading || !routeRoomId) return
 
@@ -1195,7 +1195,7 @@ export default function ChatPageDetails() {
     requestMyRooms(socket)
   }, [queryClient, requestMyRooms, routeRoomId, loading, joinRoom, leaveCurrentRoom, user?.id])
 
-  // Быстрое подключение «Поделись с Иисусом» без ожидания `myRooms`.
+  // Швидке підключення «Поділися з Ісусом» без очікування `myRooms`.
   useEffect(() => {
     if (loading || routeRoomId !== SHARE_WITH_JESUS_SLUG) return
 
@@ -1229,8 +1229,8 @@ export default function ChatPageDetails() {
       return
     }
 
-    // Как только история загрузилась или прилетело новое сообщение,
-    // и пользователь реально смотрит комнату, помечаем ее прочитанной.
+    // Щойно історія завантажилась або прилетіло нове повідомлення,
+    // і користувач реально дивиться кімнату, позначаємо її прочитаною.
     markRoomAsRead()
   }, [messages.length, isHistoryLoading, authError, markRoomAsRead])
 
@@ -1478,7 +1478,7 @@ export default function ChatPageDetails() {
   const headerPresenceClass =
     directChatTargetUser != null ? (isDirectTargetOnline ? styles.peerOnline : styles.peerOffline) : styles.peerNeutral
 
-  /** Зелёный цвет строки «N пользователей онлайн» в общем чате (не для «Загрузка…» / «Подключение…»). */
+  /** Зелений колір рядка «N користувачів онлайн» у загальному чаті (не для «Завантаження…» / «Підключення…»). */
   const globalOnlineStatusHighlight = roomId === GLOBAL_ROOM_ID && !isHistoryLoading && isSocketConnected
 
   const typingStatuses = useMemo(() => Array.from(typingUsers.values()), [typingUsers])

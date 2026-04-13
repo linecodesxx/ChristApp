@@ -20,7 +20,7 @@
     font-style: italic;
     font-weight: 400;
     letter-spacing: 0.022em;
-    /* Ties emphasis to surrounding text color (works on warm verse cards too) */
+    /* Прив'язує акцент до кольору навколишнього тексту (працює і на теплих картках віршів) */
     color: color-mix(in srgb, currentColor 66%, #b89f6a 34%);
   }
 

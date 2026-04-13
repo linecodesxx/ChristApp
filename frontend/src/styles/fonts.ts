@@ -5,7 +5,7 @@ export const inter = Inter({
   subsets: ["latin"],
 })
 
-/** Сцена «древний пергамент» (NoteScene). */
+/** Сцена «давній пергамент» (NoteScene). */
 export const ebGaramond = EB_Garamond({
   variable: "--font-note-scene-eb-garamond",
   subsets: ["latin", "cyrillic"],

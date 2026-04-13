@@ -69,8 +69,8 @@ export async function showChatNotification({
     return false
   }
 
-  // Если устройство уже подписано на Web Push, уведомление придет из Service Worker.
-  // Это защищает от дублей, когда чат открыт во вкладке и сервер тоже отправляет push.
+  // Якщо пристрій уже підписаний на Web Push, сповіщення прийде із Service Worker.
+  // Це захищає від дублів, коли чат відкрито у вкладці й сервер теж надсилає push.
   if (await hasActivePushSubscription()) {
     return false
   }
@@ -104,7 +104,7 @@ export async function showChatNotification({
         return true
       }
     } catch {
-      // Fallback to Notification constructor below.
+      // Фолбек до конструктора Notification нижче.
     }
   }
 

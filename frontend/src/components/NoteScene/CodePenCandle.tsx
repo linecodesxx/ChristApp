@@ -1,7 +1,7 @@
 import styles from "./CodePenCandle.module.scss"
 
 /**
- * Pure CSS свеча: та же разметка, что в CodePen Takuma_BMe (BaVdNLK) —
+ * Свічка на Pure CSS: та сама розмітка, що в CodePen Takuma_BMe (BaVdNLK) —
  * blinking-glow, thread, glow, flame внутри воска.
  */
 export default function CodePenCandle() {

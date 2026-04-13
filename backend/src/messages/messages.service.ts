@@ -40,7 +40,7 @@ export type DeleteOwnMessageResult =
   | { ok: true; messageId: string; roomId: string }
   | { ok: false; reason: 'not-found' | 'not-owner' | 'no-access' };
 
-/** @deprecated используйте DeleteOwnMessageResult */
+/** @deprecated використовуйте DeleteOwnMessageResult */
 export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
 @Injectable()
@@ -114,9 +114,9 @@ export class MessagesService {
   }
 
   /**
-   * Последние `limit` сообщений комнаты (хронологически: старые → новые).
-   * Раньше использовался order asc + take — отдавались самые старые N сообщений,
-   * из‑за чего при большой истории новые пропадали после перезагрузки.
+  * Останні `limit` повідомлень кімнати (хронологічно: старі → нові).
+  * Раніше використовувався order asc + take — поверталися найстаріші N повідомлень,
+  * через що при великій історії нові зникали після перезавантаження.
    */
   async getRoomMessages(roomId: string, limit = 50, skip = 0) {
     const rows = await this.prisma.message.findMany({
@@ -143,13 +143,13 @@ export class MessagesService {
     });
   }
 
-  /** Сообщения только общей комнаты (без личных и прочих комнат). */
+  /** Повідомлення лише загальної кімнати (без приватних та інших кімнат). */
   async getGlobalRoomMessages(limit = 50, skip = 0) {
     return this.getRoomMessages(this.GLOBAL_ROOM, limit, skip);
   }
 
   /**
-   * Удаление своего сообщения: общий чат или любая комната, где пользователь — участник (личные чаты и т.д.).
+  * Видалення свого повідомлення: загальний чат або будь-яка кімната, де користувач — учасник (приватні чати тощо).
    */
   async deleteOwnMessage(messageId: string, userId: string): Promise<DeleteOwnMessageResult> {
     const existingMessage = await this.prisma.message.findUnique({
@@ -206,7 +206,7 @@ export class MessagesService {
     };
   }
 
-  /** @deprecated используйте deleteOwnMessage */
+  /** @deprecated використовуйте deleteOwnMessage */
   async deleteOwnGlobalMessage(
     messageId: string,
     userId: string,
@@ -234,8 +234,8 @@ export class MessagesService {
   }
 
   async getUnreadSummary(userId: string): Promise<UnreadSummaryResult> {
-    // Один запрос сразу по всем доступным комнатам:
-    // unread + последнее сообщение по каждой комнате.
+    // Один запит одразу по всіх доступних кімнатах:
+    // unread + останнє повідомлення по кожній кімнаті.
     try {
       return await this.fetchUnreadSummaryRows(userId);
     } catch (err) {

@@ -1,12 +1,12 @@
-/** Дефолтный UUID общей комнаты (должен совпадать с сидом в БД). */
+/** UUID загальної кімнати за замовчуванням (має збігатися із seed у БД). */
 export const DEFAULT_GLOBAL_ROOM_ID = '00000000-0000-0000-0000-000000000001';
 
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
- * `process.env.GLOBAL_ROOM_ID ?? default` ломается, если в .env задана пустая строка
- * (часто на Render/CI) — в SQL уходит "" и PostgreSQL отвечает invalid uuid → 500.
+ * `process.env.GLOBAL_ROOM_ID ?? default` ламається, якщо в .env задано порожній рядок
+ * (часто на Render/CI) — у SQL йде "" і PostgreSQL відповідає invalid uuid → 500.
  */
 export function resolveGlobalRoomId(): string {
   const raw = process.env.GLOBAL_ROOM_ID?.trim();

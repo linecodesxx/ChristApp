@@ -17,7 +17,7 @@ export function getSelectedVersesClipboardText() {
   return Array.from(selectedVersesClipboardStore.values()).join("\n")
 }
 
-/** Сброс мультивыбора в памяти (после покраски и т.п.) */
+/** Скидання мультивибору в пам'яті (після фарбування тощо) */
 export function clearVerseSelectionClipboard() {
   selectedVersesClipboardStore.clear()
 }
@@ -30,20 +30,20 @@ type VerseProps = {
   translation?: string
   onBookClick?: () => void
   onChapterClick?: () => void
-  /** called when verse is clicked (in addition to internal highlighting) */
+  /** викликається при кліку на вірш (додатково до внутрішнього підсвічування) */
   onVerseClick?: (verse: number) => void
-  /** external selection state (e.g. last read verse) */
+  /** зовнішній стан вибору (наприклад, останній прочитаний вірш) */
   selected?: boolean
-  /** optional id attribute (used for scrolling) */
+  /** необов'язковий id-атрибут (використовується для прокрутки) */
   id?: string
-  /** show Save/Share actions near selected verse */
+  /** показати дії Зберегти/Поширити біля вибраного вірша */
   showInlineActions?: boolean
   activeActionsVerseKey?: string | null
   onOpenActions?: (verseKey: string) => void
   onShareClick?: () => void
-  /** Сдвигается после записи в localStorage — перечитать цвет подсветки */
+  /** Зсувається після запису в localStorage — перечитати колір підсвітки */
   highlightStorageEpoch?: number
-  /** Если задано, выбор цвета в плашке красит все выделенные стихи главы (через родителя) */
+  /** Якщо задано, вибір кольору в плашці фарбує всі виділені вірші глави (через батьківський компонент) */
   onApplyHighlightColorToSelection?: (
     color: string | null,
     options?: { closeToolbar?: boolean },
@@ -194,14 +194,14 @@ function Verse({
       setIsSaved(true)
       void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
 
-      // Reset saved state after 2 seconds
+      // Скинути стан збереження через 2 секунди
       setTimeout(() => {
         setIsSaved(false)
       }, 2000)
     } catch (error) {
       const catchError = error as Error & { message: string }
       console.error("Failed to save verse", catchError)
-      // Check if it's already saved
+      // Перевірити, чи вже збережено
       if (catchError.message.includes("already")) {
         setIsSaved(true)
       }
@@ -264,7 +264,7 @@ function Verse({
 
       window.localStorage.setItem(VERSE_HIGHLIGHT_STORAGE_KEY, JSON.stringify(parsed))
     } catch {
-      // no-op: localStorage may be unavailable
+      // no-op: localStorage може бути недоступним
     }
   }
 

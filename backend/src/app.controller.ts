@@ -10,7 +10,7 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  /** Лёгкая проверка «сервер поднялся» (холодный старт на хостинге) — без БД и авторизации. */
+  /** Легка перевірка «сервер запущено» (холодний старт на хостингу) — без БД і авторизації. */
   @Get('health')
   health(): { ok: true } {
     return { ok: true };

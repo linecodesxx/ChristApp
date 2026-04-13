@@ -1,7 +1,7 @@
 export const VOICE_META_PREFIX = "[[voice:"
 export const VOICE_META_SUFFIX = "]]"
 
-/** Если `content` целиком — маркер голосового, возвращает публичный URL аудио. */
+/** Якщо `content` повністю — маркер голосового, повертає публічний URL аудіо. */
 export function parseVoiceMessageUrl(content: string): string | null {
   const rawUrl = content.trim()
   if (!rawUrl.startsWith(VOICE_META_PREFIX) || !rawUrl.endsWith(VOICE_META_SUFFIX)) {

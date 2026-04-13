@@ -36,7 +36,7 @@ function useAutosizeTextarea(value: string) {
 type PremiumNoteFormProps = {
   onSubmit: (source: string, response: string) => void
   disabled?: boolean
-  /** Текст из сцены пергамента — один раз добавится в «Отклик». */
+  /** Текст зі сцени пергаменту — один раз додасться у «Відгук». */
   appendToResponse?: string | null
   onAppendConsumed?: () => void
 }

@@ -22,14 +22,14 @@ type MessageInputProps = {
   onCancelEdit?: () => void
   disabled?: boolean
   placeholder?: string
-  /** Сигнал для индикатора «печатает» (debounce внутри). */
+  /** Сигнал для індикатора «друкує» (debounce всередині). */
   onTypingActivity?: (isActivelyTyping: boolean) => void
   /**
-   * Голосовые сообщения: при пустом поле справа показывается микрофон (как в Telegram).
-   * После успешной отправки возвращайте true.
+  * Голосові повідомлення: при порожньому полі праворуч показується мікрофон (як у Telegram).
+  * Після успішного надсилання повертайте true.
    */
   onSendVoice?: (blob: Blob) => void | Promise<boolean>
-  /** Картинка в чат (кнопка скрепки слева). */
+  /** Зображення в чат (кнопка скріпки ліворуч). */
   onSendImage?: (file: File) => void | Promise<boolean>
   onSelectFiles?: (files: File[]) => void | Promise<void>
   onSendSticker?: (sticker: StickerItem) => void | Promise<boolean>
@@ -40,7 +40,7 @@ const MAX_MESSAGE_LENGTH = 2000
 const MAX_TEXTAREA_HEIGHT = 140
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
 
-/** После очистки поля на мобильных PWA нужно вернуть фокус; на iOS — повтор в следующем тике. */
+/** Після очищення поля на мобільних PWA треба повернути фокус; на iOS — повтор у наступному тіку. */
 function focusComposerTextarea(textarea: HTMLTextAreaElement | null) {
   if (!textarea) return
   textarea.focus()
@@ -250,7 +250,7 @@ export default function MessageInput({
         setMode("text")
       }
     } catch {
-      // остаёмся в режиме голоса
+      // лишаємось у режимі голосу
     }
   }
 
@@ -269,7 +269,7 @@ export default function MessageInput({
       try {
         await Promise.resolve(onSelectFiles(selectedFiles))
       } catch {
-        // onSelectFiles показывает ошибку снаружи
+        // onSelectFiles показує помилку зовні
       }
       return
     }
@@ -282,7 +282,7 @@ export default function MessageInput({
     try {
       await Promise.resolve(onSendImage(firstImageFile))
     } catch {
-      // onSendImage показывает ошибку снаружи
+      // onSendImage показує помилку зовні
     }
   }
 
@@ -294,7 +294,7 @@ export default function MessageInput({
         setIsStickerPickerOpen(false)
       }
     } catch {
-      // ошибку показываем снаружи
+      // помилку показуємо зовні
     }
   }
 

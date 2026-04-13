@@ -178,14 +178,10 @@ export function useAuth(options?: UseAuthOptions) {
 
   const checkAuth = useCallback(async () => {
     let token = getAuthToken()
-    let payloadFromRefresh: AuthSessionPayload | null = null
-
-    if (!token) {
-      payloadFromRefresh = await silentRefresh()
-      if (payloadFromRefresh) {
-        setAuthToken(payloadFromRefresh.access_token)
-        token = getAuthToken()
-      }
+    let payloadFromRefresh: AuthSessionPayload | null = await silentRefresh()
+    if (payloadFromRefresh) {
+      setAuthToken(payloadFromRefresh.access_token)
+      token = getAuthToken()
     }
 
     if (!token) {
@@ -298,7 +294,7 @@ export function useAuth(options?: UseAuthOptions) {
           return
         }
       } catch {
-        // fall through to refresh
+        // переходимо до refresh
       }
     }
 
@@ -366,7 +362,7 @@ export function useAuth(options?: UseAuthOptions) {
     try {
       await apiFetch(`${API_URL}/auth/logout`, { method: "POST" })
     } catch {
-      // still clear client state
+      // все одно очищаємо стан клієнта
     }
     clearPersistedReactQueryCache()
     void clearAppBadgeIfSupported()

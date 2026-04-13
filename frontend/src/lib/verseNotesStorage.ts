@@ -4,9 +4,9 @@ export type VerseNoteRecord = {
   id: string
   collectionId: VerseNotesCollectionId
   createdAt: string
-  /** Блок «Источник»: цитата / стих */
+  /** Блок «Джерело»: цитата / вірш */
   sourceText: string
-  /** Блок «Отклик»: личные мысли */
+  /** Блок «Відгук»: особисті думки */
   responseText: string
 }
 

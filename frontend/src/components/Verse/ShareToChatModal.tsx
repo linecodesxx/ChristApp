@@ -12,7 +12,7 @@ type ShareToChatModalProps = {
   open: boolean
   targets: ShareTarget[]
   onClose: () => void
-  /** Вернуть true, если сообщение ушло в сокет — тогда покажем анимацию успеха и закроем модалку. */
+  /** Повернути true, якщо повідомлення пішло в сокет — тоді покажемо анімацію успіху й закриємо модалку. */
   onSelectTarget: (target: ShareTarget) => boolean
 }
 

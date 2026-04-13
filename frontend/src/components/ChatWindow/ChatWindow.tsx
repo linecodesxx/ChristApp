@@ -10,7 +10,7 @@ type ChatWindowProps = {
   messages: Message[]
   currentUsername?: string
   currentUser?: { id: string; username: string; nickname?: string } | null
-  /** Аватарки собеседников (например в общем чате). */
+  /** Аватарки співрозмовників (наприклад, у загальному чаті). */
   withSenderAvatars?: boolean
   resolveAvatarUrl?: (senderId: string) => string | undefined
   onAvatarClick?: (message: Message) => void
@@ -18,9 +18,9 @@ type ChatWindowProps = {
   onDeleteMessage?: (message: Message) => void
   onEditMessage?: (message: Message) => void
   canDeleteOwnMessages?: boolean
-  /** Контент над списком сообщений (например приветствие в особом чате). */
+  /** Контент над списком повідомлень (наприклад, привітання в особливому чаті). */
   topBanner?: ReactNode
-  /** Статусы активности собеседников в комнате. */
+  /** Статуси активності співрозмовників у кімнаті. */
   typingStatuses?: Array<{ username: string; activity: "text" | "voice" }>
   readReceiptMessageId?: string | null
   readReceiptUsersByMessageId?: Map<string, Array<{ id: string; avatarSrc?: string; label?: string }>>
@@ -31,11 +31,11 @@ type ChatWindowProps = {
   resolveReactionUserLabel?: (userId: string) => string | undefined
   onMissingReferencedMessage?: (messageId: string) => void
   roomKey?: string
-  /** Сколько последних сообщений считать «recent» (ниже разделителя). */
+  /** Скільки останніх повідомлень вважати «recent» (нижче розділювача). */
   recentMessagesCount?: number
 }
 
-/** Минимум сообщений в комнате, чтобы показать линию Recent. */
+/** Мінімум повідомлень у кімнаті, щоб показати лінію Recent. */
 const MIN_MESSAGES_FOR_RECENT_LINE = 14
 const DEFAULT_RECENT_MESSAGES_COUNT = 12
 

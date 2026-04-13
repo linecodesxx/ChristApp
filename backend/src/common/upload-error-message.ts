@@ -1,4 +1,4 @@
-/** Нормализует ошибки SDK (часто не instanceof Error) для строки в ответе API. */
+/** Нормалізує помилки SDK (часто не instanceof Error) для рядка у відповіді API. */
 export function uploadErrorMessage(err: unknown): string {
   if (err instanceof Error) {
     return err.message;

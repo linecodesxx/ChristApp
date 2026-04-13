@@ -16,7 +16,7 @@ import {
 import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
 
 type RandomVerseWidgetProps = {
-  /** В блоке приветствия на дашборде: без лишних внешних отступов. */
+  /** У блоці привітання на дашборді: без зайвих зовнішніх відступів. */
   embedInGreeting?: boolean
 }
 

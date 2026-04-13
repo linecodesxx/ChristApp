@@ -25,9 +25,9 @@ type ChatPushNotificationInput = {
 };
 
 const PUSH_BODY_MAX_LEN = 220;
-/** Лимит тела JSON до шифрования web-push (запас до ~4 КБ после overhead). */
+/** Ліміт тіла JSON до шифрування web-push (запас до ~4 КБ після overhead). */
 const PUSH_JSON_UTF8_MAX_BYTES = 3600;
-/** Выше порога не считаем badge per-user (дорогой SQL на каждого получателя). */
+/** Вище порога не рахуємо badge per-user (дорогий SQL на кожного отримувача). */
 const MAX_BADGE_PREFETCH_RECIPIENTS = 40;
 
 type PushSubscriptionRecord = {
@@ -305,7 +305,7 @@ export class PushService {
   }
 
   /**
-   * Заголовок уведомления — имя отправителя; тело — контекст чата + текст сообщения.
+  * Заголовок сповіщення — ім'я відправника; тіло — контекст чату + текст повідомлення.
    */
   private resolveNotificationDisplay(
     roomTitle: string | undefined,
@@ -356,7 +356,7 @@ export class PushService {
     }
 
     if (roomTitle?.startsWith('dm:')) {
-      // Для личного чата открываем маршрут по ID собеседника (как ожидает фронтенд).
+      // Для приватного чату відкриваємо маршрут за ID співрозмовника (як очікує фронтенд).
       const directIds = roomTitle.split(':').slice(1);
       const counterpartyId =
         directIds.find((id) => id !== recipientUserId) || senderId;
@@ -466,7 +466,7 @@ export class PushService {
     }
   }
 
-  /** Сжимает JSON-строку уведомления под лимит провайдера (после шифрования лимит жёстче). */
+  /** Стискає JSON-рядок сповіщення під ліміт провайдера (після шифрування ліміт жорсткіший). */
   private serializePushPayload(payload: Record<string, unknown>): string {
     const maxBytes = PUSH_JSON_UTF8_MAX_BYTES;
     const working: Record<string, unknown> = { ...payload };

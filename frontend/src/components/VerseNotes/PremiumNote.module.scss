@@ -1,4 +1,4 @@
-/* Премиальная заметка: источник (антиква) + отклик (гротеск) */
+/* Преміальна нотатка: джерело (антиква) + відгук (гротеск) */
 
 .card {
   position: relative;
@@ -36,13 +36,55 @@
 }
 
 .meta {
-  margin-bottom: 14px;
+  margin: 0;
   font-family: var(--font-body, "Inter", sans-serif);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--parchment-muted, #6b6760);
+}
+
+/* row that contains meta + share button */
+.cardTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shareIconBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--parchment-muted, #9a9390);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: var(--accent, #ddb468);
+  }
+
+  &:active {
+    transform: scale(0.92);
+  }
+}
+
+:global(html[data-theme="dark"]) .shareIconBtn {
+  color: rgba(200, 185, 155, 0.5);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.07);
+    color: var(--accent, #ddb468);
+  }
 }
 
 .sourceBlock {

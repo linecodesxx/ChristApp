@@ -4,11 +4,11 @@ export const AUTH_COOKIE_NAME = "auth";
 export const AUTH_TOKEN_KEY = "token";
 export const LEGACY_AUTH_TOKEN_KEY = "jwt";
 /**
- * Access token в localStorage — переживает закрытие вкладки / PWA (в отличие от sessionStorage).
- * Refresh по-прежнему в HttpOnly-куке; при истечении access сработает silent refresh в useAuth.
+ * Access token у localStorage — переживає закриття вкладки / PWA (на відміну від sessionStorage).
+ * Refresh як і раніше в HttpOnly-cookie; при завершенні access спрацює silent refresh у useAuth.
  */
 const ACCESS_TOKEN_STORAGE_KEY = "christ_access_token";
-/** Раньше токен лежал только здесь — читаем для миграции со старых сессий. */
+/** Раніше токен лежав лише тут — читаємо для міграції зі старих сесій. */
 const ACCESS_SESSION_LEGACY_KEY = "christ_access_token";
 
 let memoryAccessToken: string | null = null;
@@ -36,7 +36,7 @@ function readStoredAccessToken(): string | null {
         window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, t);
         window.sessionStorage.removeItem(ACCESS_SESSION_LEGACY_KEY);
       } catch {
-        // ignore quota / private mode
+        // ігноруємо quota / private mode
       }
       return t;
     }
@@ -76,7 +76,7 @@ export function setAuthToken(token: string): void {
   try {
     window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, normalizedToken);
   } catch {
-    // private mode / quota — остаётся только memory + refresh по cookie
+    // private mode / quota — лишається лише memory + refresh за cookie
   }
   window.sessionStorage.removeItem(ACCESS_SESSION_LEGACY_KEY);
   window.localStorage.removeItem(AUTH_TOKEN_KEY);

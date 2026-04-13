@@ -7,8 +7,8 @@ import { join } from 'path';
 import { AppModule } from './app.module';
 
 /**
- * С credentials: true нельзя отдавать Access-Control-Allow-Origin: * — браузер блокирует
- * запрос (в консоли часто видно только «Failed to fetch» на register/login).
+ * З credentials: true не можна віддавати Access-Control-Allow-Origin: * — браузер блокує
+ * запит (у консолі часто видно лише «Failed to fetch» на register/login).
  */
 function parseAllowedCorsOrigins(): string[] {
   const raw = process.env.CORS_ORIGIN?.trim();

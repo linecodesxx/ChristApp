@@ -5,7 +5,7 @@ type HealthJson = {
 }
 
 /**
- * Доступен ли HTTP API (в т.ч. после cold start на Render/Railway и т.п.).
+ * Чи доступний HTTP API (зокрема після cold start на Render/Railway тощо).
  */
 export async function checkBackendHealth(apiBase: string, timeoutMs = 16_000): Promise<boolean> {
   const base = apiBase.replace(/\/+$/, "")

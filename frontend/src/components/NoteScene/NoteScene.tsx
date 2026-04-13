@@ -7,23 +7,23 @@ import styles from "./NoteScene.module.scss"
 
 export type NoteSceneProps = {
   isOpen: boolean
-  /** Сохранить текст и закрыть сцену (родитель снимает черновик и при необходимости переносит в форму). */
+  /** Зберегти текст і закрити сцену (батьківський компонент знімає чернетку та за потреби переносить у форму). */
   onSave: () => void
   value: string
   onChange: (next: string) => void
   placeholder?: string
-  /** Подпись для textarea и диалога (a11y). */
+  /** Підпис для textarea і діалогу (a11y). */
   ariaLabel?: string
-  /** Подпись кнопки сохранения. */
+  /** Підпис кнопки збереження. */
   saveLabel?: string
-  /** Макс. высота авто-роста textarea (px). */
+  /** Макс. висота авто-зростання textarea (px). */
   maxTextareaHeightPx?: number
 }
 
 const DEFAULT_MAX_TEXTAREA_HEIGHT = 520
 
 /**
- * Полноэкранная сцена: размытый фон (backdrop) + тёплые блики, свеча, пергамент, «Сохранить».
+ * Повноекранна сцена: розмитий фон (backdrop) + теплі відблиски, свічка, пергамент, «Зберегти».
  */
 export default function NoteScene({
   isOpen,

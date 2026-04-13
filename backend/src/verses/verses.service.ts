@@ -5,7 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class VersesService {
   constructor(private prisma: PrismaService) {}
 
-  // Сохранить стих
+  // Зберегти вірш
   async saveVerse(
     userId: string,
     book: string,
@@ -33,7 +33,7 @@ export class VersesService {
     }
   }
 
-  // Получить все сохранённые стихи пользователя
+  // Отримати всі збережені вірші користувача
   async getUserSavedVerses(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -47,7 +47,7 @@ export class VersesService {
     });
   }
 
-  // Получить сохранённые стихи по книге
+  // Отримати збережені вірші за книгою
   async getSavedVersesByBook(userId: string, book: string) {
     return this.prisma.savedVerse.findMany({
       where: { userId, book },
@@ -55,7 +55,7 @@ export class VersesService {
     });
   }
 
-  // Удалить сохранённый стих
+  // Видалити збережений вірш
   async deleteSavedVerse(userId: string, verseId: string) {
     const verse = await this.prisma.savedVerse.findUnique({
       where: { id: verseId },
@@ -72,7 +72,7 @@ export class VersesService {
     });
   }
 
-  // Проверить есть ли стих в сохранённых
+  // Перевірити, чи є вірш у збережених
   async isVerseSaved(
     userId: string,
     book: string,

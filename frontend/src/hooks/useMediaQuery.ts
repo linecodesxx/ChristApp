@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react"
 
-/** Фокус в композере чата скрывает нижний таб только при ширине ≤ этого значения (десктоп шире). */
+/** Фокус у композері чату приховує нижній таб лише при ширині ≤ цього значення (десктоп ширший). */
 export const CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX = 1023
 
 export function chatComposerTabLayoutMediaQuery(): string {
@@ -10,8 +10,8 @@ export function chatComposerTabLayoutMediaQuery(): string {
 }
 
 /**
- * Подписка на `matchMedia`. На SSR и при гидрации — `getServerSnapshot` (по умолчанию `false`),
- * чтобы не ломать гидрацию; для логики «только с фокусом» это безопасно.
+ * Підписка на `matchMedia`. На SSR і під час гідрації — `getServerSnapshot` (за замовчуванням `false`),
+ * щоб не ламати гідрацію; для логіки «лише з фокусом» це безпечно.
  */
 export function useMediaQuery(query: string, serverMatches = false): boolean {
   return useSyncExternalStore(

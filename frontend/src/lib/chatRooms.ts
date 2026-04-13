@@ -32,9 +32,9 @@ export function isShareWithJesusRoomTitle(title: string) {
 }
 
 /**
- * Второй участник dm-комнаты (`dm:idA:idB`). Без `currentUserId` нельзя однозначно выбрать собеседника:
- * при `currentUserId === undefined` выражение `id !== undefined` даёт первый UUID из title — для пользователя
- * с «меньшим» id это окажется он сам, в списке чатов появляются лишние/битые строки.
+ * Другий учасник dm-кімнати (`dm:idA:idB`). Без `currentUserId` не можна однозначно вибрати співрозмовника:
+ * при `currentUserId === undefined` вираз `id !== undefined` дає перший UUID із title — для користувача
+ * з «меншим» id це виявиться він сам, у списку чатів з'являються зайві/биті рядки.
  */
 export function getDirectTargetUserId(roomTitle: string, currentUserId?: string) {
   if (!roomTitle?.startsWith("dm:")) return undefined
@@ -130,7 +130,7 @@ export function createShareTargetsFromRooms(input: {
     })
   }
 
-  /** Глобальный чат не всегда приходит в `getMyRooms`, но шарить стихи туда нужно всегда. */
+  /** Глобальний чат не завжди приходить у `getMyRooms`, але поширювати вірші туди потрібно завжди. */
   const hasGlobal = targets.some((t) => t.id === GLOBAL_ROOM_ID)
   if (!hasGlobal) {
     targets.push({

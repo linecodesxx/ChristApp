@@ -14,9 +14,9 @@ const LABELS: Record<(typeof routing.locales)[number], string> = {
 }
 
 type LanguageSwitcherProps = {
-  /** Компактный вид в одну линию (например, в шапке профиля рядом с шестерёнкой) */
+  /** Компактний вигляд в один рядок (наприклад, у шапці профілю поруч із шестернею) */
   variant?: "inline"
-  /** После смены локали */
+  /** Після зміни локалі */
   onLocaleChange?: () => void
 }
 
