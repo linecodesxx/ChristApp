@@ -22,6 +22,7 @@ import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import { normalizeNotificationBody, showChatNotification } from "@/lib/notifications"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { canSeeVerseNotesNav } from "@/lib/verseNotesNav"
+import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav"
 import {
   GLOBAL_CHAT_AVATAR_SRC,
   GLOBAL_CHAT_TITLE,
@@ -71,6 +72,8 @@ type DirectRoomItemInput = {
   previous?: ChatListItem
   lastActivityAt?: string
   avatarUrl?: string | null
+  lastSeenAt?: string | null
+  peerIsVip?: boolean
 }
 
 function getGlobalRoomFromPrevious(rooms: ChatListItem[], globalTitle: string) {
@@ -91,6 +94,8 @@ function createDirectRoomItem({
   previous,
   lastActivityAt,
   avatarUrl,
+  lastSeenAt,
+  peerIsVip,
 }: DirectRoomItemInput): ChatListItem {
   let avatarImage: string | undefined
   if (avatarUrl !== undefined) {
@@ -111,6 +116,8 @@ function createDirectRoomItem({
     lastActivityAt: lastActivityAt ?? previous?.lastActivityAt,
     unread: previous?.unread ?? 0,
     isOnline,
+    lastSeenAt: lastSeenAt ?? previous?.lastSeenAt,
+    peerIsVip: peerIsVip ?? previous?.peerIsVip,
   }
 }
 
@@ -197,6 +204,8 @@ type RoomSocketItem = {
     username: string
     nickname?: string | null
     avatarUrl?: string | null
+    lastSeenAt?: string | null
+    isVip?: boolean
   }
 }
 
@@ -225,6 +234,7 @@ type OnlineUsersSocketPayload = {
 type UserPresenceChangedSocketPayload = {
   userId: string
   isOnline: boolean
+  lastSeenAt?: string | null
 }
 
 function areSetsEqual(leftSet: Set<string>, rightSet: Set<string>) {
@@ -510,6 +520,8 @@ export default function ChatPage() {
             preview: nextPreview,
             timeLabel: nextTimeLabel,
             lastActivityAt: nextLastActivityAt,
+            lastSeenAt: room.lastSeenAt,
+            peerIsVip: room.peerIsVip,
           }
         })
 
@@ -889,6 +901,8 @@ export default function ChatPage() {
                 /** Не перезаписувати час останнього повідомлення датою створення кімнати — інакше список стрибає до приходу unread-summary. */
                 lastActivityAt: previous?.lastActivityAt ?? room.createdAt,
                 avatarUrl: resolvedAvatarUrl,
+                lastSeenAt: directPeer?.lastSeenAt ?? null,
+                peerIsVip: Boolean(directPeer?.isVip),
               }),
             )
           }
@@ -957,11 +971,32 @@ export default function ChatPage() {
         nextOnlineIds.delete(payload.userId)
       }
 
-      if (areSetsEqual(onlineUserIdsRef.current, nextOnlineIds)) {
-        return
+      const onlineUnchanged = areSetsEqual(onlineUserIdsRef.current, nextOnlineIds)
+      if (!onlineUnchanged) {
+        syncOnlinePresence(nextOnlineIds)
       }
 
-      syncOnlinePresence(nextOnlineIds)
+      const peerKey = canonicalChatUuidKey(payload.userId)
+      setRooms((prev) => {
+        let changed = false
+        const next = prev.map((room) => {
+          if (room.id === GLOBAL_ROOM_ID || room.id === SHARE_WITH_JESUS_CHAT_ID) {
+            return room
+          }
+          if (canonicalChatUuidKey(room.id) !== peerKey) {
+            return room
+          }
+          const nextLastSeen = payload.isOnline
+            ? room.lastSeenAt
+            : (payload.lastSeenAt ?? room.lastSeenAt)
+          if (room.lastSeenAt === nextLastSeen) {
+            return room
+          }
+          changed = true
+          return { ...room, lastSeenAt: nextLastSeen }
+        })
+        return changed ? next : prev
+      })
     }
     socket.on("userPresenceChanged", onUserPresenceChanged)
 
@@ -1073,6 +1108,13 @@ export default function ChatPage() {
                           existingUser.id === mappedId ||
                           canonicalChatUuidKey(existingUser.id) === canonicalChatUuidKey(String(mappedId)),
                       )?.avatarUrl,
+                      peerIsVip: Boolean(
+                        usersRef.current.find(
+                          (existingUser) =>
+                            existingUser.id === mappedId ||
+                            canonicalChatUuidKey(existingUser.id) === canonicalChatUuidKey(String(mappedId)),
+                        )?.isVip,
+                      ),
                     },
                     chatI18nRef.current.globalTitle,
                     chatI18nRef.current.shareTitle,
@@ -1268,6 +1310,7 @@ export default function ChatPage() {
               onlineUserIdsRef.current.has(targetUser.id) ||
               onlineUserIdsRef.current.has(peerId),
             avatarUrl: targetUser.avatarUrl,
+            peerIsVip: Boolean(targetUser.isVip),
           },
           i18n.globalTitle,
           i18n.shareTitle,
@@ -1352,6 +1395,7 @@ export default function ChatPage() {
     () => canSeeVerseNotesNav(user?.username),
     [user?.username],
   )
+  const adminDashboardVisible = useMemo(() => canSeeAdminPanelNav(user?.username), [user?.username])
   const isChatListLoading = loading || !hasReceivedMyRooms
 
   return (
@@ -1362,6 +1406,7 @@ export default function ChatPage() {
       onDeleteChat={handleDeleteChat}
       onPrefetchChat={handlePrefetchChat}
       verseNotesVisible={verseNotesVisible}
+      adminDashboardVisible={adminDashboardVisible}
       isLoading={isChatListLoading}
     />
   )

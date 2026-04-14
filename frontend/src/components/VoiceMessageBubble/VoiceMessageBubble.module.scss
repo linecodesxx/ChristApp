@@ -208,3 +208,24 @@
     height: 36px;
   }
 }
+
+.vipName {
+  font-weight: 700;
+  color: #f6f0ff;
+  text-shadow:
+    0 0 6px rgba(168, 85, 247, 0.95),
+    0 0 14px rgba(56, 189, 248, 0.75),
+    0 0 22px rgba(52, 211, 153, 0.55);
+  animation: vip-name-pulse-voice 2.4s ease-in-out infinite;
+}
+
+@keyframes vip-name-pulse-voice {
+  0%,
+  100% {
+    filter: brightness(1);
+  }
+
+  50% {
+    filter: brightness(1.12);
+  }
+}

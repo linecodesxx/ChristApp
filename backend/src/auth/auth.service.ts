@@ -26,6 +26,7 @@ const USER_SAFE_SELECT = {
   themeForegroundHex: true,
   themeBackgroundHex: true,
   themeFontKey: true,
+  isVip: true,
 } as const;
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
@@ -258,7 +259,7 @@ export class AuthService {
       throw new UnauthorizedException('Пользователь не найден');
     }
 
-    const payload = { sub: safe.id, username: safe.username };
+    const payload = { sub: safe.id, username: safe.username, isVip: Boolean(safe.isVip) };
 
     return {
       access_token: this.jwt.sign(payload, {

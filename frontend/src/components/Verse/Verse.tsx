@@ -13,6 +13,21 @@ import { savedVersesQueryKey } from "@/lib/queries/versesQueries"
 const selectedVersesClipboardStore = new Map<string, string>()
 const colors = ["#e92441", "#C4A265", "#64B5F6", "#81C784", "#BA68C8"]
 
+function parseVerseKeyForSave(verseKey: string): { bookName: string; chapter: number; verse: number; text: string } | null {
+  const parts = verseKey.split("|")
+  if (parts.length < 4) {
+    return null
+  }
+  const bookName = parts[0]?.trim() ?? ""
+  const chapter = Number.parseInt(parts[1] ?? "", 10)
+  const verse = Number.parseInt(parts[2] ?? "", 10)
+  const text = parts.slice(3).join("|")
+  if (!bookName || !Number.isFinite(chapter) || !Number.isFinite(verse) || !text.trim()) {
+    return null
+  }
+  return { bookName, chapter, verse, text }
+}
+
 export function getSelectedVersesClipboardText() {
   return Array.from(selectedVersesClipboardStore.values()).join("\n")
 }
@@ -188,9 +203,29 @@ function Verse({
       return
     }
 
+    const fromClipboard = Array.from(selectedVersesClipboardStore.keys())
+      .map(parseVerseKeyForSave)
+      .filter((row): row is NonNullable<typeof row> => Boolean(row))
+      .sort((a, b) => a.chapter - b.chapter || a.verse - b.verse)
+
+    const targets =
+      fromClipboard.length > 0
+        ? fromClipboard
+        : [{ bookName, chapter, verse, text }]
+
     try {
       setIsSaving(true)
-      await saveVerse(bookName, chapter, verse, text, translation)
+      for (const row of targets) {
+        try {
+          await saveVerse(row.bookName, row.chapter, row.verse, row.text, translation)
+        } catch (error) {
+          const catchError = error as Error & { message: string }
+          if (!catchError.message?.includes?.("already")) {
+            console.error("Failed to save verse", catchError)
+            throw catchError
+          }
+        }
+      }
       setIsSaved(true)
       void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
 
@@ -200,11 +235,7 @@ function Verse({
       }, 2000)
     } catch (error) {
       const catchError = error as Error & { message: string }
-      console.error("Failed to save verse", catchError)
-      // Перевірити, чи вже збережено
-      if (catchError.message.includes("already")) {
-        setIsSaved(true)
-      }
+      console.error("Failed to save verse(s)", catchError)
       void queryClient.invalidateQueries({ queryKey: savedVersesQueryKey() })
     } finally {
       setIsSaving(false)

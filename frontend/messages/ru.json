@@ -26,7 +26,9 @@
     "warmupCheckingFooter": "Не закрывайте страницу, проверка продолжается автоматически.",
     "warmupWaitLabel": "Ждём ответа уже:",
     "warmupRetryFooter": "Проверка повторяется автоматически каждые несколько секунд.",
-    "offlineScreen": "Открыть офлайн-экран"
+    "offlineScreen": "Открыть офлайн-экран",
+    "showPasswordAria": "Показать пароль",
+    "hidePasswordAria": "Скрыть пароль"
   },
   "offline": {
     "home": "На главную",
@@ -76,7 +78,36 @@
     "streak": "Серия дней",
     "lastRead": "Последнее прочитанное",
     "lastReadHint": "Чтение сохранится в Библии",
-    "randomVerse": "Случайный стих"
+    "randomVerse": "Случайный стих",
+    "recentNotesTitle": "Последние заметки к стихам",
+    "recentNotesEmpty": "Пока нет заметок — откройте заметки к стихам.",
+    "recentChatsTitle": "Последние чаты",
+    "recentChatsEmpty": "Пока нет недавних сообщений.",
+    "recentYouLast": "Последнее сообщение от вас",
+    "openVerseNotes": "Заметки к стихам",
+    "openChat": "Чат"
+  },
+  "admin": {
+    "title": "Админ",
+    "subtitle": "Участники (сначала новые). VIP подсвечивает ник в чате.",
+    "backToChat": "← Чат",
+    "loading": "Загрузка…",
+    "loadingList": "Загрузка списка…",
+    "noToken": "Нет авторизации.",
+    "loadFailed": "Не удалось загрузить список (HTTP {status}).",
+    "loadFailedGeneric": "Не удалось загрузить список.",
+    "vipFailed": "Не удалось обновить VIP (HTTP {status}).",
+    "vipFailedGeneric": "Не удалось обновить VIP.",
+    "badgeNew": "Новый",
+    "statusActive": "Активен",
+    "statusInactive": "Неактивен",
+    "neverOnline": "Ещё не зафиксировано",
+    "labelId": "ID:",
+    "labelEmail": "Email:",
+    "labelJoined": "Регистрация:",
+    "labelLastSeen": "Был(а) в сети:",
+    "setVip": "Дать VIP",
+    "removeVip": "Снять VIP"
   },
   "profile": {
     "title": "Профиль",
@@ -191,6 +222,8 @@
     "lastSeenSeconds": "был(а) в сети {count} сек назад",
     "lastSeenMinutes": "был(а) в сети {count} мин назад",
     "lastSeenHours": "был(а) в сети {count} ч назад",
+    "adminDashboardAria": "Админка",
+    "adminDashboardTitle": "Админ — участники",
     "recordingVoice": "{name} записывает голосовое",
     "replyOriginalMissing": "Оригинальное сообщение не найдено в текущей истории.",
     "serverUnreachable": "Нет соединения с сервером. Попробуйте позже.",

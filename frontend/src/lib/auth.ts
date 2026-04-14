@@ -66,6 +66,49 @@ export function getAuthToken(): string | null {
   return token || null;
 }
 
+/** Запущено як встановлений PWA (standalone / iOS «На екран Додому»). */
+export function isPwaStandaloneClient(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const mq = window.matchMedia?.("(display-mode: standalone)");
+  if (mq?.matches) {
+    return true;
+  }
+  return Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone);
+}
+
+/**
+ * Чи є збережений access у **localStorage або sessionStorage** (без memory) — той самий порядок, що й у `readStoredAccessToken`.
+ * Потрібно для cold start / PWA: токен міг бути лише в сесії до міграції в LS.
+ */
+export function hasPersistedAccessTokenInWebStorage(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  return readStoredAccessToken() != null;
+}
+
+/**
+ * Чи є на клієнті ознака сесії (access у storage / памʼяті або прапорець `auth=1` після логіну).
+ * HttpOnly refresh не читаємо — без цього не варто бити `/auth/refresh` на старті, щоб не ловити 401 у консолі для гостей.
+ */
+export function hasClientAuthSessionHint(): boolean {
+  if (typeof window === "undefined") {
+    return false;
+  }
+  if (getAuthToken()) {
+    return true;
+  }
+  return document.cookie.split(";").some((part) => {
+    const trimmed = part.trim();
+    const eq = trimmed.indexOf("=");
+    const name = eq === -1 ? trimmed : trimmed.slice(0, eq).trim();
+    const value = eq === -1 ? "" : trimmed.slice(eq + 1).trim();
+    return name === AUTH_COOKIE_NAME && value === "1";
+  });
+}
+
 export function setAuthToken(token: string): void {
   if (typeof window === "undefined") {
     return;

@@ -200,10 +200,30 @@
 }
 
 html[data-theme="dark"] .message {
-  background: var(--surface-elevated);
+  border-color: color-mix(in srgb, var(--line-soft) 55%, rgba(212, 175, 55, 0.22));
+  background: light-dark(hsl(0 0% 100% / var(--glass-frost, 0)), hsl(0 0% 0% / var(--glass-frost, 0)));
+  -webkit-backdrop-filter: blur(24px) var(--filter-id, url(#glass-filter)) saturate(calc(var(--glass-saturation, 1) * 1.2));
+  backdrop-filter: blur(24px) var(--filter-id, url(#glass-filter)) saturate(calc(var(--glass-saturation, 1) * 1.2));
+  box-shadow:
+    0 0 2px 1px
+      light-dark(
+        color-mix(in oklch, black, transparent 85%),
+        color-mix(in oklch, white, transparent 65%)
+      ) inset,
+    0 0 10px 4px
+      light-dark(
+        color-mix(in oklch, black, transparent 90%),
+        color-mix(in oklch, white, transparent 85%)
+      ) inset,
+    0 4px 16px #11111a0d,
+    0 8px 24px #11111a0d,
+    0 16px 56px #11111a0d,
+    0 4px 16px #11111a0d inset,
+    0 8px 24px #11111a0d inset,
+    0 16px 56px #11111a0d inset;
 
   .input {
-    background: var(--surface-elevated);
+    background: transparent;
     color: var(--foreground);
 
     &::placeholder {

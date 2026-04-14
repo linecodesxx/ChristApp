@@ -15,6 +15,10 @@
   overflow-y: scroll;
   padding-bottom: 20px;
 
+  @media (pointer: coarse) {
+    padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
   .chatListWrapper {
     display: flex;
     flex-direction: column;
@@ -263,18 +267,6 @@
     line-height: 14px;
   }
 
-  .userPickerEmail {
-    color: var(--text-muted);
-    font-family: "Inter", sans-serif;
-    font-size: 11px;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
   .userPickerBadgeExisting,
   .userPickerBadgeNew {
     flex-shrink: 0;
@@ -332,6 +324,7 @@
     }
 
     .verseNotesButton,
+    .adminButton,
     .newChatButton {
       width: 38px;
       height: 38px;
@@ -356,6 +349,24 @@
       &:active {
         transform: translateY(1px);
       }
+    }
+
+    .adminButton {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .adminButtonGlyph {
+      font-family: "Inter", sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      background: linear-gradient(120deg, #e9d5ff 0%, #67e8f9 55%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      filter: drop-shadow(0 0 6px rgba(168, 85, 247, 0.55));
     }
 
     .newChatIcon {
@@ -718,6 +729,33 @@
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+          }
+
+          .vipBadge {
+            flex-shrink: 0;
+            padding: 1px 6px;
+            border-radius: 6px;
+            font-family: "Inter", sans-serif;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: #f5f3ff;
+            border: 1px solid color-mix(in srgb, #a78bfa 55%, transparent);
+            background: color-mix(in srgb, #4c1d95 35%, var(--surface-elevated));
+            box-shadow:
+              0 0 8px rgba(168, 85, 247, 0.55),
+              0 0 16px rgba(56, 189, 248, 0.25);
+          }
+
+          .presenceSubtitle {
+            margin: 0;
+            padding: 0 0 1px;
+            font-family: "Inter", sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            line-height: 1.25;
+            color: var(--text-muted);
           }
 
           .chatInlineSkeletonTitle,

@@ -1,0 +1,173 @@
+.page {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 12px 12px calc(20px + env(safe-area-inset-bottom, 0px));
+  box-sizing: border-box;
+  color: var(--foreground);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.backLink {
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: color-mix(in srgb, var(--accent) 85%, var(--foreground));
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.title {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.error {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #b91c1c 18%, var(--surface-elevated));
+  border: 1px solid color-mix(in srgb, #fecaca 35%, transparent);
+  font-size: 13px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: var(--surface-elevated);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cardHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.nameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.displayName {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.handle {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 60%, transparent);
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+}
+
+.badgeNew {
+  border-color: color-mix(in srgb, #22c55e 45%, transparent);
+  color: color-mix(in srgb, #166534 90%, var(--foreground));
+}
+
+.badgeVip {
+  color: #f5f3ff;
+  border-color: color-mix(in srgb, #a78bfa 55%, transparent);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.35);
+}
+
+.badgeOff {
+  opacity: 0.65;
+}
+
+.meta {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.vipBtn {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+  background: var(--surface);
+  color: var(--foreground);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--line-soft));
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
+.vipBtnOn {
+  border-color: color-mix(in srgb, #a78bfa 55%, transparent);
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+}

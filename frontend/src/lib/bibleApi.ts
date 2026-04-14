@@ -1,3 +1,5 @@
+import axios from "axios"
+
 /** Шлях до нашого Next.js proxy (обходить CORS і дає однакову поведінку SSR/клієнт). */
 function buildProxyUrl(path: string): string {
   const normalized = path.startsWith("/") ? path : `/${path}`
@@ -9,22 +11,26 @@ function buildProxyUrl(path: string): string {
   return `${base}/api/bibleProxy${normalized}`
 }
 
-// ===== БАЗОВИЙ FETCH =====
+// ===== БАЗОВИЙ HTTP (Axios → Next proxy) =====
 async function safeFetch(url: string) {
   try {
-    const res = await fetch(url, { cache: "no-store" })
+    const res = await axios.get<string>(url, {
+      responseType: "text",
+      validateStatus: () => true,
+      headers: { "Cache-Control": "no-store" },
+    })
 
-    if (!res.ok) {
+    if (res.status < 200 || res.status >= 300) {
       if (process.env.NODE_ENV === "development") {
         console.error("API ERROR:", res.status, url)
       }
       return null
     }
 
-    const text = await res.text()
+    const text = res.data
 
     try {
-      return JSON.parse(text)
+      return JSON.parse(text) as unknown
     } catch {
       if (process.env.NODE_ENV === "development") {
         console.error("NOT JSON:", text.slice(0, 200))
@@ -33,7 +39,7 @@ async function safeFetch(url: string) {
     }
   } catch (e) {
     if (process.env.NODE_ENV === "development") {
-      console.error("FETCH FAILED:", e)
+      console.error("HTTP FAILED:", e)
     }
     return null
   }

@@ -30,6 +30,11 @@ export default function OnlineUsersDrawer({
 }: OnlineUsersDrawerProps) {
   if (!open) return null
 
+  const sorted = [...participants].sort((a, b) => {
+    if (a.isOnline === b.isOnline) return 0
+    return a.isOnline ? -1 : 1
+  })
+
   return (
     <div className={styles.overlay} onClick={onClose} role="presentation">
       <aside className={styles.drawer} onClick={(event) => event.stopPropagation()} aria-label={title}>
@@ -40,7 +45,7 @@ export default function OnlineUsersDrawer({
           </button>
         </div>
         <ul className={styles.list}>
-          {participants.map((participant) => (
+          {sorted.map((participant) => (
             <li
               key={participant.id}
               className={`${styles.item} ${onParticipantClick ? styles.itemClickable : ""}`}

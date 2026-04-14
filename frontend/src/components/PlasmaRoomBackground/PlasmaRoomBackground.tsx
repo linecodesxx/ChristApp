@@ -1,116 +1,136 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Mesh, Program, Renderer, Triangle } from "ogl"
 
 type PlasmaRoomBackgroundProps = {
-  /** Accent tint (React Bits plasma; gold works on dark UI). */
-  color?: string
+  density?: number
   speed?: number
-  opacity?: number
-  scale?: number
+  rotationSpeed?: number
+  brightness?: number
+  fullScreenDesktop?: boolean
+  mobileBreakpoint?: number
 }
 
-const hexToRgb = (hex: string): [number, number, number] => {
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
-  if (!result) {
-    return [0.83, 0.69, 0.22]
-  }
-  return [parseInt(result[1], 16) / 255, parseInt(result[2], 16) / 255, parseInt(result[3], 16) / 255]
-}
+const vertexShader = `
+attribute vec2 uv;
+attribute vec2 position;
 
-const vertex = `#version 300 es
-precision highp float;
-in vec2 position;
-in vec2 uv;
-out vec2 vUv;
+varying vec2 vUv;
+
 void main() {
   vUv = uv;
   gl_Position = vec4(position, 0.0, 1.0);
 }
 `
 
-const fragment = `#version 300 es
+const fragmentShader = `
 precision highp float;
-uniform vec2 iResolution;
-uniform float iTime;
-uniform vec3 uCustomColor;
-uniform float uUseCustomColor;
+
+uniform float uTime;
+uniform vec2 uResolution;
+uniform float uDensity;
 uniform float uSpeed;
-uniform float uDirection;
-uniform float uScale;
-uniform float uOpacity;
-uniform vec2 uMouse;
-uniform float uMouseInteractive;
-out vec4 fragColor;
+uniform float uRotationSpeed;
+uniform float uBrightness;
 
-void mainImage(out vec4 o, vec2 C) {
-  vec2 center = iResolution.xy * 0.5;
-  C = (C - center) / uScale + center;
+varying vec2 vUv;
 
-  vec2 mouseOffset = (uMouse - center) * 0.0002;
-  C += mouseOffset * length(C - center) * step(0.5, uMouseInteractive);
+#define NUM_LAYER 2.0
+#define MAT45 mat2(0.7071, -0.7071, 0.7071, 0.7071)
 
-  float i, d, z, T = iTime * uSpeed * uDirection;
-  vec3 O, p, S;
+float Hash21(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
 
-  for (vec2 r = iResolution.xy, Q; ++i < 60.; O += o.w / d * o.xyz) {
-    p = z * normalize(vec3(C - 0.5 * r, r.y));
-    p.z -= 4.;
-    S = p;
-    d = p.y - T;
+float Star(vec2 uv, float flare) {
+  float d = max(length(uv), 0.001);
+  float m = 0.015 / d;
+  float rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 850.0));
+  m += rays * flare * 0.12;
+  uv *= MAT45;
+  rays = smoothstep(0.0, 1.0, 1.0 - abs(uv.x * uv.y * 850.0));
+  m += rays * flare * 0.05;
+  m *= smoothstep(1.0, 0.2, d);
+  return m;
+}
 
-    p.x += 0.4 * (1.0 + p.y) * sin(d + p.x * 0.1) * cos(0.34 * d + p.x * 0.05);
-    Q = p.xz *= mat2(cos(p.y + vec4(0, 11, 33, 0) - T));
-    z += d = abs(sqrt(length(Q * Q)) - 0.25 * (5.0 + S.y)) / 3.0 + 8e-4;
-    o = 1.0 + sin(S.y + p.z * 0.5 + S.z - length(S - p) + vec4(2, 1, 0, 8));
+vec3 StarLayer(vec2 uv) {
+  vec3 col = vec3(0.0);
+  vec2 gv = fract(uv) - 0.5;
+  vec2 id = floor(uv);
+
+  for (int y = -1; y <= 1; y++) {
+    for (int x = -1; x <= 1; x++) {
+      vec2 offset = vec2(float(x), float(y));
+      vec2 cell = id + offset;
+      float seed = Hash21(cell);
+      float size = fract(seed * 345.32);
+      float flare = smoothstep(0.92, 1.0, size);
+      vec2 drift = vec2(
+        sin(uTime * (0.08 + seed * 0.06) + seed * 6.2831),
+        cos(uTime * (0.06 + seed * 0.05) + seed * 4.7123)
+      ) * 0.12;
+
+      float star = Star(gv - offset - drift, flare);
+      vec3 color = mix(vec3(0.58, 0.67, 0.98), vec3(0.95, 0.97, 1.0), seed);
+      col += star * size * color;
+    }
   }
 
-  o.xyz = tanh(O / 1e4);
-}
-
-bool finite1(float x) {
-  return !(isnan(x) || isinf(x));
-}
-vec3 sanitize(vec3 c) {
-  return vec3(
-    finite1(c.r) ? c.r : 0.0,
-    finite1(c.g) ? c.g : 0.0,
-    finite1(c.b) ? c.b : 0.0
-  );
+  return col;
 }
 
 void main() {
-  vec4 o = vec4(0.0);
-  mainImage(o, gl_FragCoord.xy);
-  vec3 rgb = sanitize(o.rgb);
+  vec2 uv = (vUv * uResolution - 0.5 * uResolution) / uResolution.y;
+  float angle = uTime * uRotationSpeed;
+  mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
+  uv = rot * uv;
 
-  float intensity = (rgb.r + rgb.g + rgb.b) / 3.0;
-  vec3 customColor = intensity * uCustomColor;
-  vec3 finalColor = mix(rgb, customColor, step(0.5, uUseCustomColor));
+  vec3 col = vec3(0.0);
 
-  float alpha = length(rgb) * uOpacity;
-  fragColor = vec4(finalColor, alpha);
+  for (float i = 0.0; i < 1.0; i += 1.0 / NUM_LAYER) {
+    float depth = fract(i + uTime * (0.02 * uSpeed));
+    float scale = mix(8.0 * uDensity, 0.9 * uDensity, depth);
+    float fade = depth * smoothstep(1.0, 0.82, depth);
+    col += StarLayer(uv * scale + i * 271.13) * fade;
+  }
+
+  vec3 darkBase = vec3(0.01, 0.012, 0.025);
+  gl_FragColor = vec4(darkBase + col * uBrightness, 1.0);
 }
 `
 
-function capDpr(): number {
-  const raw = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1
-  const narrow = typeof window !== "undefined" && window.innerWidth < 900
-  return Math.min(raw, narrow ? 1.15 : 1.75)
-}
+const RENDER_SCALE = 0.6
+const TARGET_FRAME_MS = 1000 / 30
 
-/**
- * Plasma shader background (DavidHDev / React Bits style, WebGL2 + ogl).
- * Pauses when tab hidden; respects prefers-reduced-motion.
- */
 export default function PlasmaRoomBackground({
-  color = "#d4af37",
-  speed = 0.85,
-  opacity = 0.42,
-  scale = 1.05,
+  density = 1,
+  speed = 1,
+  rotationSpeed = 0.035,
+  brightness = 0.72,
+  fullScreenDesktop = true,
+  mobileBreakpoint = 1023,
 }: PlasmaRoomBackgroundProps) {
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+
+    const mediaQuery = window.matchMedia(`(max-width: ${mobileBreakpoint}px)`)
+    const apply = () => setIsMobile(mediaQuery.matches)
+    apply()
+
+    mediaQuery.addEventListener("change", apply)
+    return () => {
+      mediaQuery.removeEventListener("change", apply)
+    }
+  }, [mobileBreakpoint])
 
   useEffect(() => {
     const root = rootRef.current
@@ -118,32 +138,29 @@ export default function PlasmaRoomBackground({
       return
     }
 
-    const reduced =
+    const reducedMotion =
       typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    if (reduced) {
-      root.style.background =
-        "radial-gradient(120% 80% at 50% 20%, color-mix(in srgb, #d4af37 22%, #1a1510) 0%, #12100e 55%)"
+    if (reducedMotion) {
+      root.style.background = "radial-gradient(120% 85% at 50% 20%, #17182a 0%, #09080f 58%, #050509 100%)"
       return
     }
-
-    const useCustomColor = 1.0
-    const customColorRgb = hexToRgb(color)
-    const directionMultiplier = 1.0
 
     let renderer: Renderer
     try {
       renderer = new Renderer({
-        webgl: 2,
-        alpha: true,
+        alpha: false,
         antialias: false,
-        dpr: capDpr(),
+        dpr: 1,
+        premultipliedAlpha: false,
       })
     } catch {
-      root.style.background = "radial-gradient(ellipse at 50% 0%, #2a2418 0%, #12100e 70%)"
+      root.style.background = "radial-gradient(120% 85% at 50% 20%, #17182a 0%, #09080f 58%, #050509 100%)"
       return
     }
 
     const gl = renderer.gl
+    gl.clearColor(0, 0, 0, 1)
+
     const canvas = gl.canvas as HTMLCanvasElement
     canvas.style.display = "block"
     canvas.style.width = "100%"
@@ -152,67 +169,70 @@ export default function PlasmaRoomBackground({
 
     const geometry = new Triangle(gl)
     const program = new Program(gl, {
-      vertex,
-      fragment,
+      vertex: vertexShader,
+      fragment: fragmentShader,
       uniforms: {
-        iTime: { value: 0 },
-        iResolution: { value: new Float32Array([1, 1]) },
-        uCustomColor: { value: new Float32Array(customColorRgb) },
-        uUseCustomColor: { value: useCustomColor },
-        uSpeed: { value: speed * 0.4 },
-        uDirection: { value: directionMultiplier },
-        uScale: { value: scale },
-        uOpacity: { value: opacity },
-        uMouse: { value: new Float32Array([0, 0]) },
-        uMouseInteractive: { value: 0 },
+        uTime: { value: 0 },
+        uResolution: { value: new Float32Array([1, 1]) },
+        uDensity: { value: density },
+        uSpeed: { value: speed },
+        uRotationSpeed: { value: rotationSpeed },
+        uBrightness: { value: brightness },
       },
     })
 
     const mesh = new Mesh(gl, { geometry, program })
 
     const setSize = () => {
-      const rect = root.getBoundingClientRect()
-      const width = Math.max(1, Math.floor(rect.width))
-      const height = Math.max(1, Math.floor(rect.height))
-      renderer.dpr = capDpr()
+      const useViewport = fullScreenDesktop && !isMobile
+      const widthSource = useViewport ? window.innerWidth : root.getBoundingClientRect().width
+      const heightSource = useViewport ? window.innerHeight : root.getBoundingClientRect().height
+      const width = Math.max(1, Math.floor(widthSource * RENDER_SCALE))
+      const height = Math.max(1, Math.floor(heightSource * RENDER_SCALE))
       renderer.setSize(width, height)
-      const res = program.uniforms.iResolution.value as Float32Array
-      res[0] = gl.drawingBufferWidth
-      res[1] = gl.drawingBufferHeight
+
+      const resolution = program.uniforms.uResolution.value as Float32Array
+      resolution[0] = gl.canvas.width
+      resolution[1] = gl.canvas.height
     }
 
-    const ro = new ResizeObserver(setSize)
-    ro.observe(root)
+    const resizeObserver = new ResizeObserver(setSize)
+    resizeObserver.observe(root)
     setSize()
 
     let raf = 0
-    const t0 = performance.now()
+    let lastFrameTime = 0
     let hidden = document.visibilityState === "hidden"
 
-    const onVisibility = () => {
+    const onVisibilityChange = () => {
       hidden = document.visibilityState === "hidden"
       if (!hidden && raf === 0) {
         raf = requestAnimationFrame(loop)
       }
     }
-    document.addEventListener("visibilitychange", onVisibility)
 
-    const loop = (t: number) => {
+    document.addEventListener("visibilitychange", onVisibilityChange)
+
+    const loop = (time: number) => {
       if (hidden) {
         raf = 0
         return
       }
-      const timeValue = (t - t0) * 0.001
-      ;(program.uniforms.iTime as { value: number }).value = timeValue
-      renderer.render({ scene: mesh })
+
+      if (time - lastFrameTime >= TARGET_FRAME_MS) {
+        lastFrameTime = time
+        ;(program.uniforms.uTime as { value: number }).value = time * 0.001
+        renderer.render({ scene: mesh })
+      }
       raf = requestAnimationFrame(loop)
     }
+
     raf = requestAnimationFrame(loop)
 
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility)
+      document.removeEventListener("visibilitychange", onVisibilityChange)
       cancelAnimationFrame(raf)
-      ro.disconnect()
+      resizeObserver.disconnect()
       try {
         root.removeChild(canvas)
       } catch {
@@ -225,18 +245,21 @@ export default function PlasmaRoomBackground({
         /* noop */
       }
     }
-  }, [color, opacity, scale, speed])
+  }, [brightness, density, fullScreenDesktop, isMobile, rotationSpeed, speed])
+
+  const useViewport = fullScreenDesktop && !isMobile
 
   return (
     <div
       ref={rootRef}
       style={{
-        position: "absolute",
+        position: useViewport ? "fixed" : "absolute",
         inset: 0,
-        width: "100%",
-        height: "100%",
+        width: useViewport ? "100vw" : "100%",
+        height: useViewport ? "100vh" : "100%",
         overflow: "hidden",
         pointerEvents: "none",
+        background: "#09080f",
       }}
       aria-hidden
     />

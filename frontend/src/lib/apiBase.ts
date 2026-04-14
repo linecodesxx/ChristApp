@@ -29,3 +29,20 @@ export function getDirectApiOrigin(): string {
   }
   return "http://127.0.0.1:3001"
 }
+
+/**
+ * HTTP-оригін Nest для серверних fetch з Node (SSR): збігається з `BACKEND_PROXY_TARGET` у `next.config`.
+ * Не використовуйте для браузера. Потрібен, щоб SSR не ходив у `/api/nest` — інакше Next dev пише
+ * «Failed to proxy», коли бекенд ще не піднявся.
+ */
+export function getBackendInternalHttpBase(): string {
+  const proxyTarget = process.env.BACKEND_PROXY_TARGET?.trim()
+  if (proxyTarget) {
+    return proxyTarget.replace(/\/+$/, "")
+  }
+  const api = process.env.NEXT_PUBLIC_API_URL?.trim()
+  if (api && /^https?:\/\//i.test(api)) {
+    return api.replace(/\/+$/, "")
+  }
+  return "http://127.0.0.1:3001"
+}

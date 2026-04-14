@@ -45,6 +45,26 @@ const REACTION_OPTIONS: AppReactionType[] = ["🤍", "😂", "❤️", "🔥", "
 
 type ReactionPickerPlacement = { left: number; bottom: number; width: number }
 
+function SenderName({ name, isVip, as }: { name: string; isVip: boolean; as: "strong" | "span" }) {
+  const Tag = as
+  if (!isVip) {
+    return <Tag>{name}</Tag>
+  }
+  return (
+    <Tag>
+      <span className={styles.vipName}>{name}</span>
+    </Tag>
+  )
+}
+
+function isInteractiveTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) {
+    return false
+  }
+
+  return Boolean(target.closest("button, a, input, textarea, select, audio, video, [data-bubble-control]"))
+}
+
 function MessageBubble({
   message,
   currentUsername,
@@ -181,6 +201,11 @@ function MessageBubble({
   }
 
   const handleTouchStart = (event: TouchEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      touchStartRef.current = null
+      return
+    }
+
     longPressHandlers.onTouchStart(event)
 
     const firstTouch = event.touches[0]
@@ -190,10 +215,19 @@ function MessageBubble({
   }
 
   const handleTouchMove = (event: TouchEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      return
+    }
+
     longPressHandlers.onTouchMove(event)
   }
 
   const handleTouchEnd = (event: TouchEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      touchStartRef.current = null
+      return
+    }
+
     longPressHandlers.onTouchEnd(event)
 
     const start = touchStartRef.current
@@ -218,7 +252,11 @@ function MessageBubble({
     touchStartRef.current = null
   }
 
-  const handleClick = () => {
+  const handleClick = (event: MouseEvent<HTMLElement>) => {
+    if (isInteractiveTarget(event.target)) {
+      return
+    }
+
     if (skipNextClickRef.current) {
       skipNextClickRef.current = false
       return
@@ -288,6 +326,7 @@ function MessageBubble({
 
       {(() => {
         const senderName = message.username || "Unknown"
+        const senderVip = Boolean(message.senderIsVip) && !isOwnMessage
         const canShowSenderName =
           !hideSenderName && !(hideOwnSenderName && isOwnMessage)
         const showCompactSender = senderNameMode === "compact-above" && canShowSenderName
@@ -317,10 +356,14 @@ function MessageBubble({
         if (message.type === "IMAGE" && imgUrl) {
           return (
             <div className={styles.imageMessage}>
-              {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+              {showCompactSender ? (
+                <p className={styles.senderCompact}>
+                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                </p>
+              ) : null}
               {canShowSenderName && !showCompactSender ? (
                 <p className={styles.imageMessageMeta}>
-                  <strong>{senderName}</strong>
+                  <SenderName name={senderName} isVip={senderVip} as="strong" />
                   <span> — фото</span>
                 </p>
               ) : null}
@@ -355,6 +398,7 @@ function MessageBubble({
               message={message}
               hideSenderName={showCompactSender || !canShowSenderName}
               compactSenderLabel={showCompactSender ? senderName : undefined}
+              senderIsVip={senderVip}
             />
           )
         }
@@ -364,9 +408,18 @@ function MessageBubble({
           const showInlineAuthor = canShowSenderName && !showCompactSender
           return (
             <>
-              {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+              {showCompactSender ? (
+                <p className={styles.senderCompact}>
+                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                </p>
+              ) : null}
               <p className={styles.messageContent}>
-                {showInlineAuthor ? <strong>{senderName}:</strong> : null}
+                {showInlineAuthor ? (
+                  <>
+                    <SenderName name={senderName} isVip={senderVip} as="strong" />
+                    <span>:</span>
+                  </>
+                ) : null}
                 {showInlineAuthor ? " " : null}
                 {message.content}
               </p>
@@ -376,10 +429,16 @@ function MessageBubble({
 
         return (
           <>
-            {showCompactSender ? <p className={styles.senderCompact}>{senderName}</p> : null}
+            {showCompactSender ? (
+              <p className={styles.senderCompact}>
+                <SenderName name={senderName} isVip={senderVip} as="span" />
+              </p>
+            ) : null}
             <div className={styles.verseShareCard}>
               {canShowSenderName && !showCompactSender ? (
-                <p className={styles.verseShareAuthor}>{senderName} поделился стихом</p>
+                <p className={styles.verseShareAuthor}>
+                  <SenderName name={senderName} isVip={senderVip} as="span" /> поделился стихом
+                </p>
               ) : null}
               <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
               <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />

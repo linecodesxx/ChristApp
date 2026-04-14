@@ -1,5 +1,6 @@
 'use client';
 
+import axios from 'axios';
 import { useState, useEffect, use } from 'react';
 import { useRouter } from '@/i18n/navigation';
 import type { BibleData, Book, Chapter } from '@/types/bible';
@@ -23,9 +24,10 @@ export default function ChapterPage({ params }: Props) {
   const [isChapterSelectorOpen, setIsChapterSelectorOpen] = useState(false);
 
   useEffect(() => {
-    fetch('/nrt.json')
-      .then(res => res.json())
-      .then((data: BibleData) => {
+    axios
+      .get<BibleData>('/nrt.json', { validateStatus: (s) => s === 200 })
+      .then((res) => {
+        const data = res.data;
         setBible(data);
         const bookId = parseInt(book);
         const chapterId = parseInt(chapter);
@@ -37,6 +39,9 @@ export default function ChapterPage({ params }: Props) {
             setSelectedChapter(chapterData);
           }
         }
+      })
+      .catch(() => {
+        /* ignore */
       });
   }, [book, chapter]);
 
