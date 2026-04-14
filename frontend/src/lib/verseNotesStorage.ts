@@ -1,4 +1,4 @@
-import type { VerseNotesCollectionId } from "./verseNotesCollections"
+import { VERSE_NOTES_COLLECTIONS, type VerseNotesCollectionId } from "./verseNotesCollections"
 
 export type VerseNoteRecord = {
   id: string
@@ -86,6 +86,18 @@ export function appendVerseNote(
   }
   saveVerseNotes(userId, collectionId, [note, ...prev])
   return note
+}
+
+/** Останні замітки з усіх збірників (для дашборду тощо). */
+export function loadRecentVerseNotesAcrossCollections(userId: string, limit = 6): VerseNoteRecord[] {
+  const all: VerseNoteRecord[] = []
+  for (const col of VERSE_NOTES_COLLECTIONS) {
+    for (const note of loadVerseNotes(userId, col.id)) {
+      all.push(note)
+    }
+  }
+  all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+  return all.slice(0, limit)
 }
 
 export function deleteVerseNote(

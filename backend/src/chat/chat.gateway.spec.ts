@@ -68,6 +68,7 @@ describe('ChatGateway', () => {
   let prisma: {
     room: { findUnique: jest.Mock };
     roomMember: { findUnique: jest.Mock };
+    roomReadState: { findMany: jest.Mock };
   };
   let messagesService: {
     createRoomMessage: jest.Mock;
@@ -87,6 +88,9 @@ describe('ChatGateway', () => {
       },
       roomMember: {
         findUnique: jest.fn(),
+      },
+      roomReadState: {
+        findMany: jest.fn().mockResolvedValue([]),
       },
     };
 

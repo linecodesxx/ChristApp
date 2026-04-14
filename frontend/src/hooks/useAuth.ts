@@ -8,7 +8,13 @@ import { clearAppBadgeIfSupported } from "@/lib/appBadge"
 import { clearPersistedReactQueryCache } from "@/lib/queryPersistConstants"
 import { AUTH_ME_QUERY_ROOT, currentUserQueryKey } from "@/lib/queries/authQueries"
 import { usersDirectoryQueryKey } from "@/lib/queries/usersQueries"
-import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth"
+import {
+  clearAuthToken,
+  getAuthToken,
+  hasClientAuthSessionHint,
+  hasPersistedAccessTokenInWebStorage,
+  setAuthToken,
+} from "@/lib/auth"
 import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 import { getHttpApiBase } from "@/lib/apiBase"
 import { getNetworkFailureHint, messageFromApiResponseBody } from "@/lib/apiError"
@@ -22,6 +28,7 @@ export type AuthUser = {
   nickname?: string
   createdAt: string
   isActive: boolean
+  isVip?: boolean
   avatarUrl?: string | null
   themeForegroundHex?: string | null
   themeBackgroundHex?: string | null
@@ -176,95 +183,120 @@ export function useAuth(options?: UseAuthOptions) {
     [fetchUsers, setAuthenticatedUser],
   )
 
+  /**
+   * Silent refresh при старті (браузер і **PWA standalone**):
+   * - немає access у **localStorage / sessionStorage** (див. `hasPersistedAccessTokenInWebStorage`) → одразу `POST /auth/refresh`;
+   * - є збережений access → спочатку `GET /auth/me`, при 401/403 → refresh і повтор me.
+   */
   const checkAuth = useCallback(async () => {
-    let token = getAuthToken()
-    let payloadFromRefresh: AuthSessionPayload | null = await silentRefresh()
-    if (payloadFromRefresh) {
-      setAuthToken(payloadFromRefresh.access_token)
-      token = getAuthToken()
-    }
-
-    if (!token) {
+    const finishLoggedOut = () => {
+      clearAuthToken()
+      clearAuthenticatedUser()
+      setUsers([])
       applyUserAppearanceToDocument(null)
       if (redirectIfUnauthenticated) {
         router.push(redirectIfUnauthenticated)
       }
-      setLoading(false)
-      return
     }
 
-    if (payloadFromRefresh?.user) {
-      setAuthenticatedUser(payloadFromRefresh.user)
+    const applyMeFromResponse = async (res: Response) => {
+      const data = (await res.json()) as AuthUser
+      setAuthenticatedUser(data)
       recordDailyVisit()
       await fetchUsers()
-      setLoading(false)
-      return
     }
 
     try {
+      const persistedInWebStorage = hasPersistedAccessTokenInWebStorage()
+
+      if (!persistedInWebStorage) {
+        const payloadFromRefresh = await silentRefresh()
+        if (!payloadFromRefresh) {
+          finishLoggedOut()
+          return
+        }
+        setAuthToken(payloadFromRefresh.access_token)
+        if (payloadFromRefresh.user) {
+          setAuthenticatedUser(payloadFromRefresh.user)
+          recordDailyVisit()
+          await fetchUsers()
+          return
+        }
+        const tokenAfterRefresh = getAuthToken()
+        if (!tokenAfterRefresh) {
+          finishLoggedOut()
+          return
+        }
+        const res = await apiFetch(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${tokenAfterRefresh}` },
+          timeoutMs: 18_000,
+        })
+        if (!res.ok) {
+          finishLoggedOut()
+          return
+        }
+        await applyMeFromResponse(res)
+        return
+      }
+
+      let token = getAuthToken()
+      if (!token) {
+        const payloadFromRefresh = await silentRefresh()
+        if (!payloadFromRefresh) {
+          finishLoggedOut()
+          return
+        }
+        setAuthToken(payloadFromRefresh.access_token)
+        if (payloadFromRefresh.user) {
+          setAuthenticatedUser(payloadFromRefresh.user)
+          recordDailyVisit()
+          await fetchUsers()
+          return
+        }
+        token = getAuthToken()
+        if (!token) {
+          finishLoggedOut()
+          return
+        }
+      }
+
       const res = await apiFetch(`${API_URL}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         timeoutMs: 18_000,
       })
 
       if (res.status === 401 || res.status === 403) {
         const again = await silentRefresh()
-        if (again) {
-          setAuthToken(again.access_token)
-          if (again.user) {
-            setAuthenticatedUser(again.user)
-            recordDailyVisit()
-            await fetchUsers()
-            setLoading(false)
-            return
-          }
-          const retry = await apiFetch(`${API_URL}/auth/me`, {
-            headers: { Authorization: `Bearer ${getAuthToken()}` },
-            timeoutMs: 18_000,
-          })
-          if (!retry.ok) {
-            clearAuthToken()
-            clearAuthenticatedUser()
-            setUsers([])
-            if (redirectIfUnauthenticated) {
-              router.push(redirectIfUnauthenticated)
-            }
-            setLoading(false)
-            return
-          }
-          const userData = (await retry.json()) as AuthUser
-          setAuthenticatedUser(userData)
-          recordDailyVisit()
-          await fetchUsers()
-          setLoading(false)
+        if (!again) {
+          finishLoggedOut()
           return
         }
-
-        clearAuthToken()
-        clearAuthenticatedUser()
-        setUsers([])
-
-        if (redirectIfUnauthenticated) {
-          router.push(redirectIfUnauthenticated)
+        setAuthToken(again.access_token)
+        if (again.user) {
+          setAuthenticatedUser(again.user)
+          recordDailyVisit()
+          await fetchUsers()
+          return
         }
-
+        const retry = await apiFetch(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${getAuthToken()}` },
+          timeoutMs: 18_000,
+        })
+        if (!retry.ok) {
+          finishLoggedOut()
+          return
+        }
+        await applyMeFromResponse(retry)
         return
       }
 
       if (!res.ok) {
-        setLoading(false)
         return
       }
 
-      const data = (await res.json()) as AuthUser
-      setAuthenticatedUser(data)
-      recordDailyVisit()
-      await fetchUsers()
+      await applyMeFromResponse(res)
     } catch {
-      setLoading(false)
-      return
+      /* мережа / таймаут */
     } finally {
       setLoading(false)
     }
@@ -276,15 +308,16 @@ export function useAuth(options?: UseAuthOptions) {
     router,
     setAuthenticatedUser,
     silentRefresh,
+    applyUserAppearanceToDocument,
   ])
 
   const refreshSession = useCallback(async () => {
     const token = getAuthToken()
     if (token) {
-    try {
-      const res = await apiFetch(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` },
-        timeoutMs: 18_000,
+      try {
+        const res = await apiFetch(`${API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+          timeoutMs: 18_000,
         })
         if (res.ok) {
           const data = (await res.json()) as AuthUser
@@ -298,6 +331,9 @@ export function useAuth(options?: UseAuthOptions) {
       }
     }
 
+    if (!hasClientAuthSessionHint()) {
+      return
+    }
     const again = await silentRefresh()
     if (!again) return
     setAuthToken(again.access_token)

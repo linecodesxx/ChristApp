@@ -32,6 +32,38 @@ function parseAllowedCorsOrigins(): string[] {
   return ['http://localhost:3000'];
 }
 
+/** У dev: дозволити фронт по LAN (http://192.168.x.x:3000 тощо), щоб не перелічувати IP у CORS_ORIGIN. */
+function isPrivateLanHttpOrigin(origin: string): boolean {
+  try {
+    const u = new URL(origin);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') {
+      return false;
+    }
+    const host = u.hostname;
+    const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+    if (!m) {
+      return false;
+    }
+    const oct = [1, 2, 3, 4].map((i) => Number(m[i]));
+    if (oct.some((n) => !Number.isInteger(n) || n > 255)) {
+      return false;
+    }
+    const [a, b] = oct;
+    if (a === 10) {
+      return true;
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+      return true;
+    }
+    if (a === 192 && b === 168) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
@@ -39,13 +71,23 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads/' });
 
   const corsOrigins = parseAllowedCorsOrigins();
+  const allowLanOriginsInDev = process.env.NODE_ENV !== 'production';
+
   app.enableCors({
     origin: (requestOrigin, callback) => {
       if (!requestOrigin) {
         callback(null, true);
         return;
       }
-      callback(null, corsOrigins.includes(requestOrigin));
+      if (corsOrigins.includes(requestOrigin)) {
+        callback(null, true);
+        return;
+      }
+      if (allowLanOriginsInDev && isPrivateLanHttpOrigin(requestOrigin)) {
+        callback(null, true);
+        return;
+      }
+      callback(null, false);
     },
     credentials: true,
   });

@@ -30,7 +30,7 @@ import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import PlasmaRoomBackground from "@/components/PlasmaRoomBackground/PlasmaRoomBackground"
-import { Sparkles } from "lucide-react"
+import { SlidersHorizontal, Sparkles } from "lucide-react"
 import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
@@ -57,10 +57,12 @@ type IncomingSocketMessage = {
   username?: string
   handle?: string
   senderId?: string
+  senderIsVip?: boolean
   sender?: {
     id?: string
     username?: string
     nickname?: string
+    isVip?: boolean
   }
   reactions?: Array<{
     id?: string
@@ -141,6 +143,20 @@ type RoomReadStatesPayload = {
     userId?: string
     lastReadAt?: string | Date
   }>
+}
+
+type GalaxyControls = {
+  density: number
+  speed: number
+  rotationSpeed: number
+  brightness: number
+}
+
+const DEFAULT_GALAXY_CONTROLS: GalaxyControls = {
+  density: 1,
+  speed: 1,
+  rotationSpeed: 0.035,
+  brightness: 0.72,
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -291,7 +307,7 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
         reaction.type !== "😂" &&
         reaction.type !== "❤️" &&
         reaction.type !== "🔥" &&
-        reaction.type !== "🥰" &&
+        reaction.type !== "😊" &&
         reaction.type !== "😧" &&
         reaction.type !== "🥲"
       ) {
@@ -312,6 +328,10 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
     !handle &&
     (displayName === currentUsername || raw?.sender?.username === currentUsername)
 
+  const senderIsVip = Boolean(
+    (raw as { senderIsVip?: boolean }).senderIsVip ?? (raw?.sender as { isVip?: boolean } | undefined)?.isVip,
+  )
+
   return {
     id: String(raw?.id ?? Date.now()),
     content,
@@ -321,6 +341,7 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
     username: displayName,
     handle,
     senderId,
+    senderIsVip,
     sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
     reactions,
@@ -420,6 +441,8 @@ export default function ChatPageDetails() {
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false)
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
   const [plasmaBackgroundEnabled, setPlasmaBackgroundEnabled] = useState(false)
+  const [isGalaxyControlsOpen, setIsGalaxyControlsOpen] = useState(false)
+  const [galaxyControls, setGalaxyControls] = useState<GalaxyControls>(DEFAULT_GALAXY_CONTROLS)
   const userIdRef = useRef<string | undefined>(undefined)
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
@@ -1932,14 +1955,23 @@ export default function ChatPageDetails() {
   ] as const
 
   return (
-    <section
-      className={`${styles.chat} container${plasmaBackgroundEnabled ? ` ${styles.chatPlasmaOn}` : ""}`}
-    >
+    <div className={styles.chatScene}>
       {plasmaBackgroundEnabled && effectiveSocketRoomId ? (
-        <div className={styles.plasmaBackdrop}>
-          <PlasmaRoomBackground key={effectiveSocketRoomId} />
+        <div className={styles.plasmaScreenBackdrop}>
+          <PlasmaRoomBackground
+            key={effectiveSocketRoomId}
+            density={galaxyControls.density}
+            speed={galaxyControls.speed}
+            rotationSpeed={galaxyControls.rotationSpeed}
+            brightness={galaxyControls.brightness}
+            fullScreenDesktop
+            mobileBreakpoint={1023}
+          />
         </div>
       ) : null}
+      <section
+        className={`${styles.chat} container${plasmaBackgroundEnabled ? ` ${styles.chatPlasmaOn}` : ""}`}
+      >
       <div className={styles.header}>
         <div
           className={`${styles.headerContent} ${headerPresenceClass} ${globalOnlineStatusHighlight ? styles.globalOnlineStatus : ""}`}
@@ -2035,6 +2067,95 @@ export default function ChatPageDetails() {
           >
             <Sparkles size={18} strokeWidth={2} aria-hidden />
           </button>
+          {plasmaBackgroundEnabled ? (
+            <div className={styles.galaxyControlsWrap}>
+              <button
+                type="button"
+                className={`${styles.plasmaToggle} ${isGalaxyControlsOpen ? styles.plasmaToggleActive : ""}`}
+                aria-pressed={isGalaxyControlsOpen}
+                aria-label="Управление анимацией"
+                title="Управление анимацией"
+                onClick={() => setIsGalaxyControlsOpen((prev) => !prev)}
+              >
+                <SlidersHorizontal size={18} strokeWidth={2} aria-hidden />
+              </button>
+              {isGalaxyControlsOpen ? (
+                <div className={styles.galaxyControlsPanel}>
+                  <label className={styles.galaxyControlRow}>
+                    <span>Density</span>
+                    <input
+                      type="range"
+                      min="0.7"
+                      max="1.8"
+                      step="0.1"
+                      value={galaxyControls.density}
+                      onChange={(event) =>
+                        setGalaxyControls((prev) => ({
+                          ...prev,
+                          density: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className={styles.galaxyControlRow}>
+                    <span>Speed</span>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="1.8"
+                      step="0.1"
+                      value={galaxyControls.speed}
+                      onChange={(event) =>
+                        setGalaxyControls((prev) => ({
+                          ...prev,
+                          speed: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className={styles.galaxyControlRow}>
+                    <span>Rotate</span>
+                    <input
+                      type="range"
+                      min="0.01"
+                      max="0.08"
+                      step="0.005"
+                      value={galaxyControls.rotationSpeed}
+                      onChange={(event) =>
+                        setGalaxyControls((prev) => ({
+                          ...prev,
+                          rotationSpeed: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <label className={styles.galaxyControlRow}>
+                    <span>Glow</span>
+                    <input
+                      type="range"
+                      min="0.4"
+                      max="1"
+                      step="0.05"
+                      value={galaxyControls.brightness}
+                      onChange={(event) =>
+                        setGalaxyControls((prev) => ({
+                          ...prev,
+                          brightness: Number(event.target.value),
+                        }))
+                      }
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className={styles.galaxyResetButton}
+                    onClick={() => setGalaxyControls(DEFAULT_GALAXY_CONTROLS)}
+                  >
+                    Reset
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -2215,6 +2336,7 @@ export default function ChatPageDetails() {
           </div>
         </div>
       ) : null}
-    </section>
+      </section>
+    </div>
   )
 }

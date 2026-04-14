@@ -12,8 +12,8 @@ import {
   fetchUnreadSummaryForQuery,
   pushUnreadSummaryQueryKey,
 } from "@/lib/queries/pushQueries"
-import { canSeeAdminDashboardNav } from "@/lib/adminDashboardNav"
-import { getUserIdFromJwt, getUsernameFromJwt } from "@/lib/jwtUser"
+import { canSeeDashboardNav } from "@/lib/adminDashboardNav"
+import { getIsVipFromJwt, getUserIdFromJwt, getUsernameFromJwt } from "@/lib/jwtUser"
 import {
   prefetchTabBibleData,
   prefetchTabChatData,
@@ -23,6 +23,7 @@ import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 import { useTabBarOverlayOptional } from "@/contexts/TabBarOverlayContext"
 import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMediaQuery"
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge"
+import { useAuth } from "@/hooks/useAuth"
 
 const UNREAD_REFRESH_INTERVAL_MS = 15_000
 
@@ -30,6 +31,7 @@ export default function TabBar() {
   const t = useTranslations("nav")
   const pathname = usePathname()
   const queryClient = useQueryClient()
+  const { user: authUser } = useAuth()
   const { socket } = usePresenceSocket()
   const tabBarOverlay = useTabBarOverlayOptional()
   const narrowForChatComposer = useMediaQuery(chatComposerTabLayoutMediaQuery())
@@ -40,8 +42,11 @@ export default function TabBar() {
   const token = getAuthToken()
   const userId = token ? getUserIdFromJwt(token) : undefined
   const jwtUsername = token ? getUsernameFromJwt(token) : undefined
-  const showAdminDashboardTab =
-    tabBarClientReady && canSeeAdminDashboardNav(jwtUsername)
+  const jwtIsVip = token ? getIsVipFromJwt(token) : false
+  const dashboardUsername = jwtUsername ?? authUser?.username
+  const dashboardIsVip = jwtIsVip || Boolean(authUser?.isVip)
+  const showDashboardTab =
+    tabBarClientReady && canSeeDashboardNav(dashboardUsername, dashboardIsVip)
 
   const unreadQuery = useQuery({
     queryKey: pushUnreadSummaryQueryKey(userId),
@@ -139,7 +144,7 @@ export default function TabBar() {
           <Image src="/icon-bible.svg" alt={t("bible")} width={24} height={24} />
         </span>
       </Link>
-      {showAdminDashboardTab ? (
+      {showDashboardTab ? (
         <Link
           className={styles.tabLink}
           href="/dashboard"

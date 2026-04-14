@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN "lastSeenAt" TIMESTAMP(3);
+ALTER TABLE "User" ADD COLUMN "isVip" BOOLEAN NOT NULL DEFAULT false;

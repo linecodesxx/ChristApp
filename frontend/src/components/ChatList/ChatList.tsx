@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import styles from "@/components/ChatList/ChatList.module.scss"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
-import { GLOBAL_ROOM_ID } from "@/lib/chatRooms"
+import { GLOBAL_ROOM_ID, SHARE_WITH_JESUS_CHAT_ID } from "@/lib/chatRooms"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat"
 
 export type ChatListItem = {
   id: string
@@ -24,6 +25,9 @@ export type ChatListItem = {
   unread?: boolean | number
   href?: string
   isOnline?: boolean
+  /** ISO час останньої активності в мережі (співрозмовник у приватному чаті). */
+  lastSeenAt?: string | null
+  peerIsVip?: boolean
   /** Показати меню «⋯» з видаленням (загальний чат і службові рядки — без меню). */
   deletable?: boolean
 }
@@ -47,6 +51,7 @@ type ChatListProps = {
   onDeleteChat?: (listItemId: string) => void
   onPrefetchChat?: (listItemId: string) => void
   verseNotesVisible?: boolean
+  adminDashboardVisible?: boolean
   isLoading?: boolean
 }
 
@@ -67,10 +72,12 @@ const ChatList = ({
   onDeleteChat,
   onPrefetchChat,
   verseNotesVisible = false,
+  adminDashboardVisible = false,
   isLoading = false,
 }: ChatListProps) => {
   const t = useTranslations("chat")
   const list: ChatListItem[] = items
+  const [nowMs, setNowMs] = useState(() => Date.now())
   const [isUserPickerOpen, setIsUserPickerOpen] = useState(false)
   const [searchValue, setSearchValue] = useState("")
   const [openMenuId, setOpenMenuId] = useState<string | null>(null)
@@ -106,8 +113,7 @@ const ChatList = ({
       const q = normalizedSearch.replace(/^@/, "")
       const nameMatch = candidate.username.toLowerCase().includes(normalizedSearch)
       const handleMatch = candidate.handle.toLowerCase().includes(q)
-      const emailMatch = candidate.email.toLowerCase().includes(normalizedSearch)
-      return nameMatch || handleMatch || emailMatch
+      return nameMatch || handleMatch
     })
   }, [chatCandidates, normalizedSearch])
 
@@ -129,6 +135,11 @@ const ChatList = ({
       />
     </label>
   )
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   useEffect(() => {
     if (!isUserPickerOpen) {
@@ -322,7 +333,6 @@ const ChatList = ({
                           <span className={styles.userPickerName}>{candidate.username}</span>
                         </span>
                         <span className={styles.userPickerHandle}>@{candidate.handle}</span>
-                        <span className={styles.userPickerEmail}>{candidate.email}</span>
                       </span>
 
                       <span
@@ -358,6 +368,18 @@ const ChatList = ({
               tabIndex={verseNotesVisible ? 0 : -1}
             >
               <Image src="/icon-verse-notes.svg" alt="" width={22} height={22} className={styles.newChatIcon} />
+            </Link>
+            <Link
+              href="/admin"
+              className={`${styles.adminButton} ${!adminDashboardVisible ? styles.headerActionHidden : ""}`}
+              aria-label={t("adminDashboardAria")}
+              title={t("adminDashboardTitle")}
+              aria-hidden={!adminDashboardVisible}
+              tabIndex={adminDashboardVisible ? 0 : -1}
+            >
+              <span className={styles.adminButtonGlyph} aria-hidden>
+                A
+              </span>
             </Link>
             <button
               className={styles.newChatButton}
@@ -426,6 +448,17 @@ const ChatList = ({
                 const safeTitle = toRenderText(chat.title)
                 const safeTimeLabel = toRenderText(chat.timeLabel)
                 const safePreview = toRenderText(chat.preview)
+                const presenceSubtitle =
+                  chat.id !== GLOBAL_ROOM_ID &&
+                  chat.id !== SHARE_WITH_JESUS_CHAT_ID &&
+                  !chat.isOnline &&
+                  chat.lastSeenAt
+                    ? formatLastSeenRelative(chat.lastSeenAt, nowMs, {
+                        seconds: (n) => t("lastSeenSeconds", { count: n }),
+                        minutes: (n) => t("lastSeenMinutes", { count: n }),
+                        hours: (n) => t("lastSeenHours", { count: n }),
+                      })
+                    : ""
 
                 const mainInner = (
                   <>
@@ -455,10 +488,22 @@ const ChatList = ({
                     <div className={styles.chatInfo}>
                       <div className={styles.titleBlock}>
                         <div className={styles.titleRow}>
-                          {chat.titleLoading ? <span className={styles.chatInlineSkeletonTitle} aria-hidden /> : <h3 className={styles.title}>{safeTitle}</h3>}
+                          {chat.titleLoading ? (
+                            <span className={styles.chatInlineSkeletonTitle} aria-hidden />
+                          ) : (
+                            <>
+                              <h3 className={styles.title}>{safeTitle}</h3>
+                              {chat.peerIsVip ? (
+                                <span className={styles.vipBadge} title="VIP">
+                                  VIP
+                                </span>
+                              ) : null}
+                            </>
+                          )}
                         </div>
                         <span className={styles.chatTime}>{safeTimeLabel}</span>
                       </div>
+                      {presenceSubtitle ? <p className={styles.presenceSubtitle}>{presenceSubtitle}</p> : null}
 
                       <div className={styles.previewRow}>
                         {chat.titleLoading ? (

@@ -250,10 +250,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
         if (this.onlineUsers.get(userId) === 1) {
           this.onlineUsers.delete(userId);
+          const lastSeenAt = new Date();
+          void this.prisma.user
+            .update({
+              where: { id: userId },
+              data: { lastSeenAt },
+            })
+            .catch(() => undefined);
           this.server.emit('userPresenceChanged', {
             userId,
             isOnline: false,
-            lastSeenAt: new Date().toISOString(),
+            lastSeenAt: lastSeenAt.toISOString(),
           });
           this.emitOnlinePresence();
         }
@@ -1026,14 +1033,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
    */
   async broadcastNewChatMessage(
     roomId: string,
-    message: {
+      message: {
       id: string;
       type: MessageType;
       content: string | null;
       fileUrl: string | null;
       createdAt: Date;
       senderId: string;
-      sender: { username: string; nickname: string | null };
+      sender: { username: string; nickname: string | null; isVip?: boolean };
     },
   ) {
     await this.messagesService.markRoomAsRead(
@@ -1050,6 +1057,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       username: message.sender.nickname || message.sender.username,
       handle: message.sender.username,
       senderId: message.senderId,
+      senderIsVip: Boolean(message.sender.isVip),
       createdAt: message.createdAt,
       roomId,
       reactions: [],
@@ -1115,6 +1123,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                   username: true,
                   nickname: true,
                   avatarUrl: true,
+                  lastSeenAt: true,
+                  isVip: true,
                 },
               },
             },
@@ -1142,6 +1152,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
                     username: directPeer.username,
                     nickname: directPeer.nickname,
                     avatarUrl: directPeer.avatarUrl,
+                    lastSeenAt: directPeer.lastSeenAt?.toISOString() ?? null,
+                    isVip: directPeer.isVip,
                   },
                 }
               : {}),

@@ -26,7 +26,9 @@
     "warmupCheckingFooter": "Don't close the page; checking continues automatically.",
     "warmupWaitLabel": "Waiting for response:",
     "warmupRetryFooter": "We retry automatically every few seconds.",
-    "offlineScreen": "Open offline screen"
+    "offlineScreen": "Open offline screen",
+    "showPasswordAria": "Show password",
+    "hidePasswordAria": "Hide password"
   },
   "offline": {
     "home": "Home",
@@ -76,7 +78,36 @@
     "streak": "Day streak",
     "lastRead": "Last read",
     "lastReadHint": "Reading is saved in the Bible",
-    "randomVerse": "Random verse"
+    "randomVerse": "Random verse",
+    "recentNotesTitle": "Latest verse notes",
+    "recentNotesEmpty": "No notes yet — open verse notes to add one.",
+    "recentChatsTitle": "Recent chats",
+    "recentChatsEmpty": "No recent messages yet.",
+    "recentYouLast": "You sent the last message",
+    "openVerseNotes": "Open verse notes",
+    "openChat": "Open chat"
+  },
+  "admin": {
+    "title": "Admin",
+    "subtitle": "Members (newest first). Toggle VIP for highlighted users in chat.",
+    "backToChat": "← Chat",
+    "loading": "Loading…",
+    "loadingList": "Loading members…",
+    "noToken": "Not signed in.",
+    "loadFailed": "Could not load members (HTTP {status}).",
+    "loadFailedGeneric": "Could not load members.",
+    "vipFailed": "Could not update VIP (HTTP {status}).",
+    "vipFailedGeneric": "Could not update VIP.",
+    "badgeNew": "New",
+    "statusActive": "Active",
+    "statusInactive": "Inactive",
+    "neverOnline": "Never recorded",
+    "labelId": "ID:",
+    "labelEmail": "Email:",
+    "labelJoined": "Joined:",
+    "labelLastSeen": "Last seen:",
+    "setVip": "Set VIP",
+    "removeVip": "Remove VIP"
   },
   "profile": {
     "title": "Profile",
@@ -191,6 +222,8 @@
     "lastSeenSeconds": "last seen {count}s ago",
     "lastSeenMinutes": "last seen {count}m ago",
     "lastSeenHours": "last seen {count}h ago",
+    "adminDashboardAria": "Admin dashboard",
+    "adminDashboardTitle": "Admin — members",
     "recordingVoice": "{name} is recording a voice message",
     "replyOriginalMissing": "The original message isn’t in the current history.",
     "serverUnreachable": "No server connection. Try again later.",

@@ -23,6 +23,10 @@ model User {
   themeBackgroundHex String? @db.VarChar(7)
   /// * Ключ шрифта: `inter` | `achiko` | `bodoni-moda`.
   themeFontKey      String? @db.VarChar(32)
+  /// Останній раз «був у мережі» (оновлюється при відключенні WebSocket після grace).
+  lastSeenAt        DateTime?
+  /// VIP — неон біля ніка в чаті; керується з адмінки.
+  isVip             Boolean   @default(false)
   messages          Message[]
   pushSubscriptions PushSubscription[]
   memberships       RoomMember[]

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation"
 import { hasLocale, NextIntlClientProvider } from "next-intl"
 import { getMessages, setRequestLocale } from "next-intl/server"
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain"
+import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync"
 import HtmlLang from "@/components/HtmlLang/HtmlLang"
 import PresenceSocket from "@/components/PresenceSocket/PresenceSocket"
 import PwaInstallPrompt from "@/components/PwaInstallPrompt/PwaInstallPrompt"
@@ -55,6 +56,7 @@ export default async function LocaleLayout({
       <HtmlLang />
       <SplashScreen />
       <Providers>
+        <AuthSessionSync />
         <PwaRegistration />
         <PwaInstallPrompt />
         <PushAutoSync />

@@ -62,6 +62,7 @@ function isHttpOrHttps(url) {
  */
 function shouldBypassSwFetch(request) {
   const url = new URL(request.url)
+  const authorization = request.headers.get("authorization")
 
   if (!isHttpOrHttps(url)) {
     return true
@@ -71,12 +72,19 @@ function shouldBypassSwFetch(request) {
     return true
   }
 
+  if (typeof authorization === "string" && authorization.trim()) {
+    return true
+  }
+
   if (url.pathname.startsWith("/socket.io/")) {
     return true
   }
 
   const p = url.pathname
   if (p === "/login" || p === "/register") {
+    return true
+  }
+  if (p.includes("/auth/me")) {
     return true
   }
   if (p.includes("/auth/refresh") || p.includes("/auth/logout")) {

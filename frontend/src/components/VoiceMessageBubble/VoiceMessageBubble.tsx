@@ -12,6 +12,7 @@ type VoiceMessageComponentProps = {
   message: Message
   hideSenderName?: boolean
   compactSenderLabel?: string
+  senderIsVip?: boolean
 }
 
 /**
@@ -30,6 +31,7 @@ export default function VoiceMessageBubble({
   message,
   hideSenderName = false,
   compactSenderLabel,
+  senderIsVip = false,
 }: VoiceMessageComponentProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [duration, setDuration] = useState<number>(0)
@@ -72,7 +74,11 @@ export default function VoiceMessageBubble({
 
   return (
     <div className={`${styles.voiceMessage} ${isOwn ? styles.voiceMessageOwn : ""}`}>
-      {compactSenderLabel ? <p className={styles.voiceCompactSender}>{compactSenderLabel}</p> : null}
+      {compactSenderLabel ? (
+        <p className={styles.voiceCompactSender}>
+          {senderIsVip ? <span className={styles.vipName}>{compactSenderLabel}</span> : compactSenderLabel}
+        </p>
+      ) : null}
       <div className={styles.voiceHeader}>
         <div className={styles.voiceIcon}>
           <Volume2 size={20} strokeWidth={2} />
@@ -80,7 +86,7 @@ export default function VoiceMessageBubble({
         <div className={styles.voiceInfo}>
           {!hideSenderName ? (
             <p className={styles.voiceUsername}>
-              {username}
+              {senderIsVip ? <span className={styles.vipName}>{username}</span> : username}
               <span style={{ marginLeft: "4px", fontSize: "11px", opacity: "0.6" }}>— голосовое</span>
             </p>
           ) : null}

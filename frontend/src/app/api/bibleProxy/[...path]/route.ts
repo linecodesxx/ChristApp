@@ -1,3 +1,4 @@
+import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
@@ -10,7 +11,9 @@ export async function GET(req: NextRequest) {
     ).replace(/\/$/, "");
     const apiUrl = `${upstreamBase}${pathParam}${url.search}`;
 
-    const apiRes = await fetch(apiUrl, {
+    const apiRes = await axios.get<string>(apiUrl, {
+      responseType: "text",
+      validateStatus: () => true,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
@@ -19,11 +22,12 @@ export async function GET(req: NextRequest) {
         Referer: "https://christ-app-nine.vercel.app",
         Origin: "https://christ-app-nine.vercel.app",
       },
+      timeout: 60_000,
     });
 
-    const text = await apiRes.text();
+    const text = apiRes.data;
 
-    if (!apiRes.ok) {
+    if (apiRes.status < 200 || apiRes.status >= 300) {
       console.error("UPSTREAM ERROR:", apiRes.status, text);
 
       return NextResponse.json(

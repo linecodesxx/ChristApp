@@ -26,7 +26,9 @@
     "warmupCheckingFooter": "Не закривайте сторінку; перевірка триває автоматично.",
     "warmupWaitLabel": "Чекаємо відповіді вже:",
     "warmupRetryFooter": "Перевірка повторюється автоматично кожні кілька секунд.",
-    "offlineScreen": "Відкрити офлайн-екран"
+    "offlineScreen": "Відкрити офлайн-екран",
+    "showPasswordAria": "Показати пароль",
+    "hidePasswordAria": "Приховати пароль"
   },
   "offline": {
     "home": "На головну",
@@ -76,7 +78,36 @@
     "streak": "Серія днів",
     "lastRead": "Останнє прочитане",
     "lastReadHint": "Читання зберігається в Біблії",
-    "randomVerse": "Випадковий вірш"
+    "randomVerse": "Випадковий вірш",
+    "recentNotesTitle": "Останні замітки до віршів",
+    "recentNotesEmpty": "Поки немає заміток — відкрийте замітки до віршів.",
+    "recentChatsTitle": "Останні чати",
+    "recentChatsEmpty": "Поки немає недавніх повідомлень.",
+    "recentYouLast": "Останнє повідомлення від вас",
+    "openVerseNotes": "Замітки до віршів",
+    "openChat": "Чат"
+  },
+  "admin": {
+    "title": "Адмін",
+    "subtitle": "Учасники (спочатку нові). VIP підсвічує нік у чаті.",
+    "backToChat": "← Чат",
+    "loading": "Завантаження…",
+    "loadingList": "Завантаження списку…",
+    "noToken": "Немає авторизації.",
+    "loadFailed": "Не вдалося завантажити список (HTTP {status}).",
+    "loadFailedGeneric": "Не вдалося завантажити список.",
+    "vipFailed": "Не вдалося оновити VIP (HTTP {status}).",
+    "vipFailedGeneric": "Не вдалося оновити VIP.",
+    "badgeNew": "Новий",
+    "statusActive": "Активний",
+    "statusInactive": "Неактивний",
+    "neverOnline": "Ще не зафіксовано",
+    "labelId": "ID:",
+    "labelEmail": "Email:",
+    "labelJoined": "Реєстрація:",
+    "labelLastSeen": "Був(ла) в мережі:",
+    "setVip": "Дати VIP",
+    "removeVip": "Зняти VIP"
   },
   "profile": {
     "title": "Профіль",
@@ -191,6 +222,8 @@
     "lastSeenSeconds": "був(ла) в мережі {count} с тому",
     "lastSeenMinutes": "був(ла) в мережі {count} хв тому",
     "lastSeenHours": "був(ла) в мережі {count} год тому",
+    "adminDashboardAria": "Адмінка",
+    "adminDashboardTitle": "Адмін — учасники",
     "recordingVoice": "{name} записує голосове",
     "replyOriginalMissing": "Оригінальне повідомлення не знайдено в поточній історії.",
     "serverUnreachable": "Немає з’єднання з сервером. Спробуйте пізніше.",
