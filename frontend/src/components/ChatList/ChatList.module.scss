@@ -953,6 +953,11 @@
             0 0 0 1px color-mix(in srgb, var(--line-soft) 12%, transparent);
           animation: chatItemMenuIn 0.22s ease;
           transform-origin: top right;
+
+          @media (pointer: coarse) and (max-width: 899px) {
+            top: 0;
+            right: 50px;
+          }
         }
 
         .chatItemMenuItem {

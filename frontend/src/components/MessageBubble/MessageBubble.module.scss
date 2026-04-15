@@ -584,7 +584,15 @@ html[data-theme="dark"] .emojiButton {
 
 @media (pointer: coarse) {
   .reactionTrigger {
-    display: none;
+    display: inline-flex;
+    opacity: 0.82;
+  }
+
+  .bubble[data-reaction-picker-open] .reactionAnchor,
+  .row[data-reaction-picker-open] .reactionAnchor {
+    outline: 1px dashed color-mix(in srgb, var(--accent) 64%, transparent);
+    outline-offset: 3px;
+    border-radius: 999px;
   }
 }
 
