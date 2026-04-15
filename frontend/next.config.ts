@@ -143,7 +143,6 @@ const allowedDevOrigins = computeAllowedDevOrigins()
 const workspaceRoot = path.resolve(__dirname, "..")
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: workspaceRoot,
   turbopack: {
     root: workspaceRoot,
   },
