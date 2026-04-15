@@ -19,6 +19,7 @@ import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 import { getHttpApiBase } from "@/lib/apiBase"
 import { getNetworkFailureHint, messageFromApiResponseBody } from "@/lib/apiError"
 import { recordDailyVisit } from "@/lib/appStreak"
+import { filterTesterUsers } from "@/lib/testerUsers"
 import { applyUserAppearanceToDocument } from "@/lib/userAppearance"
 
 export type AuthUser = {
@@ -27,6 +28,7 @@ export type AuthUser = {
   username: string
   nickname?: string
   createdAt: string
+  lastSeenAt?: string | null
   isActive: boolean
   isVip?: boolean
   avatarUrl?: string | null
@@ -39,6 +41,11 @@ export type AuthSessionPayload = {
   access_token: string
   user?: AuthUser
 }
+
+type SilentRefreshResult =
+  | { kind: "ok"; payload: AuthSessionPayload }
+  | { kind: "unauthorized" }
+  | { kind: "transient" }
 
 type UseAuthOptions = {
   redirectIfUnauthenticated?: string
@@ -147,7 +154,7 @@ export function useAuth(options?: UseAuthOptions) {
       }
 
       const data = await res.json()
-      const list = Array.isArray(data) ? (data as AuthUser[]) : []
+      const list = Array.isArray(data) ? filterTesterUsers(data as AuthUser[]) : []
       setUsers(list)
       queryClient.setQueryData(usersDirectoryQueryKey(), list)
     } catch {
@@ -156,18 +163,25 @@ export function useAuth(options?: UseAuthOptions) {
     }
   }, [API_URL, queryClient])
 
-  const silentRefresh = useCallback(async (): Promise<AuthSessionPayload | null> => {
+  const silentRefresh = useCallback(async (): Promise<SilentRefreshResult> => {
     try {
       const res = await apiFetch(`${API_URL}/auth/refresh`, {
         method: "POST",
         timeoutMs: 18_000,
       })
-      if (!res.ok) return null
+      if (!res.ok) {
+        if (res.status === 401 || res.status === 403) {
+          return { kind: "unauthorized" }
+        }
+        return { kind: "transient" }
+      }
       const data = (await res.json()) as AuthSessionPayload
-      if (typeof data.access_token !== "string") return null
-      return data
+      if (typeof data.access_token !== "string" || data.access_token.length === 0) {
+        return { kind: "transient" }
+      }
+      return { kind: "ok", payload: data }
     } catch {
-      return null
+      return { kind: "transient" }
     }
   }, [API_URL])
 
@@ -210,11 +224,15 @@ export function useAuth(options?: UseAuthOptions) {
       const persistedInWebStorage = hasPersistedAccessTokenInWebStorage()
 
       if (!persistedInWebStorage) {
-        const payloadFromRefresh = await silentRefresh()
-        if (!payloadFromRefresh) {
+        const refreshResult = await silentRefresh()
+        if (refreshResult.kind === "unauthorized") {
           finishLoggedOut()
           return
         }
+        if (refreshResult.kind === "transient") {
+          return
+        }
+        const payloadFromRefresh = refreshResult.payload
         setAuthToken(payloadFromRefresh.access_token)
         if (payloadFromRefresh.user) {
           setAuthenticatedUser(payloadFromRefresh.user)
@@ -241,11 +259,15 @@ export function useAuth(options?: UseAuthOptions) {
 
       let token = getAuthToken()
       if (!token) {
-        const payloadFromRefresh = await silentRefresh()
-        if (!payloadFromRefresh) {
+        const refreshResult = await silentRefresh()
+        if (refreshResult.kind === "unauthorized") {
           finishLoggedOut()
           return
         }
+        if (refreshResult.kind === "transient") {
+          return
+        }
+        const payloadFromRefresh = refreshResult.payload
         setAuthToken(payloadFromRefresh.access_token)
         if (payloadFromRefresh.user) {
           setAuthenticatedUser(payloadFromRefresh.user)
@@ -266,11 +288,15 @@ export function useAuth(options?: UseAuthOptions) {
       })
 
       if (res.status === 401 || res.status === 403) {
-        const again = await silentRefresh()
-        if (!again) {
+        const refreshResult = await silentRefresh()
+        if (refreshResult.kind === "unauthorized") {
           finishLoggedOut()
           return
         }
+        if (refreshResult.kind === "transient") {
+          return
+        }
+        const again = refreshResult.payload
         setAuthToken(again.access_token)
         if (again.user) {
           setAuthenticatedUser(again.user)
@@ -308,7 +334,6 @@ export function useAuth(options?: UseAuthOptions) {
     router,
     setAuthenticatedUser,
     silentRefresh,
-    applyUserAppearanceToDocument,
   ])
 
   const refreshSession = useCallback(async () => {
@@ -335,10 +360,11 @@ export function useAuth(options?: UseAuthOptions) {
       return
     }
     const again = await silentRefresh()
-    if (!again) return
-    setAuthToken(again.access_token)
-    if (again.user) {
-      setAuthenticatedUser(again.user)
+    if (again.kind !== "ok") return
+    const payload = again.payload
+    setAuthToken(payload.access_token)
+    if (payload.user) {
+      setAuthenticatedUser(payload.user)
       recordDailyVisit()
     }
     await fetchUsers()

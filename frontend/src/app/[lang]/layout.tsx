@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next"
 import { notFound } from "next/navigation"
-import { hasLocale, NextIntlClientProvider } from "next-intl"
+import { NextIntlClientProvider } from "next-intl"
 import { getMessages, setRequestLocale } from "next-intl/server"
 import AdaptiveMain from "@/components/AdaptiveMain/AdaptiveMain"
 import AuthSessionSync from "@/components/AuthSessionSync/AuthSessionSync"
@@ -33,26 +33,26 @@ export const viewport: Viewport = {
 }
 
 export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }))
+  return routing.langs.map((lang) => ({ lang }))
 }
 
-export default async function LocaleLayout({
+export default async function LangLayout({
   children,
   params,
 }: Readonly<{
   children: React.ReactNode
-  params: Promise<{ locale: string }>
+  params: Promise<{ lang: string }>
 }>) {
-  const { locale } = await params
-  if (!hasLocale(routing.locales, locale)) {
+  const { lang } = await params
+  if (!routing.langs.includes(lang as (typeof routing.langs)[number])) {
     notFound()
   }
 
-  setRequestLocale(locale)
+  setRequestLocale(lang)
   const messages = await getMessages()
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <NextIntlClientProvider locale={lang} messages={messages}>
       <HtmlLang />
       <SplashScreen />
       <Providers>

@@ -1,6 +1,6 @@
 "use client"
 
-import profileStyles from "@/app/[locale]/profile/profile.module.scss"
+import profileStyles from "@/app/[lang]/profile/profile.module.scss"
 import {
   TOTAL_BIBLE_CHAPTERS,
   type BibleLastRead,

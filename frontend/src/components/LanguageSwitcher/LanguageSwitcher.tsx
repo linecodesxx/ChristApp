@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "@/i18n/navigation"
 import { routing } from "@/i18n/routing"
 import styles from "./LanguageSwitcher.module.scss"
 
-const LABELS: Record<(typeof routing.locales)[number], string> = {
+const LABELS: Record<(typeof routing.langs)[number], string> = {
   en: "EN",
   ru: "RU",
   ua: "UA",
@@ -17,12 +17,12 @@ type LanguageSwitcherProps = {
   /** Компактний вигляд в один рядок (наприклад, у шапці профілю поруч із шестернею) */
   variant?: "inline"
   /** Після зміни локалі */
-  onLocaleChange?: () => void
+  onLangChange?: () => void
 }
 
-export default function LanguageSwitcher({ variant, onLocaleChange }: LanguageSwitcherProps) {
+export default function LanguageSwitcher({ variant, onLangChange }: LanguageSwitcherProps) {
   const t = useTranslations("languageSwitcher")
-  const locale = useLocale() as (typeof routing.locales)[number]
+  const lang = useLocale() as (typeof routing.langs)[number]
   const router = useRouter()
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -53,14 +53,14 @@ export default function LanguageSwitcher({ variant, onLocaleChange }: LanguageSw
     }
   }, [open, close])
 
-  const selectLocale = (next: (typeof routing.locales)[number]) => {
-    if (next === locale) {
+  const selectLang = (next: (typeof routing.langs)[number]) => {
+    if (next === lang) {
       close()
       return
     }
     router.replace(pathname, { locale: next })
     close()
-    onLocaleChange?.()
+    onLangChange?.()
   }
 
   const inline = variant === "inline"
@@ -74,12 +74,12 @@ export default function LanguageSwitcher({ variant, onLocaleChange }: LanguageSw
         aria-haspopup="listbox"
         aria-controls={listId}
         aria-label={t("label")}
-        title={t("current", { code: LABELS[locale] })}
+        title={t("current", { code: LABELS[lang] })}
         onClick={() => setOpen((v) => !v)}
         whileTap={{ scale: 0.97 }}
         transition={{ type: "spring", stiffness: 520, damping: 32 }}
       >
-        <span>{LABELS[locale]}</span>
+        <span>{LABELS[lang]}</span>
         <span className={styles.chevron} aria-hidden>
           ▾
         </span>
@@ -97,14 +97,14 @@ export default function LanguageSwitcher({ variant, onLocaleChange }: LanguageSw
             exit={{ opacity: 0, y: -4, filter: "blur(4px)" }}
             transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
           >
-            {routing.locales.map((code) => (
+            {routing.langs.map((code) => (
               <motion.button
                 key={code}
                 type="button"
                 role="option"
-                aria-selected={code === locale}
-                className={`${styles.option} ${code === locale ? styles.optionActive : ""}`}
-                onClick={() => selectLocale(code)}
+                aria-selected={code === lang}
+                className={`${styles.option} ${code === lang ? styles.optionActive : ""}`}
+                onClick={() => selectLang(code)}
                 whileHover={{ x: 2 }}
                 transition={{ type: "spring", stiffness: 400, damping: 28 }}
               >

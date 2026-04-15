@@ -40,6 +40,15 @@ export type DeleteOwnMessageResult =
   | { ok: true; messageId: string; roomId: string }
   | { ok: false; reason: 'not-found' | 'not-owner' | 'no-access' };
 
+export type EditOwnMessageResult =
+  | {
+      ok: true;
+      messageId: string;
+      roomId: string;
+      content: string;
+    }
+  | { ok: false; reason: 'not-found' | 'not-owner' | 'no-access' | 'invalid-content' };
+
 /** @deprecated використовуйте DeleteOwnMessageResult */
 export type DeleteOwnGlobalMessageResult = DeleteOwnMessageResult;
 
@@ -212,6 +221,82 @@ export class MessagesService {
     userId: string,
   ): Promise<DeleteOwnMessageResult> {
     return this.deleteOwnMessage(messageId, userId);
+  }
+
+  async editOwnMessage(
+    messageId: string,
+    userId: string,
+    nextContent: string,
+  ): Promise<EditOwnMessageResult> {
+    const normalizedContent = nextContent.trim();
+    if (!normalizedContent) {
+      return { ok: false, reason: 'invalid-content' };
+    }
+
+    const existingMessage = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        roomId: true,
+        senderId: true,
+        type: true,
+      },
+    });
+
+    if (!existingMessage) {
+      return { ok: false, reason: 'not-found' };
+    }
+
+    if (existingMessage.senderId !== userId) {
+      return { ok: false, reason: 'not-owner' };
+    }
+
+    if (existingMessage.type !== MessageType.TEXT) {
+      return { ok: false, reason: 'invalid-content' };
+    }
+
+    const messageRoomId = existingMessage.roomId;
+
+    if (messageRoomId !== this.GLOBAL_ROOM) {
+      const member = await this.prisma.roomMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: messageRoomId,
+            userId,
+          },
+        },
+      });
+      if (!member) {
+        return { ok: false, reason: 'no-access' };
+      }
+
+      const room = await this.prisma.room.findUnique({
+        where: { id: messageRoomId },
+        select: { title: true },
+      });
+      if (!room || !userMayAccessRoomByTitle(userId, room.title)) {
+        return { ok: false, reason: 'no-access' };
+      }
+    }
+
+    const updated = await this.prisma.message.update({
+      where: { id: existingMessage.id },
+      data: {
+        content: normalizedContent,
+      },
+      select: {
+        id: true,
+        roomId: true,
+        content: true,
+      },
+    });
+
+    return {
+      ok: true,
+      messageId: updated.id,
+      roomId: updated.roomId,
+      content: updated.content ?? normalizedContent,
+    };
   }
 
   async markRoomAsRead(roomId: string, userId: string, lastReadAt = new Date()) {

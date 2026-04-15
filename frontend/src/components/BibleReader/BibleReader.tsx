@@ -20,7 +20,7 @@ import {
   fetchBibleTranslationsForQuery,
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries";
-import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale";
+import { pickTranslationShortName } from "@/lib/bibleTranslationForLang";
 import BibleReadingSkeleton from "@/components/BibleReadingSkeleton/BibleReadingSkeleton";
 import { useAuth } from "@/hooks/useAuth";
 import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket";
@@ -86,7 +86,7 @@ function getCachedBooks(queryClient: QueryClient, translation: string): BookType
 
 export default function BibleReader() {
   const tChat = useTranslations("chat");
-  const locale = useLocale();
+  const lang = useLocale();
   const { user, users } = useAuth();
   const { socket } = usePresenceSocket();
   const queryClient = useQueryClient();
@@ -168,8 +168,8 @@ export default function BibleReader() {
     if (!translations.length) {
       return;
     }
-    setTranslation(pickTranslationShortName(translations as BibleTranslationItem[], locale));
-  }, [locale, translations]);
+    setTranslation(pickTranslationShortName(translations as BibleTranslationItem[], lang));
+  }, [lang, translations]);
 
   const { data: books = [] } = useQuery({
     queryKey: bibleBooksQueryKey(translation),

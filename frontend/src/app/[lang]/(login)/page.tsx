@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { type LoginFieldErrors, validateLoginForm } from "@/lib/formValidation"
 import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel"
-import styles from "@/app/[locale]/(login)/login.module.scss"
+import styles from "@/app/[lang]/(login)/login.module.scss"
 
 export default function LoginPage() {
   const t = useTranslations("login")

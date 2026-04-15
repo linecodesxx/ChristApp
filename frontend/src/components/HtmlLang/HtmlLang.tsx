@@ -5,11 +5,11 @@ import { useEffect } from "react"
 
 /** Синхронізує `document.documentElement.lang` з активною локаллю next-intl. */
 export default function HtmlLang() {
-  const locale = useLocale()
+  const lang = useLocale()
 
   useEffect(() => {
-    document.documentElement.lang = locale
-  }, [locale])
+    document.documentElement.lang = lang
+  }, [lang])
 
   return null
 }

@@ -7,9 +7,7 @@ export type VerseNotesCollectionId =
 
 export type VerseNotesCollectionMeta = {
   id: VerseNotesCollectionId
-  /** Заголовок на обкладинці-збірці */
   title: string
-  /** Короткий підпис під назвою */
   tagline: string
   /** Клас фону картки (див. CollectionCoverCard.module.scss) */
   coverVariant: "gratitude" | "love" | "prayer" | "insights" | "sermons"
@@ -21,18 +19,6 @@ export const VERSE_NOTES_COLLECTIONS: VerseNotesCollectionMeta[] = [
     title: "Благодарность",
     tagline: "Стихи и строки о благодарности сердца",
     coverVariant: "gratitude",
-  },
-  {
-    id: "love",
-    title: "Стихи о любви",
-    tagline: "Любовь Бога и ближнего",
-    coverVariant: "love",
-  },
-  {
-    id: "prayer-diary",
-    title: "Молитвенный дневник",
-    tagline: "Записи разговора с Ним",
-    coverVariant: "prayer",
   },
   {
     id: "weekly-insights",

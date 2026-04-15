@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import styles from "./NoteShareModal.module.scss"
 
 export type NoteShareModalProps = {
@@ -168,7 +169,7 @@ export default function NoteShareModal({
               className={`${styles.actionBtn} ${styles.shareBtn}`}
               onClick={handleWebShare}
             >
-              <ShareArrowIcon />
+              <Image src="/icon-share.svg" alt="" width={12} height={12} aria-hidden />
               Поделиться
             </button>
           ) : null}
@@ -197,13 +198,3 @@ function CheckIcon() {
   )
 }
 
-function ShareArrowIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <circle cx="18" cy="5" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="6" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <circle cx="18" cy="19" r="3" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-    </svg>
-  )
-}

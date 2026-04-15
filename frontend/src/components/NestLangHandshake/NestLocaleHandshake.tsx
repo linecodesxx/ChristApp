@@ -4,7 +4,7 @@ import { fetchNestWithAcceptLanguage } from "@/lib/server/fetchNestWithAcceptLan
  * Серверний приклад: handshake з Nest із `Accept-Language` поточної локалі.
  * Йде напряму на Nest (не через `/api/nest`), щоб при вимкненому бекенді Next dev не сипав «Failed to proxy».
  */
-export default async function NestLocaleHandshake() {
+export default async function NestLangHandshake() {
   try {
     await fetchNestWithAcceptLanguage("/health", undefined, { directToNest: true })
   } catch {

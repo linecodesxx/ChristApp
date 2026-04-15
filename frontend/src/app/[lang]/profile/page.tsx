@@ -1,6 +1,6 @@
 "use client"
 
-import styles from "@/app/[locale]/profile/profile.module.scss"
+import styles from "@/app/[lang]/profile/profile.module.scss"
 import { useAuth, type AuthUser } from "@/hooks/useAuth"
 import { getInitials } from "@/lib/utils"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
@@ -62,8 +62,8 @@ function effectiveThemeForegroundHex(user: { themeForegroundHex?: string | null 
 
 export default function ProfilePage() {
   const t = useTranslations("profile")
-  const locale = useLocale()
-  const dateLocaleTag = locale === "ua" ? "uk-UA" : locale === "en" ? "en-US" : "ru-RU"
+  const lang = useLocale()
+  const dateLangTag = lang === "ua" ? "uk-UA" : lang === "en" ? "en-US" : "ru-RU"
   const hydrated = useHydrated()
   const queryClient = useQueryClient()
   const { user, logout, refreshSession, patchUser, replaceUser } = useAuth({
@@ -262,13 +262,13 @@ export default function ProfilePage() {
     if (Number.isNaN(date.getTime())) {
       return ""
     }
-    return date.toLocaleDateString(dateLocaleTag, {
+    return date.toLocaleDateString(dateLangTag, {
       year: "numeric",
       month: "long",
       day: "numeric",
       timeZone: "UTC",
     })
-  }, [user?.createdAt, dateLocaleTag])
+  }, [user?.createdAt, dateLangTag])
   const initials = getInitials(user?.nickname ?? user?.username)
   const avatarPhotoSrc = useMemo(() => {
     if (avatarPreviewUrl) {
@@ -833,7 +833,7 @@ export default function ProfilePage() {
                   </div>
                   <ScriptureText html={verse.text} className={styles.verseText} />
                   <span className={styles.savedDate}>
-                    {hydrated ? new Date(verse.savedAt).toLocaleDateString(dateLocaleTag) : "\u2014"}
+                    {hydrated ? new Date(verse.savedAt).toLocaleDateString(dateLangTag) : "\u2014"}
                   </span>
                 </div>
                 <button

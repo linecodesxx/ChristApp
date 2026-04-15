@@ -1,0 +1,102 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  backdrop-filter: blur(20px) saturate(1.1);
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.14), transparent 40%),
+    radial-gradient(circle at 80% 10%, rgba(179, 158, 125, 0.2), transparent 35%),
+    linear-gradient(160deg, rgba(8, 10, 16, 0.9), rgba(21, 22, 27, 0.92));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 20px 36px;
+}
+
+.status {
+  color: rgba(240, 240, 247, 0.82);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 12px;
+  margin-top: 10px;
+}
+
+.peerName {
+  margin-top: 18px;
+  color: #fbfbfd;
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+.avatarWrap {
+  position: relative;
+  width: 186px;
+  height: 186px;
+  border-radius: 50%;
+  margin-top: 14px;
+}
+
+.avatarPulse {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(245, 232, 208, 0.18), 0 0 45px 12px rgba(238, 188, 120, 0.24);
+}
+
+.avatar {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(28, 30, 36, 0.85);
+}
+
+.actions {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.actionButton {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.actionButton:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.actionButtonMuted {
+  background: rgba(208, 77, 77, 0.26);
+  border-color: rgba(255, 125, 125, 0.46);
+}
+
+.actionButtonSpeakerOff {
+  background: rgba(112, 117, 132, 0.25);
+}
+
+.hangupButton {
+  background: #b33434;
+  border-color: rgba(246, 183, 183, 0.52);
+}
+
+.hangupButton:hover {
+  background: #c43f3f;
+}

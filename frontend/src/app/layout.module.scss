@@ -1,10 +1,7 @@
-/* Таб зафіксований (TabBar): bottom 12px + min-height ~80px + padding — разом ~92px; невеликий відступ до контенту. */
-/* 40px — сумарні вертикальні відступи body (globals). display:flex — дочірні екрани можуть мати flex:1 і заповнювати висоту без дірки над табом. */
 .main {
   box-sizing: border-box;
   width: 100%;
-  // height: calc(100svh - 40px);
-  height: calc(100% - 40px);
+  height: calc(100svh - 40px);
   // height: calc(100dvh - 0px);
   display: flex;
   flex-direction: column;
@@ -20,11 +17,6 @@
   }
 }
 
-/* Offline-екран: без desktop-обмеження ширини контейнера. */
-.mainOffline {
-  max-width: none;
-  margin: 0;
-}
 
 /* Коли відкрито введення в чаті, нижній таб прихований — не резервуємо під нього місце. */
 .mainComposerFocused {

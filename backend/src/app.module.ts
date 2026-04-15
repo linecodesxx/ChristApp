@@ -10,6 +10,7 @@ import { ChatModule } from './chat/chat.module';
 import { VersesModule } from './verses/verses.module';
 import { PushModule } from './push/push.module';
 import { AdminModule } from './admin/admin.module';
+import { CallsModule } from './calls/calls.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { AdminModule } from './admin/admin.module';
     VersesModule,
     PushModule,
     AdminModule,
+    CallsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
