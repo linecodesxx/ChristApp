@@ -100,8 +100,8 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           return
         }
 
-        // Voice-only profile: opus audio codec, microphone publish only.
-        const client = AgoraRTC.createClient({ mode: "rtc", codec: "opus" })
+        // Voice-only call flow, using a supported client codec.
+        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
         clientRef.current = client
         await client.setClientRole("host")
 
@@ -225,6 +225,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
                 colorSeed={peerName}
                 width={186}
                 height={186}
+                fallbackClassName={styles.avatarFallback}
               />
             </div>
           </div>

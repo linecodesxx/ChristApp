@@ -57,6 +57,16 @@
   background: rgba(28, 30, 36, 0.85);
 }
 
+.avatarFallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 56px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+}
+
 .actions {
   margin-top: auto;
   display: flex;
