@@ -186,7 +186,7 @@ function MessageBubble({
     }>
   }, [currentUser?.id, message.reactions])
 
-  const longPressHandlers = useLongPress<HTMLElement>(() => {
+  const openReactionPickerFromGesture = useCallback(() => {
     if (!onToggleReaction || isReactionPickerOpen) return
 
     skipNextClickRef.current = true
@@ -194,6 +194,11 @@ function MessageBubble({
       navigator.vibrate(50)
     }
     setIsReactionPickerOpen(true)
+  }, [isReactionPickerOpen, onToggleReaction])
+
+  const longPressHandlers = useLongPress<HTMLElement>(openReactionPickerFromGesture, {
+    ms: 420,
+    moveThreshold: 16,
   })
 
   const handleReplyIntent = () => {
@@ -250,6 +255,25 @@ function MessageBubble({
   const handleTouchCancel = (event: TouchEvent<HTMLElement>) => {
     longPressHandlers.onTouchCancel(event)
     touchStartRef.current = null
+  }
+
+  const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
+    const isCoarsePointer =
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(pointer: coarse)").matches
+        : false
+
+    if (!isCoarsePointer) {
+      return
+    }
+
+    if (isInteractiveTarget(event.target)) {
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+    openReactionPickerFromGesture()
   }
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
@@ -309,6 +333,7 @@ function MessageBubble({
   const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen)
   const interactiveBubbleProps = {
     onClick: handleClick,
+    onContextMenu: handleContextMenu,
     onTouchStart: handleTouchStart,
     onTouchMove: handleTouchMove,
     onTouchEnd: handleTouchEnd,

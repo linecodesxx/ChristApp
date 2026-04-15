@@ -3,7 +3,7 @@ import "@/styles/globals.scss"
 import type { ReactNode } from "react"
 
 /**
- * Кореневий layout: шрифти та глобальні стилі. Локалізована оболонка — у `app/[locale]/layout.tsx`.
+ * Кореневий layout: шрифти та глобальні стилі. Локалізована оболонка — у `app/[lang]/layout.tsx`.
  */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -1,18 +1,18 @@
 import type { BibleTranslationItem } from "@/lib/queries/bibleQueries"
 
-const APP_LOCALES = new Set(["en", "ru", "ua"])
+const APP_LANGS = new Set(["en", "ru", "ua"])
 
 /** Перша сегмент-папка в шляху: /en/bible → en */
-export function getAppLocaleFromPathname(pathname: string): string {
+export function getAppLangFromPathname(pathname: string): string {
   const seg = pathname.split("/").filter(Boolean)[0] ?? ""
-  return APP_LOCALES.has(seg) ? seg : "ru"
+  return APP_LANGS.has(seg) ? seg : "ru"
 }
 
-export function getAppLocaleFromWindow(): string {
+export function getAppLangFromWindow(): string {
   if (typeof window === "undefined") {
     return "ru"
   }
-  return getAppLocaleFromPathname(window.location.pathname)
+  return getAppLangFromPathname(window.location.pathname)
 }
 
 /**
@@ -21,7 +21,7 @@ export function getAppLocaleFromWindow(): string {
  */
 export function pickTranslationShortName(
   translations: BibleTranslationItem[],
-  locale: string,
+  lang: string,
 ): string {
   const lower = (s: string) => s.toLowerCase()
 
@@ -37,21 +37,21 @@ export function pickTranslationShortName(
   }
 
   if (translations.length > 0) {
-    if (locale === "en") {
+    if (lang === "en") {
       return (
         translations.find((t) => lower(t.short_name) === "nkjv")?.short_name ??
         findLang("english", "англ") ??
         translations.find((t) => lower(t.short_name) === "web")?.short_name ??
         translations[0]?.short_name ??
-        fallbackForLocale(locale)
+        fallbackForLang(lang)
       )
     }
-    if (locale === "ua") {
+    if (lang === "ua") {
       return (
         findLang("ukrain", "україн", "украин", "ukrainian") ??
         translations.find((t) => lower(t.short_name) === "ubt")?.short_name ??
         translations[0]?.short_name ??
-        fallbackForLocale(locale)
+        fallbackForLang(lang)
       )
     }
     return (
@@ -62,14 +62,14 @@ export function pickTranslationShortName(
     )
   }
 
-  return fallbackForLocale(locale)
+  return fallbackForLang(lang)
 }
 
-function fallbackForLocale(locale: string): string {
-  if (locale === "en") {
+function fallbackForLang(lang: string): string {
+  if (lang === "en") {
     return process.env.NEXT_PUBLIC_BIBLE_TRANSLATION_EN ?? "NKJV"
   }
-  if (locale === "ua") {
+  if (lang === "ua") {
     return process.env.NEXT_PUBLIC_BIBLE_TRANSLATION_UA ?? "NRT"
   }
   return process.env.NEXT_PUBLIC_BIBLE_TRANSLATION_RU ?? "NRT"

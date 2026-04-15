@@ -47,6 +47,16 @@ type RoomReadStatesPayload = {
   }>;
 };
 
+type CallUserPayload = {
+  targetUserId?: string;
+  channelName?: string;
+};
+
+type EditMessagePayload = {
+  messageId?: string;
+  content?: string;
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -128,6 +138,11 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
 
     return room.id;
+  }
+
+  private async getSocketsByUserId(targetUserId: string) {
+    const sockets = await this.server.fetchSockets();
+    return sockets.filter((socket) => socket.data?.user?.id === targetUserId);
   }
 
   private normalizeToken(tokenCandidate: unknown) {
@@ -718,6 +733,79 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
+  @SubscribeMessage('call-user')
+  async handleCallUser(
+    @MessageBody() body: CallUserPayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const caller = await this.resolveSocketUser(client);
+    if (!caller) {
+      client.emit('call-error', { error: 'Не авторизован' });
+      return;
+    }
+
+    const targetUserId = typeof body?.targetUserId === 'string' ? body.targetUserId.trim() : '';
+    const channelName = typeof body?.channelName === 'string' ? body.channelName.trim() : '';
+
+    if (!targetUserId || !channelName) {
+      client.emit('call-error', { error: 'targetUserId и channelName обязательны' });
+      return;
+    }
+
+    if (targetUserId === caller.id) {
+      client.emit('call-error', { error: 'Нельзя позвонить самому себе' });
+      return;
+    }
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+    if (!targetUser) {
+      client.emit('call-error', { error: 'Пользователь не найден' });
+      return;
+    }
+
+    const callerProfile = await this.prisma.user.findUnique({
+      where: { id: caller.id },
+      select: {
+        username: true,
+        nickname: true,
+        avatarUrl: true,
+      },
+    });
+
+    const targetSockets = await this.getSocketsByUserId(targetUserId);
+    if (!targetSockets.length) {
+      client.emit('call-error', { error: 'Пользователь офлайн' });
+      return;
+    }
+
+    const initiatorName =
+      callerProfile?.nickname?.trim() || callerProfile?.username?.trim() || caller.nickname || caller.username;
+
+    const incomingCallPayload = {
+      channelName,
+      initiator: {
+        id: caller.id,
+        username: callerProfile?.username || caller.username,
+        nickname: callerProfile?.nickname || caller.nickname || null,
+        name: initiatorName,
+        avatarUrl: callerProfile?.avatarUrl || null,
+      },
+    };
+
+    for (const targetSocket of targetSockets) {
+      targetSocket.emit('incoming-call', incomingCallPayload);
+    }
+
+    client.emit('call-user-sent', {
+      ok: true,
+      targetUserId,
+      channelName,
+    });
+  }
+
   // ================= ЗАПРОШЕННЯ КОРИСТУВАЧА ДО КІМНАТИ =================
   @SubscribeMessage('inviteUserToRoom')
   async handleInviteUserToRoom(
@@ -953,6 +1041,88 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         ok: false,
         messageId,
         error: 'Ошибка удаления сообщения',
+      });
+    }
+  }
+
+  @SubscribeMessage('editMessage')
+  async handleEditMessage(
+    @MessageBody() body: EditMessagePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      client.emit('editMessageResult', {
+        ok: false,
+        messageId: '',
+        error: 'Не авторизован',
+      });
+      return;
+    }
+
+    const messageId = typeof body?.messageId === 'string' ? body.messageId.trim() : '';
+    const content = typeof body?.content === 'string' ? body.content.trim() : '';
+    if (!messageId) {
+      client.emit('editMessageResult', {
+        ok: false,
+        messageId: '',
+        error: 'messageId обязателен',
+      });
+      return;
+    }
+    if (!content) {
+      client.emit('editMessageResult', {
+        ok: false,
+        messageId,
+        error: 'Текст сообщения не может быть пустым',
+      });
+      return;
+    }
+
+    try {
+      const result = await this.messagesService.editOwnMessage(messageId, user.id, content);
+      if (!result.ok) {
+        const errorMessage =
+          result.reason === 'not-found'
+            ? 'Сообщение не найдено'
+            : result.reason === 'not-owner'
+              ? 'Можно редактировать только свои сообщения'
+              : result.reason === 'no-access'
+                ? 'Нет доступа к этому чату'
+                : 'Неверные данные для редактирования';
+
+        client.emit('editMessageResult', {
+          ok: false,
+          messageId,
+          error: errorMessage,
+        });
+        return;
+      }
+
+      this.server.to(result.roomId).emit('messageEdited', {
+        messageId: result.messageId,
+        roomId: result.roomId,
+        content: result.content,
+        isEdited: true,
+      });
+
+      client.emit('editMessageResult', {
+        ok: true,
+        messageId: result.messageId,
+        roomId: result.roomId,
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : String(err);
+      console.error('[WS] editMessage failed:', {
+        messageId,
+        userId: user.id,
+        reason,
+      });
+
+      client.emit('editMessageResult', {
+        ok: false,
+        messageId,
+        error: 'Ошибка редактирования сообщения',
       });
     }
   }

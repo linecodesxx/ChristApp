@@ -12,6 +12,7 @@ import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/apiFetch"
@@ -29,8 +30,9 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
-import PlasmaRoomBackground from "@/components/PlasmaRoomBackground/PlasmaRoomBackground"
-import { SlidersHorizontal, Sparkles } from "lucide-react"
+import { Phone } from "lucide-react"
+import CallScreen from "@/components/calls/CallScreen"
+import IncomingCallModal from "@/components/calls/IncomingCallModal"
 import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
@@ -70,6 +72,7 @@ type IncomingSocketMessage = {
     type?: string
     createdAt?: string | Date
   }>
+  isEdited?: boolean
 }
 
 type MyRoomItem = {
@@ -94,7 +97,6 @@ type DirectRoomOpenedPayload = {
 type RoomHistoryPayload = {
   roomId: string
   messages: IncomingSocketMessage[]
-  plasmaBackground?: boolean
 }
 
 type OnlineUsersPayload = {
@@ -114,6 +116,20 @@ type MessageDeletedSocketEvent = {
 }
 
 type DeleteMessageResultSocketEvent = {
+  ok?: boolean
+  messageId?: string
+  roomId?: string
+  error?: string
+}
+
+type MessageEditedSocketEvent = {
+  messageId?: string
+  roomId?: string
+  content?: string
+  isEdited?: boolean
+}
+
+type EditMessageResultSocketEvent = {
   ok?: boolean
   messageId?: string
   roomId?: string
@@ -145,18 +161,15 @@ type RoomReadStatesPayload = {
   }>
 }
 
-type GalaxyControls = {
-  density: number
-  speed: number
-  rotationSpeed: number
-  brightness: number
-}
-
-const DEFAULT_GALAXY_CONTROLS: GalaxyControls = {
-  density: 1,
-  speed: 1,
-  rotationSpeed: 0.035,
-  brightness: 0.72,
+type IncomingCallPayload = {
+  channelName?: string
+  initiator?: {
+    id?: string
+    name?: string
+    nickname?: string | null
+    username?: string
+    avatarUrl?: string | null
+  }
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -345,6 +358,7 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
     sender: legacyMe || handle === currentUsername ? "me" : undefined,
     replyTo,
     reactions,
+    isEdited: Boolean(raw?.isEdited),
   }
 }
 
@@ -404,7 +418,7 @@ function findDirectRoomByUserId(rooms: MyRoomItem[], currentUserId: string | und
 
 export default function ChatPageDetails() {
   const t = useTranslations("chat")
-  const locale = useLocale()
+  const lang = useLocale()
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
   const queryClient = useQueryClient()
   // Runtime refs потрібні для socket callbacks, щоб уникнути stale state усередині listeners.
@@ -440,9 +454,8 @@ export default function ChatPageDetails() {
   const [roomReadStatesByUserId, setRoomReadStatesByUserId] = useState<Map<string, string>>(() => new Map())
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false)
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
-  const [plasmaBackgroundEnabled, setPlasmaBackgroundEnabled] = useState(false)
-  const [isGalaxyControlsOpen, setIsGalaxyControlsOpen] = useState(false)
-  const [galaxyControls, setGalaxyControls] = useState<GalaxyControls>(DEFAULT_GALAXY_CONTROLS)
+  const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null)
+  const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
   const userIdRef = useRef<string | undefined>(undefined)
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
@@ -601,7 +614,6 @@ export default function ChatPageDetails() {
 
     socket.emit("leaveRoom", joinedRoomId)
     joinedRoomRef.current = undefined
-    setPlasmaBackgroundEnabled(false)
   }, [])
 
   useEffect(() => {
@@ -741,7 +753,6 @@ export default function ChatPageDetails() {
 
     const onDisconnect = () => {
       setIsSocketConnected(false)
-      setPlasmaBackgroundEnabled(false)
       setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
       setOnlineCount(0)
       setOnlineUserIds(new Set())
@@ -857,19 +868,48 @@ export default function ChatPageDetails() {
     }
     socket.on("deleteMessageResult", onDeleteMessageResult)
 
+    const onMessageEdited = (payload: MessageEditedSocketEvent) => {
+      const editedMessageId = payload?.messageId
+      const editedRoomId = payload?.roomId
+      const nextContent = payload?.content?.trim()
+      const joinedId = joinedRoomRef.current
+      if (!editedMessageId || !editedRoomId || !joinedId || editedRoomId !== joinedId || !nextContent) {
+        return
+      }
+
+      setMessages((prev) =>
+        prev.map((messageItem) =>
+          messageItem.id === editedMessageId
+            ? {
+                ...messageItem,
+                content: nextContent,
+                isEdited: payload?.isEdited !== false,
+              }
+            : messageItem,
+        ),
+      )
+
+      setEditingMessage((prev) =>
+        prev?.id === editedMessageId
+          ? {
+              ...prev,
+              content: nextContent,
+              isEdited: payload?.isEdited !== false,
+            }
+          : prev,
+      )
+    }
+    socket.on("messageEdited", onMessageEdited)
+
     const onRoomHistory = ({
       roomId: historyRoomId,
       messages: history,
-      plasmaBackground,
     }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return
       }
 
       awaitingRoomHistoryRef.current = false
-      if (typeof plasmaBackground === "boolean") {
-        setPlasmaBackgroundEnabled(plasmaBackground)
-      }
 
       const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(history, user?.username)
 
@@ -892,15 +932,6 @@ export default function ChatPageDetails() {
       void queryClient.setQueryData(chatRoomHistoryQueryKey(historyRoomId), history)
     }
     socket.on("roomHistory", onRoomHistory)
-
-    const onRoomPlasma = (payload: { roomId?: string; enabled?: boolean }) => {
-      const joinedId = joinedRoomRef.current
-      if (!joinedId || !payload?.roomId || payload.roomId !== joinedId) {
-        return
-      }
-      setPlasmaBackgroundEnabled(Boolean(payload.enabled))
-    }
-    socket.on("roomPlasma", onRoomPlasma)
 
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
       queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), rooms)
@@ -1160,6 +1191,12 @@ export default function ChatPageDetails() {
     }
     socket.on("userInvitedToRoom", onInvitedToRoom)
 
+    const onIncomingCall = (payload: IncomingCallPayload) => {
+      if (!payload?.channelName) return
+      setIncomingCall(payload)
+    }
+    socket.on("incoming-call", onIncomingCall)
+
     return () => {
       socket.off("connect", onConnect)
       socket.off("disconnect", onDisconnect)
@@ -1168,8 +1205,8 @@ export default function ChatPageDetails() {
       socket.off("newMessage", onNewMessage)
       socket.off("messageDeleted", onMessageDeleted)
       socket.off("deleteMessageResult", onDeleteMessageResult)
+      socket.off("messageEdited", onMessageEdited)
       socket.off("roomHistory", onRoomHistory)
-      socket.off("roomPlasma", onRoomPlasma)
       socket.off("myRooms", onMyRooms)
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("userInvitedToRoom", onInvitedToRoom)
@@ -1181,6 +1218,7 @@ export default function ChatPageDetails() {
       socket.off("roomReadUpdated", onRoomReadUpdated)
       socket.off("roomReadStates", onRoomReadStates)
       socket.off("update-message-reactions", onUpdateMessageReactions)
+      socket.off("incoming-call", onIncomingCall)
       leaveCurrentRoom(socket)
       socket.disconnect()
       socketRef.current = null
@@ -1460,12 +1498,12 @@ export default function ChatPageDetails() {
       return null
     }
 
-    return new Intl.DateTimeFormat(locale, {
+    return new Intl.DateTimeFormat(lang, {
       day: "numeric",
       month: "long",
       year: "numeric",
     }).format(joinedAt)
-  }, [directChatTargetUser?.createdAt, locale])
+  }, [directChatTargetUser?.createdAt, lang])
 
   const directChatTargetDaysInApp = useMemo(() => {
     const createdAt = directChatTargetUser?.createdAt
@@ -1484,7 +1522,9 @@ export default function ChatPageDetails() {
 
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
-  const directTargetLastSeenAt = directChatTargetUserId ? lastSeenByUserId.get(directChatTargetUserId) : undefined
+  const directTargetLastSeenAt = directChatTargetUserId
+    ? (lastSeenByUserId.get(directChatTargetUserId) ?? directChatTargetUser?.lastSeenAt ?? undefined)
+    : undefined
   const voiceRecordingStatusLine = (() => {
     for (const value of typingUsers.values()) {
       if (value.activity === "voice") {
@@ -1498,17 +1538,14 @@ export default function ChatPageDetails() {
     if (!lastSeenIso) {
       return t("offline")
     }
-    const diffMs = Math.max(0, nowTs - new Date(lastSeenIso).getTime())
-    const sec = Math.floor(diffMs / 1000)
-    if (sec < 60) {
-      return t("lastSeenSeconds", { count: sec })
-    }
-    const min = Math.floor(sec / 60)
-    if (min < 60) {
-      return t("lastSeenMinutes", { count: min })
-    }
-    const hours = Math.floor(min / 60)
-    return t("lastSeenHours", { count: hours })
+
+    return (
+      formatLastSeenRelative(lastSeenIso, nowTs, {
+        seconds: (n) => t("lastSeenSeconds", { count: n }),
+        minutes: (n) => t("lastSeenMinutes", { count: n }),
+        hours: (n) => t("lastSeenHours", { count: n }),
+      }) || t("offline")
+    )
   }
 
   const statusLine = isHistoryLoading
@@ -1608,20 +1645,52 @@ export default function ChatPageDetails() {
   const handleSaveEditedMessage = useCallback(async (messageId: string, text: string) => {
     const nextContent = text.trim()
     if (!nextContent) return false
-    setMessages((prev) =>
-      prev.map((messageItem) =>
-        messageItem.id === messageId
-          ? {
-              ...messageItem,
-              content: nextContent,
-              isEdited: true,
-            }
-          : messageItem,
-      ),
-    )
-    setEditingMessage(null)
-    return true
-  }, [])
+
+    const socket = socketRef.current
+    const targetRoomId = joinedRoomRef.current
+    if (!socket?.connected || !targetRoomId) {
+      setSendNotice(t("sendWaitConnection"))
+      return false
+    }
+
+    return await new Promise<boolean>((resolve) => {
+      let done = false
+
+      const finish = (result: boolean) => {
+        if (done) return
+        done = true
+        window.clearTimeout(timeoutId)
+        socket.off("editMessageResult", onEditMessageResult)
+        resolve(result)
+      }
+
+      const onEditMessageResult = (payload: EditMessageResultSocketEvent) => {
+        if (!payload || payload.messageId !== messageId) {
+          return
+        }
+        if (!payload.ok) {
+          if (payload.error) {
+            window.alert(payload.error)
+          }
+          finish(false)
+          return
+        }
+        setEditingMessage(null)
+        finish(true)
+      }
+
+      const timeoutId = window.setTimeout(() => {
+        window.alert(t("serverUnreachable"))
+        finish(false)
+      }, 6000)
+
+      socket.on("editMessageResult", onEditMessageResult)
+      socket.emit("editMessage", {
+        messageId,
+        content: nextContent,
+      })
+    })
+  }, [t])
 
   const handleDeleteOwnMessage = useCallback(
     (message: Message) => {
@@ -1695,6 +1764,37 @@ export default function ChatPageDetails() {
     },
     [effectiveSocketRoomId],
   )
+
+  const handleStartCall = useCallback(() => {
+    const socket = socketRef.current
+    if (!socket?.connected || !directChatTargetUserId || !user?.id) {
+      return
+    }
+
+    const callerUid = user.id.slice(0, 8)
+    const targetUid = directChatTargetUserId.slice(0, 8)
+    const channelName = `dm-${[callerUid, targetUid].sort().join("-")}`
+    socket.emit("call-user", {
+      targetUserId: directChatTargetUserId,
+      channelName,
+    })
+
+    setActiveCall({
+      channelName,
+      initiator: {
+        id: directChatTargetUserId,
+        name: directChatTargetUser?.nickname ?? directChatTargetUser?.username ?? t("chatFallback"),
+        avatarUrl: directChatTargetUser?.avatarUrl ?? null,
+      },
+    })
+  }, [
+    directChatTargetUser?.avatarUrl,
+    directChatTargetUser?.nickname,
+    directChatTargetUser?.username,
+    directChatTargetUserId,
+    t,
+    user?.id,
+  ])
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     const targetRoomId = effectiveSocketRoomId
@@ -1956,22 +2056,8 @@ export default function ChatPageDetails() {
 
   return (
     <div className={styles.chatScene}>
-      {plasmaBackgroundEnabled && effectiveSocketRoomId ? (
-        <div className={styles.plasmaScreenBackdrop}>
-          <PlasmaRoomBackground
-            key={effectiveSocketRoomId}
-            density={galaxyControls.density}
-            speed={galaxyControls.speed}
-            rotationSpeed={galaxyControls.rotationSpeed}
-            brightness={galaxyControls.brightness}
-            fullScreenDesktop
-            mobileBreakpoint={1023}
-          />
-        </div>
-      ) : null}
-      <section
-        className={`${styles.chat} container${plasmaBackgroundEnabled ? ` ${styles.chatPlasmaOn}` : ""}`}
-      >
+      <section className={`${styles.chat} container`}>
+      <div className={styles.headerGlass}>
       <div className={styles.header}>
         <div
           className={`${styles.headerContent} ${headerPresenceClass} ${globalOnlineStatusHighlight ? styles.globalOnlineStatus : ""}`}
@@ -2048,115 +2134,19 @@ export default function ChatPageDetails() {
               />
             </button>
           ) : null}
-          <button
-            type="button"
-            className={`${styles.plasmaToggle} ${plasmaBackgroundEnabled ? styles.plasmaToggleActive : ""}`}
-            disabled={!isSocketConnected || !effectiveSocketRoomId || Boolean(authError)}
-            aria-pressed={plasmaBackgroundEnabled}
-            aria-label={t("plasmaBackgroundAria")}
-            title={plasmaBackgroundEnabled ? t("plasmaBackgroundOff") : t("plasmaBackgroundOn")}
-            onClick={() => {
-              const socket = socketRef.current
-              const id = effectiveSocketRoomId
-              if (!socket?.connected || !id) {
-                setSendNotice(t("roomNotReady"))
-                return
-              }
-              socket.emit("setRoomPlasma", { roomId: id, enabled: !plasmaBackgroundEnabled })
-            }}
-          >
-            <Sparkles size={18} strokeWidth={2} aria-hidden />
-          </button>
-          {plasmaBackgroundEnabled ? (
-            <div className={styles.galaxyControlsWrap}>
-              <button
-                type="button"
-                className={`${styles.plasmaToggle} ${isGalaxyControlsOpen ? styles.plasmaToggleActive : ""}`}
-                aria-pressed={isGalaxyControlsOpen}
-                aria-label="Управление анимацией"
-                title="Управление анимацией"
-                onClick={() => setIsGalaxyControlsOpen((prev) => !prev)}
-              >
-                <SlidersHorizontal size={18} strokeWidth={2} aria-hidden />
-              </button>
-              {isGalaxyControlsOpen ? (
-                <div className={styles.galaxyControlsPanel}>
-                  <label className={styles.galaxyControlRow}>
-                    <span>Density</span>
-                    <input
-                      type="range"
-                      min="0.7"
-                      max="1.8"
-                      step="0.1"
-                      value={galaxyControls.density}
-                      onChange={(event) =>
-                        setGalaxyControls((prev) => ({
-                          ...prev,
-                          density: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.galaxyControlRow}>
-                    <span>Speed</span>
-                    <input
-                      type="range"
-                      min="0.5"
-                      max="1.8"
-                      step="0.1"
-                      value={galaxyControls.speed}
-                      onChange={(event) =>
-                        setGalaxyControls((prev) => ({
-                          ...prev,
-                          speed: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.galaxyControlRow}>
-                    <span>Rotate</span>
-                    <input
-                      type="range"
-                      min="0.01"
-                      max="0.08"
-                      step="0.005"
-                      value={galaxyControls.rotationSpeed}
-                      onChange={(event) =>
-                        setGalaxyControls((prev) => ({
-                          ...prev,
-                          rotationSpeed: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <label className={styles.galaxyControlRow}>
-                    <span>Glow</span>
-                    <input
-                      type="range"
-                      min="0.4"
-                      max="1"
-                      step="0.05"
-                      value={galaxyControls.brightness}
-                      onChange={(event) =>
-                        setGalaxyControls((prev) => ({
-                          ...prev,
-                          brightness: Number(event.target.value),
-                        }))
-                      }
-                    />
-                  </label>
-                  <button
-                    type="button"
-                    className={styles.galaxyResetButton}
-                    onClick={() => setGalaxyControls(DEFAULT_GALAXY_CONTROLS)}
-                  >
-                    Reset
-                  </button>
-                </div>
-              ) : null}
-            </div>
+          {directChatTargetUser ? (
+            <button
+              type="button"
+              className={styles.callButton}
+              onClick={handleStartCall}
+              aria-label="Аудиозвонок"
+              title="Аудиозвонок"
+            >
+              <Phone size={17} strokeWidth={2.1} aria-hidden />
+            </button>
           ) : null}
         </div>
+      </div>
       </div>
 
       {authError ? (
@@ -2217,27 +2207,29 @@ export default function ChatPageDetails() {
       )}
 
       <div className={styles.composerDock}>
-        <MessageInput
-          onSend={handleSend}
-          onSaveEdit={handleSaveEditedMessage}
-          editingMessage={editingMessage}
-          replyToMessage={replyToMessage}
-          onCancelReply={() => setReplyToMessage(null)}
-          onCancelEdit={() => setEditingMessage(null)}
-          onSelectFiles={handleSelectAttachments}
-          disabled={routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId}
-          placeholder={
-            routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId
-              ? t("composerConnecting")
-              : t("composerPlaceholder")
-          }
-          onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
-          onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
-          onSendVoice={authError || routeRoomId === user?.id ? undefined : handleSendVoice}
-          onSendImage={authError || routeRoomId === user?.id ? undefined : handleSendImage}
-          onSendSticker={authError || routeRoomId === user?.id ? undefined : handleSendSticker}
-        />
-        {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
+        <div className={styles.composerGlass}>
+          <MessageInput
+            onSend={handleSend}
+            onSaveEdit={handleSaveEditedMessage}
+            editingMessage={editingMessage}
+            replyToMessage={replyToMessage}
+            onCancelReply={() => setReplyToMessage(null)}
+            onCancelEdit={() => setEditingMessage(null)}
+            onSelectFiles={handleSelectAttachments}
+            disabled={routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId}
+            placeholder={
+              routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId
+                ? t("composerConnecting")
+                : t("composerPlaceholder")
+            }
+            onTypingActivity={isSocketConnected && !authError ? handleTypingActivity : undefined}
+            onVoiceRecordingActivity={isSocketConnected && !authError ? handleVoiceRecordingActivity : undefined}
+            onSendVoice={authError || routeRoomId === user?.id ? undefined : handleSendVoice}
+            onSendImage={authError || routeRoomId === user?.id ? undefined : handleSendImage}
+            onSendSticker={authError || routeRoomId === user?.id ? undefined : handleSendSticker}
+          />
+          {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
+        </div>
       </div>
       <OnlineUsersDrawer
         open={isParticipantsDrawerOpen}
@@ -2336,6 +2328,32 @@ export default function ChatPageDetails() {
           </div>
         </div>
       ) : null}
+      <IncomingCallModal
+        open={Boolean(incomingCall)}
+        callerName={
+          incomingCall?.initiator?.name ||
+          incomingCall?.initiator?.nickname ||
+          incomingCall?.initiator?.username ||
+          "Unknown"
+        }
+        onDecline={() => setIncomingCall(null)}
+        onAccept={() => {
+          setActiveCall(incomingCall)
+          setIncomingCall(null)
+        }}
+      />
+      <CallScreen
+        isOpen={Boolean(activeCall?.channelName)}
+        channelName={activeCall?.channelName ?? null}
+        peerName={
+          activeCall?.initiator?.name ||
+          activeCall?.initiator?.nickname ||
+          activeCall?.initiator?.username ||
+          t("chatFallback")
+        }
+        peerAvatarUrl={activeCall?.initiator?.avatarUrl ?? null}
+        onClose={() => setActiveCall(null)}
+      />
       </section>
     </div>
   )

@@ -287,13 +287,16 @@
 }
 
 .shareBtn {
-  background: rgba(220, 180, 100, 0.15);
-  color: rgba(240, 200, 120, 0.9);
-  border: 0.5px solid rgba(220, 180, 100, 0.25);
+  background: var(--surface-elevated);
+  color: var(--foreground);
+  border: 1px solid var(--line-soft);
+  font-size: 10px;
+  line-height: 1.1;
+  font-weight: 500;
 
   &:hover {
-    background: rgba(220, 180, 100, 0.23);
-    color: rgba(255, 220, 140, 1);
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface-elevated));
+    border-color: var(--accent-soft);
   }
 }
 

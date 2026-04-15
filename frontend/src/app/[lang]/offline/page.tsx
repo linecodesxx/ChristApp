@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import { useEffect, useState } from "react"
-import styles from "@/app/[locale]/offline/offline.module.scss"
+import styles from "@/app/[lang]/offline/offline.module.scss"
 
 function BrandMark() {
   return (

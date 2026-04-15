@@ -3,5 +3,5 @@ import { redirect } from "next/navigation"
 
 /** Резерв, якщо запит до `/` не потрапив у middleware (рідкісний кейс із matcher). */
 export default function RootPage() {
-  redirect(`/${routing.defaultLocale}`)
+  redirect(`/${routing.defaultLang}`)
 }

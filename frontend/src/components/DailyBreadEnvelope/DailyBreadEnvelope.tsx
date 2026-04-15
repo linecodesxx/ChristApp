@@ -13,13 +13,13 @@ import {
   fetchBibleTranslationsForQuery,
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries"
-import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
+import { pickTranslationShortName } from "@/lib/bibleTranslationForLang"
 import styles from "./DailyBreadEnvelope.module.scss"
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
 
 export default function DailyBreadEnvelope() {
   const t = useTranslations("dailyBread")
-  const locale = useLocale()
+  const lang = useLocale()
   const [open, setOpen] = useState(false)
 
   const { data: translations = [] } = useQuery({
@@ -29,8 +29,8 @@ export default function DailyBreadEnvelope() {
   })
 
   const bibleTranslation = useMemo(
-    () => pickTranslationShortName(translations as BibleTranslationItem[], locale),
-    [locale, translations],
+    () => pickTranslationShortName(translations as BibleTranslationItem[], lang),
+    [lang, translations],
   )
 
   const { data, isLoading, isError } = useQuery({

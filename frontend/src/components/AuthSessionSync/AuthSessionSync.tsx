@@ -76,15 +76,27 @@ export default function AuthSessionSync() {
           })
 
           if (!response.ok) {
-            clearAuthToken()
-            clearScheduledRefresh()
+            const statusUnauth = response.status === 401 || response.status === 403
+            if (statusUnauth) {
+              const token = getAuthToken()
+              const expiresAt = token ? getJwtExpiresAt(token) : null
+              const tokenExpiredOrMissing = !expiresAt || expiresAt <= Date.now()
+
+              if (tokenExpiredOrMissing) {
+                clearAuthToken()
+                clearScheduledRefresh()
+              } else {
+                scheduleRefreshFromToken()
+              }
+            } else {
+              scheduleRefreshFromToken()
+            }
             return false
           }
 
           const payload = (await response.json()) as RefreshPayload
           if (typeof payload.access_token !== "string" || payload.access_token.length === 0) {
-            clearAuthToken()
-            clearScheduledRefresh()
+            scheduleRefreshFromToken()
             return false
           }
 
@@ -92,6 +104,7 @@ export default function AuthSessionSync() {
           scheduleRefreshFromToken()
           return true
         } catch {
+          scheduleRefreshFromToken()
           return false
         } finally {
           refreshInFlightRef.current = null

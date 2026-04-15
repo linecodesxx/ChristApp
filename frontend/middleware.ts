@@ -5,10 +5,10 @@ import { NextRequest, NextResponse } from "next/server"
 
 const intlMiddleware = createMiddleware(routing)
 
-const locales = routing.locales
+const langs = routing.langs
 
-function pathnameWithoutLocale(pathname: string): string | null {
-  for (const loc of locales) {
+function pathnameWithoutLang(pathname: string): string | null {
+  for (const loc of langs) {
     if (pathname === `/${loc}`) {
       return "/"
     }
@@ -27,7 +27,7 @@ export default function middleware(request: NextRequest) {
     return response
   }
 
-  const stripped = pathnameWithoutLocale(request.nextUrl.pathname)
+  const stripped = pathnameWithoutLang(request.nextUrl.pathname)
   if (stripped === null) {
     return response
   }
@@ -44,8 +44,8 @@ export default function middleware(request: NextRequest) {
   const cookieValue = request.cookies.get(AUTH_COOKIE_NAME)?.value
   if (!isAuthenticated(cookieValue)) {
     const seg = request.nextUrl.pathname.split("/")[1]
-    const safeLocale = locales.includes(seg as (typeof locales)[number]) ? seg : routing.defaultLocale
-    return NextResponse.redirect(new URL(`/${safeLocale}`, request.url))
+    const safeLang = langs.includes(seg as (typeof langs)[number]) ? seg : routing.defaultLang
+    return NextResponse.redirect(new URL(`/${safeLang}`, request.url))
   }
 
   return response

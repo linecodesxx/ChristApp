@@ -1,4 +1,5 @@
 import os from "node:os"
+import path from "node:path"
 import type { NextConfig } from "next"
 import createNextIntlPlugin from "next-intl/plugin"
 
@@ -141,9 +142,9 @@ function serviceWorkerConnectSrc(): string {
 const allowedDevOrigins = computeAllowedDevOrigins()
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: process.cwd(),
+  outputFileTracingRoot: path.resolve(__dirname),
   turbopack: {
-    root: process.cwd(),
+    root: path.resolve(__dirname),
   },
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   /** HTTP к Nest без CORS: браузер бьёт в тот же origin, Next проксирует на бэкенд. */

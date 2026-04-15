@@ -13,7 +13,7 @@ import {
   fetchBibleTranslationsForQuery,
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries"
-import { pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
+import { pickTranslationShortName } from "@/lib/bibleTranslationForLang"
 
 type RandomVerseWidgetProps = {
   /** У блоці привітання на дашборді: без зайвих зовнішніх відступів. */
@@ -22,7 +22,7 @@ type RandomVerseWidgetProps = {
 
 export default function RandomVerseWidget({ embedInGreeting }: RandomVerseWidgetProps) {
   const t = useTranslations("randomVerse")
-  const locale = useLocale()
+  const lang = useLocale()
   const { verse, isLoading, error, getRandomVerse } = useRandomVerse()
 
   const { data: translations = [] } = useQuery({
@@ -32,11 +32,11 @@ export default function RandomVerseWidget({ embedInGreeting }: RandomVerseWidget
   })
 
   const bibleTranslation = useMemo(() => {
-    if (locale === "en") {
+    if (lang === "en") {
       return "NKJV"
     }
-    return pickTranslationShortName(translations as BibleTranslationItem[], locale)
-  }, [locale, translations])
+    return pickTranslationShortName(translations as BibleTranslationItem[], lang)
+  }, [lang, translations])
 
   useEffect(() => {
     if (!bibleTranslation) {

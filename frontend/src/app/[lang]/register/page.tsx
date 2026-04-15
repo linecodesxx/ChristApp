@@ -11,7 +11,7 @@ import { saveRecentAuthIdentity } from "@/lib/authAutocomplete"
 import { getNetworkFailureHint, messageFromApiResponseBody } from "@/lib/apiError"
 import { type RegisterFieldErrors, validateRegisterForm } from "@/lib/formValidation"
 import LoginServerWarmupPanel from "@/components/LoginServerWarmupPanel/LoginServerWarmupPanel"
-import styles from "@/app/[locale]/(login)/login.module.scss"
+import styles from "@/app/[lang]/(login)/login.module.scss"
 
 export default function RegisterPage() {
   const t = useTranslations("register")

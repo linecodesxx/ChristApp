@@ -1,0 +1,62 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 10, 16, 0.64);
+  backdrop-filter: blur(8px);
+  padding: 20px;
+}
+
+.card {
+  width: min(420px, 100%);
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: linear-gradient(180deg, rgba(34, 36, 44, 0.96), rgba(23, 24, 31, 0.98));
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.35);
+  padding: 24px;
+  color: #f8f8fb;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.subtitle {
+  margin-top: 10px;
+  color: rgba(236, 236, 242, 0.78);
+  font-size: 14px;
+}
+
+.actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 10px;
+}
+
+.button {
+  flex: 1;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  font-weight: 600;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+}
+
+.button:hover {
+  transform: translateY(-1px);
+}
+
+.decline {
+  background: rgba(160, 61, 61, 0.33);
+  color: #fff;
+}
+
+.accept {
+  background: rgba(242, 236, 223, 0.92);
+  color: #24272f;
+}

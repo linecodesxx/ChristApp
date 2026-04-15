@@ -2,6 +2,45 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "Dev: backend (npm run start:dev)",
+      "type": "shell",
+      "command": "npm run start:dev",
+      "options": {
+        "cwd": "${workspaceFolder}/backend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": false
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: frontend (npm run dev)",
+      "type": "shell",
+      "command": "npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend"
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "focus": true
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Dev: start backend + frontend",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "Dev: backend (npm run start:dev)",
+        "Dev: frontend (npm run dev)"
+      ],
+      "problemMatcher": []
+    },
+    {
       "label": "Docker Compose: up (dev — frontend + backend + bibleapi)",
       "type": "shell",
       "command": "docker compose -f docker-compose-dev.yml up --build",

@@ -122,7 +122,7 @@ function createDirectRoomItem({
 }
 
 /** Порядок: «Поділися з Ісусом» → загальний чат → приватні (за lastActivityAt, нові зверху). */
-function orderChatListRows(rooms: ChatListItem[], sortLocale: string): ChatListItem[] {
+function orderChatListRows(rooms: ChatListItem[], sortLang: string): ChatListItem[] {
   const shareWithJesusRoom = rooms.find((room) => room.id === SHARE_WITH_JESUS_CHAT_ID)
   const globalRoom = rooms.find((room) => room.id === GLOBAL_ROOM_ID)
   const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID)
@@ -133,7 +133,7 @@ function orderChatListRows(rooms: ChatListItem[], sortLocale: string): ChatListI
     if (leftTs !== rightTs) {
       return rightTs - leftTs
     }
-    const byTitle = leftRoom.title.localeCompare(rightRoom.title, sortLocale, { sensitivity: "base" })
+    const byTitle = leftRoom.title.localeCompare(rightRoom.title, sortLang, { sensitivity: "base" })
     if (byTitle !== 0) {
       return byTitle
     }
@@ -148,7 +148,7 @@ function prependDirectRoomIfMissing(
   input: DirectRoomItemInput,
   globalTitle: string,
   shareTitle: string,
-  sortLocale: string,
+  sortLang: string,
 ) {
   if (rooms.some((room) => room.id === input.userId)) {
     return rooms
@@ -164,8 +164,8 @@ function prependDirectRoomIfMissing(
   })
 
   return shareWithJesusRoom
-    ? orderChatListRows([shareWithJesusRoom, globalRoom, newDirect, ...directRooms], sortLocale)
-    : orderChatListRows([globalRoom, newDirect, ...directRooms], sortLocale)
+    ? orderChatListRows([shareWithJesusRoom, globalRoom, newDirect, ...directRooms], sortLang)
+    : orderChatListRows([globalRoom, newDirect, ...directRooms], sortLang)
 }
 
 function prependShareWithJesusRoomIfMissing(
@@ -173,7 +173,7 @@ function prependShareWithJesusRoomIfMissing(
   roomId: string | undefined,
   globalTitle: string,
   shareTitle: string,
-  sortLocale: string,
+  sortLang: string,
 ) {
   if (!roomId || rooms.some((room) => room.id === SHARE_WITH_JESUS_CHAT_ID)) {
     return rooms
@@ -182,7 +182,7 @@ function prependShareWithJesusRoomIfMissing(
   const globalRoom = getGlobalRoomFromPrevious(rooms, globalTitle)
   const directRooms = rooms.filter((room) => room.id !== GLOBAL_ROOM_ID && room.id !== SHARE_WITH_JESUS_CHAT_ID)
 
-  return orderChatListRows([createShareWithJesusChatItem(roomId, shareTitle), globalRoom, ...directRooms], sortLocale)
+  return orderChatListRows([createShareWithJesusChatItem(roomId, shareTitle), globalRoom, ...directRooms], sortLang)
 }
 
 type ChatListRuntimeCache = {
@@ -335,8 +335,8 @@ function normalizeChatListItemForRender(room: ChatListItem): ChatListItem {
 
 export default function ChatPage() {
   const t = useTranslations("chat")
-  const locale = useLocale()
-  const sortLocale = locale === "ua" ? "uk" : locale === "en" ? "en" : "ru"
+  const lang = useLocale()
+  const sortLang = lang === "ua" ? "uk" : lang === "en" ? "en" : "ru"
   const { user, users, loading } = useAuth()
   const { socket } = usePresenceSocket()
   const queryClient = useQueryClient()
@@ -368,7 +368,7 @@ export default function ChatPage() {
   const chatI18nRef = useRef({
     globalTitle: globalChatTitle,
     shareTitle: shareWithJesusTitle,
-    sortLocale,
+    sortLang,
     anonymousUser: t("anonymousUser"),
     peerInNotification: t("peerInNotification"),
     notificationGlobal: (sender: string) => t("notificationGlobal", { sender }),
@@ -385,7 +385,7 @@ export default function ChatPage() {
     chatI18nRef.current = {
       globalTitle: globalChatTitle,
       shareTitle: shareWithJesusTitle,
-      sortLocale,
+      sortLang,
       anonymousUser: t("anonymousUser"),
       peerInNotification: t("peerInNotification"),
       notificationGlobal: (sender: string) => t("notificationGlobal", { sender }),
@@ -398,7 +398,7 @@ export default function ChatPage() {
       roomUnknown: t("roomUnknown"),
       noChatConnection: t("noChatConnection"),
     }
-  }, [globalChatTitle, shareWithJesusTitle, sortLocale, t])
+  }, [globalChatTitle, shareWithJesusTitle, sortLang, t])
 
   const [rooms, setRooms] = useState<ChatListItem[]>(() => [createGlobalChatItem(GLOBAL_CHAT_TITLE)])
   const [hasReceivedMyRooms, setHasReceivedMyRooms] = useState(false)
@@ -525,13 +525,13 @@ export default function ChatPage() {
           }
         })
 
-        const orderedRooms = orderChatListRows(nextRooms, sortLocale)
+        const orderedRooms = orderChatListRows(nextRooms, sortLang)
         const hasOrderChanges = orderedRooms.some((room, index) => room.id !== prev[index]?.id)
 
         return hasUpdates || hasOrderChanges ? orderedRooms : prev
       })
     },
-    [formatRoomPreviewFromLastMessage, sortLocale, user?.username],
+    [formatRoomPreviewFromLastMessage, sortLang, user?.username],
   )
 
   const refreshUnreadSummary = useCallback(async () => {
@@ -599,9 +599,9 @@ export default function ChatPage() {
           return leftUser.isOnline ? -1 : 1
         }
 
-        return leftUser.handle.localeCompare(rightUser.handle, sortLocale, { sensitivity: "base" })
+        return leftUser.handle.localeCompare(rightUser.handle, sortLang, { sensitivity: "base" })
       })
-  }, [onlineUserIds, rooms, sortLocale, user?.id, users])
+  }, [onlineUserIds, rooms, sortLang, user?.id, users])
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId
@@ -918,7 +918,7 @@ export default function ChatPage() {
             globalRoom,
             ...Array.from(directChatsByUserId.values()),
           ],
-          i18nRooms.sortLocale,
+          i18nRooms.sortLang,
         ),
       )
 
@@ -1079,7 +1079,7 @@ export default function ChatPage() {
                     directRoomId,
                     chatI18nRef.current.globalTitle,
                     chatI18nRef.current.shareTitle,
-                    chatI18nRef.current.sortLocale,
+                    chatI18nRef.current.sortLang,
                   )
                 : prependDirectRoomIfMissing(
                     prev,
@@ -1118,7 +1118,7 @@ export default function ChatPage() {
                     },
                     chatI18nRef.current.globalTitle,
                     chatI18nRef.current.shareTitle,
-                    chatI18nRef.current.sortLocale,
+                    chatI18nRef.current.sortLang,
                   )
               : prev
 
@@ -1136,7 +1136,7 @@ export default function ChatPage() {
             }
           })
 
-          return orderChatListRows(mapped, chatI18nRef.current.sortLocale)
+          return orderChatListRows(mapped, chatI18nRef.current.sortLang)
         })(),
       )
     }
@@ -1225,7 +1225,7 @@ export default function ChatPage() {
             },
             chatI18nRef.current.globalTitle,
             chatI18nRef.current.shareTitle,
-            chatI18nRef.current.sortLocale,
+            chatI18nRef.current.sortLang,
           ),
         )
       }
@@ -1314,7 +1314,7 @@ export default function ChatPage() {
           },
           i18n.globalTitle,
           i18n.shareTitle,
-          i18n.sortLocale,
+          i18n.sortLang,
         ),
       )
 

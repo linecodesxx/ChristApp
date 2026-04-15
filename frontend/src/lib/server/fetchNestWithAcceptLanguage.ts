@@ -34,14 +34,14 @@ export async function fetchNestWithAcceptLanguage(
   init?: RequestInit,
   options?: FetchNestWithAcceptLanguageOptions,
 ) {
-  const locale = await getLocale()
+  const lang = await getLocale()
   const normalized = path.startsWith("/") ? path : `/${path}`
   const url = options?.directToNest
     ? `${getBackendInternalHttpBase()}${normalized}`
     : `${serverAppOrigin()}/api/nest${normalized}`
 
   const headers = new Headers(init?.headers)
-  headers.set("Accept-Language", locale)
+  headers.set("Accept-Language", lang)
   const plain: Record<string, string> = {}
   headers.forEach((v, k) => {
     plain[k] = v

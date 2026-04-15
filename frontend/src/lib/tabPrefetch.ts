@@ -13,7 +13,7 @@ import {
   fetchBibleTranslationsForQuery,
   type BibleTranslationItem,
 } from "@/lib/queries/bibleQueries"
-import { getAppLocaleFromWindow, pickTranslationShortName } from "@/lib/bibleTranslationForLocale"
+import { getAppLangFromWindow, pickTranslationShortName } from "@/lib/bibleTranslationForLang"
 import { getUserIdFromJwt } from "@/lib/jwtUser"
 import {
   fetchPushStatusForQuery,
@@ -68,10 +68,10 @@ export function prefetchTabProfileData(queryClient: QueryClient) {
  * Prefetch Біблії до переходу на таб: переклади, список книг, список глав і текст глави
  * (ключи совпадают с BibleReader / bibleQueries).
  */
-export function prefetchTabBibleData(queryClient: QueryClient, localeHint?: string) {
+export function prefetchTabBibleData(queryClient: QueryClient, langHint?: string) {
   if (typeof window === "undefined") return
 
-  const locale = localeHint ?? getAppLocaleFromWindow()
+  const lang = langHint ?? getAppLangFromWindow()
 
   void queryClient
     .prefetchQuery({
@@ -82,7 +82,7 @@ export function prefetchTabBibleData(queryClient: QueryClient, localeHint?: stri
     .then(() => {
       const translations =
         (queryClient.getQueryData(bibleTranslationsQueryKey) as BibleTranslationItem[] | undefined) ?? []
-      const translation = pickTranslationShortName(translations, locale)
+      const translation = pickTranslationShortName(translations, lang)
 
       return queryClient
         .prefetchQuery({

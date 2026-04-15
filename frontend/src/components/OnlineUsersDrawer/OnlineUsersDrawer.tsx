@@ -3,6 +3,7 @@
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
+import { isTesterUsername } from "@/lib/testerUsers"
 import styles from "./OnlineUsersDrawer.module.scss"
 
 type DrawerUser = {
@@ -30,7 +31,9 @@ export default function OnlineUsersDrawer({
 }: OnlineUsersDrawerProps) {
   if (!open) return null
 
-  const sorted = [...participants].sort((a, b) => {
+  const sorted = participants
+    .filter((participant) => !isTesterUsername(participant.username))
+    .sort((a, b) => {
     if (a.isOnline === b.isOnline) return 0
     return a.isOnline ? -1 : 1
   })
