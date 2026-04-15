@@ -140,11 +140,12 @@ function serviceWorkerConnectSrc(): string {
 }
 
 const allowedDevOrigins = computeAllowedDevOrigins()
+const workspaceRoot = path.resolve(__dirname, "..")
 
 const nextConfig: NextConfig = {
-  outputFileTracingRoot: path.resolve(__dirname),
+  outputFileTracingRoot: workspaceRoot,
   turbopack: {
-    root: path.resolve(__dirname),
+    root: workspaceRoot,
   },
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   /** HTTP к Nest без CORS: браузер бьёт в тот же origin, Next проксирует на бэкенд. */

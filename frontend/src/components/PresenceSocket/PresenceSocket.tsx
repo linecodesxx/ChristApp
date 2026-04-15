@@ -1,16 +1,17 @@
 "use client"
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { io, type Socket } from "socket.io-client"
+import createSocket from "socket.io-client"
 import { getDirectApiOrigin } from "@/lib/apiBase"
 import { getAuthToken } from "@/lib/auth"
 import { usePathname } from "@/i18n/navigation"
 
 const WS_URL = getDirectApiOrigin()
 const TOKEN_SYNC_INTERVAL_MS = 4000
+type PresenceSocket = ReturnType<typeof createSocket>
 
 type PresenceSocketContextValue = {
-  socket: Socket | null
+  socket: PresenceSocket | null
   isConnected: boolean
 }
 
@@ -30,9 +31,9 @@ type PresenceSocketProviderProps = {
 const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
   const pathname = usePathname()
   const shouldUsePresenceSocket = pathname === "/chat" || !pathname?.startsWith("/chat/")
-  const socketRef = useRef<Socket | null>(null)
+  const socketRef = useRef<PresenceSocket | null>(null)
   const currentTokenRef = useRef<string | null>(null)
-  const [socket, setSocket] = useState<Socket | null>(null)
+  const [socket, setSocket] = useState<PresenceSocket | null>(null)
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
@@ -59,7 +60,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
         socketRef.current.disconnect()
       }
 
-      const nextSocket = io(WS_URL, {
+      const nextSocket = createSocket(WS_URL, {
         auth: { token },
         transports: ["websocket"],
       })

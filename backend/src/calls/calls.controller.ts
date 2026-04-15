@@ -27,10 +27,11 @@ export class CallsController {
       throw new BadRequestException('channelName обязателен');
     }
 
-    const uid = toAgoraUid(userId);
+    const uid = Number(toAgoraUid(userId));
     const token = this.agoraService.generateToken(resolvedChannelName, uid);
 
     return {
+      channelName: resolvedChannelName,
       token,
       uid,
     };

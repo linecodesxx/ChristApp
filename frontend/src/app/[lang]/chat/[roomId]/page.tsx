@@ -6,7 +6,7 @@ import MessageInput from "@/components/MessageInput/MessageInput"
 import { isMessageFromCurrentUser, type AppReactionType, type Message, type MessageReply } from "@/types/message"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { io, type Socket } from "socket.io-client"
+import createSocket from "socket.io-client"
 import { useParams } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
@@ -31,7 +31,8 @@ import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { Phone } from "lucide-react"
-import CallScreen from "@/components/calls/CallScreen"
+import dynamic from "next/dynamic"
+const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
 import IncomingCallModal from "@/components/calls/IncomingCallModal"
 import {
   avatarLikesForUserQueryKey,
@@ -49,6 +50,8 @@ const REPLY_META_SUFFIX = "]]"
 const MAX_REPLY_PREVIEW_LENGTH = 180
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
 const ALLOWED_IMAGE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
+type AppSocket = ReturnType<typeof createSocket>
+
 type IncomingSocketMessage = {
   id?: string | number
   roomId?: string
@@ -170,6 +173,21 @@ type IncomingCallPayload = {
     username?: string
     avatarUrl?: string | null
   }
+}
+
+type CallAcceptedPayload = {
+  channelName?: string
+}
+
+type CallDeclinedPayload = {
+  channelName?: string
+}
+
+type CallUserSentPayload = {
+  ok?: boolean
+  offline?: boolean
+  channelName?: string
+  targetUserId?: string
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -422,7 +440,7 @@ export default function ChatPageDetails() {
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
   const queryClient = useQueryClient()
   // Runtime refs потрібні для socket callbacks, щоб уникнути stale state усередині listeners.
-  const socketRef = useRef<Socket | null>(null)
+  const socketRef = useRef<AppSocket | null>(null)
   const usersRef = useRef(users)
   const currentRoomRef = useRef<string | undefined>(undefined)
   const joinedRoomRef = useRef<string | undefined>(undefined)
@@ -456,7 +474,12 @@ export default function ChatPageDetails() {
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
   const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null)
   const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
+  const [pendingOutgoingCall, setPendingOutgoingCall] = useState<IncomingCallPayload | null>(null)
   const userIdRef = useRef<string | undefined>(undefined)
+  const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null)
+  const outgoingCallTimeoutRef = useRef<number | null>(null)
+  const ringtoneIntervalRef = useRef<number | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
   const typingTextEmitRef = useRef(false)
   const typingVoiceEmitRef = useRef(false)
 
@@ -584,7 +607,7 @@ export default function ChatPageDetails() {
     socket.emit("roomTyping", { roomId: joinedId, isTyping: active, activity: "voice" })
   }, [])
 
-  const joinRoom = useCallback((socket: Socket, targetRoomId: string, opts?: { skipLoadingSpinner?: boolean }) => {
+  const joinRoom = useCallback((socket: AppSocket, targetRoomId: string, opts?: { skipLoadingSpinner?: boolean }) => {
     if (joinedRoomRef.current === targetRoomId) {
       return
     }
@@ -597,7 +620,7 @@ export default function ChatPageDetails() {
     joinedRoomRef.current = targetRoomId
   }, [])
 
-  const leaveCurrentRoom = useCallback((socket: Socket) => {
+  const leaveCurrentRoom = useCallback((socket: AppSocket) => {
     const joinedRoomId = joinedRoomRef.current
     if (!joinedRoomId) {
       return
@@ -623,6 +646,64 @@ export default function ChatPageDetails() {
   useEffect(() => {
     userIdRef.current = user?.id
   }, [user?.id])
+
+  useEffect(() => {
+    pendingOutgoingCallRef.current = pendingOutgoingCall
+  }, [pendingOutgoingCall])
+
+  const stopIncomingRingtone = useCallback(() => {
+    if (ringtoneIntervalRef.current !== null) {
+      window.clearInterval(ringtoneIntervalRef.current)
+      ringtoneIntervalRef.current = null
+    }
+    if (audioCtxRef.current) {
+      void audioCtxRef.current.close()
+      audioCtxRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!incomingCall) {
+      stopIncomingRingtone()
+      return
+    }
+
+    const playSingleRing = () => {
+      try {
+        const AudioContextCtor =
+          window.AudioContext ||
+          (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+        if (!AudioContextCtor) {
+          return
+        }
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new AudioContextCtor()
+        }
+        const ctx = audioCtxRef.current
+        if (ctx.state === "suspended") {
+          void ctx.resume()
+        }
+        const oscillator = ctx.createOscillator()
+        const gain = ctx.createGain()
+        oscillator.type = "sine"
+        oscillator.frequency.setValueAtTime(880, ctx.currentTime)
+        oscillator.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.32)
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime)
+        gain.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.03)
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.36)
+        oscillator.connect(gain)
+        gain.connect(ctx.destination)
+        oscillator.start(ctx.currentTime)
+        oscillator.stop(ctx.currentTime + 0.38)
+      } catch {
+        // ignore ringtone errors in browsers without audio support
+      }
+    }
+
+    playSingleRing()
+    ringtoneIntervalRef.current = window.setInterval(playSingleRing, 1300)
+    return () => stopIncomingRingtone()
+  }, [incomingCall, stopIncomingRingtone])
 
   useEffect(() => {
     setMessages([])
@@ -706,7 +787,7 @@ export default function ChatPageDetails() {
       return
     }
 
-    const socket = io(CHAT_SOCKET_URL, {
+    const socket = createSocket(CHAT_SOCKET_URL, {
       auth: { token },
       transports: ["websocket"],
       reconnection: true,
@@ -1197,6 +1278,78 @@ export default function ChatPageDetails() {
     }
     socket.on("incoming-call", onIncomingCall)
 
+    const onCallAccepted = (payload: CallAcceptedPayload) => {
+      const pending = pendingOutgoingCallRef.current
+      if (!pending?.channelName || !payload?.channelName || pending.channelName !== payload.channelName) {
+        return
+      }
+      if (outgoingCallTimeoutRef.current !== null) {
+        window.clearTimeout(outgoingCallTimeoutRef.current)
+        outgoingCallTimeoutRef.current = null
+      }
+      setActiveCall(pending)
+      setPendingOutgoingCall(null)
+      setSendNotice(null)
+    }
+    socket.on("call-accepted", onCallAccepted)
+
+    const onCallDeclined = (payload: CallDeclinedPayload) => {
+      const pending = pendingOutgoingCallRef.current
+      if (!pending?.channelName || !payload?.channelName || pending.channelName !== payload.channelName) {
+        return
+      }
+      if (outgoingCallTimeoutRef.current !== null) {
+        window.clearTimeout(outgoingCallTimeoutRef.current)
+        outgoingCallTimeoutRef.current = null
+      }
+      setPendingOutgoingCall(null)
+      setSendNotice(t("callDeclinedNotice"))
+
+      const joinedId = joinedRoomRef.current
+      if (joinedId) {
+        socket.emit("sendMessage", {
+          roomId: joinedId,
+          content: t("missedCallNoticeFromMe"),
+        })
+      }
+    }
+    socket.on("call-declined", onCallDeclined)
+
+    const onCallError = (payload: { error?: string }) => {
+      const pending = pendingOutgoingCallRef.current
+      if (!pending) {
+        return
+      }
+      if (outgoingCallTimeoutRef.current !== null) {
+        window.clearTimeout(outgoingCallTimeoutRef.current)
+        outgoingCallTimeoutRef.current = null
+      }
+      setPendingOutgoingCall(null)
+      setSendNotice(payload?.error?.trim() || t("callConnectionFailed"))
+
+      const joinedId = joinedRoomRef.current
+      if (joinedId) {
+        socket.emit("sendMessage", {
+          roomId: joinedId,
+          content: t("missedCallNoticeFromMe"),
+        })
+      }
+    }
+    socket.on("call-error", onCallError)
+
+    const onCallUserSent = (payload: CallUserSentPayload) => {
+      if (!payload?.offline) return
+      const pending = pendingOutgoingCallRef.current
+      if (!pending) return
+      if (outgoingCallTimeoutRef.current !== null) {
+        window.clearTimeout(outgoingCallTimeoutRef.current)
+        outgoingCallTimeoutRef.current = null
+      }
+      setPendingOutgoingCall(null)
+      setSendNotice(t("callPushSentNotice"))
+    }
+    socket.on("call-user-sent", onCallUserSent)
+
     return () => {
       socket.off("connect", onConnect)
       socket.off("disconnect", onDisconnect)
@@ -1219,11 +1372,20 @@ export default function ChatPageDetails() {
       socket.off("roomReadStates", onRoomReadStates)
       socket.off("update-message-reactions", onUpdateMessageReactions)
       socket.off("incoming-call", onIncomingCall)
+      socket.off("call-user-sent", onCallUserSent)
+      socket.off("call-accepted", onCallAccepted)
+      socket.off("call-declined", onCallDeclined)
+      socket.off("call-error", onCallError)
+      stopIncomingRingtone()
+      if (outgoingCallTimeoutRef.current !== null) {
+        window.clearTimeout(outgoingCallTimeoutRef.current)
+        outgoingCallTimeoutRef.current = null
+      }
       leaveCurrentRoom(socket)
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, user])
+  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, stopIncomingRingtone, t, user])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
@@ -1779,14 +1941,31 @@ export default function ChatPageDetails() {
       channelName,
     })
 
-    setActiveCall({
+    const outgoingPayload: IncomingCallPayload = {
       channelName,
       initiator: {
         id: directChatTargetUserId,
         name: directChatTargetUser?.nickname ?? directChatTargetUser?.username ?? t("chatFallback"),
         avatarUrl: directChatTargetUser?.avatarUrl ?? null,
       },
-    })
+    }
+    setPendingOutgoingCall(outgoingPayload)
+    setSendNotice(t("callingNotice"))
+
+    if (outgoingCallTimeoutRef.current !== null) {
+      window.clearTimeout(outgoingCallTimeoutRef.current)
+    }
+    outgoingCallTimeoutRef.current = window.setTimeout(() => {
+      const joinedId = joinedRoomRef.current
+      if (joinedId && socket.connected) {
+        socket.emit("sendMessage", {
+          roomId: joinedId,
+          content: t("missedCallNoticeFromMe"),
+        })
+      }
+      setPendingOutgoingCall(null)
+      setSendNotice(t("callNoAnswerNotice"))
+    }, 30_000)
   }, [
     directChatTargetUser?.avatarUrl,
     directChatTargetUser?.nickname,
@@ -2336,8 +2515,28 @@ export default function ChatPageDetails() {
           incomingCall?.initiator?.username ||
           "Unknown"
         }
-        onDecline={() => setIncomingCall(null)}
+        onDecline={() => {
+          const socket = socketRef.current
+          if (socket?.connected && incomingCall?.channelName && incomingCall?.initiator?.id) {
+            socket.emit("call-response", {
+              initiatorId: incomingCall.initiator.id,
+              channelName: incomingCall.channelName,
+              accepted: false,
+            })
+          }
+          stopIncomingRingtone()
+          setIncomingCall(null)
+        }}
         onAccept={() => {
+          const socket = socketRef.current
+          if (socket?.connected && incomingCall?.channelName && incomingCall?.initiator?.id) {
+            socket.emit("call-response", {
+              initiatorId: incomingCall.initiator.id,
+              channelName: incomingCall.channelName,
+              accepted: true,
+            })
+          }
+          stopIncomingRingtone()
           setActiveCall(incomingCall)
           setIncomingCall(null)
         }}

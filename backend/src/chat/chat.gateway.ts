@@ -52,6 +52,12 @@ type CallUserPayload = {
   channelName?: string;
 };
 
+type CallResponsePayload = {
+  initiatorId?: string;
+  channelName?: string;
+  accepted?: boolean;
+};
+
 type EditMessagePayload = {
   messageId?: string;
   content?: string;
@@ -777,7 +783,25 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const targetSockets = await this.getSocketsByUserId(targetUserId);
     if (!targetSockets.length) {
-      client.emit('call-error', { error: 'Пользователь офлайн' });
+      const initiatorName =
+        callerProfile?.nickname?.trim() ||
+        callerProfile?.username?.trim() ||
+        caller.nickname ||
+        caller.username;
+
+      void this.pushService.sendCallPush({
+        callerId: caller.id,
+        callerName: initiatorName,
+        targetUserId,
+        targetUrl: `/chat/${caller.id}`,
+      });
+
+      client.emit('call-user-sent', {
+        ok: true,
+        offline: true,
+        targetUserId,
+        channelName,
+      });
       return;
     }
 
@@ -804,6 +828,44 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       targetUserId,
       channelName,
     });
+  }
+
+  @SubscribeMessage('call-response')
+  async handleCallResponse(
+    @MessageBody() body: CallResponsePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const receiver = await this.resolveSocketUser(client);
+    if (!receiver) {
+      client.emit('call-error', { error: 'Не авторизован' });
+      return;
+    }
+
+    const initiatorId = typeof body?.initiatorId === 'string' ? body.initiatorId.trim() : '';
+    const channelName = typeof body?.channelName === 'string' ? body.channelName.trim() : '';
+    if (!initiatorId || !channelName) {
+      client.emit('call-error', { error: 'initiatorId и channelName обязательны' });
+      return;
+    }
+
+    const accepted = body?.accepted === true;
+    const initiatorSockets = await this.getSocketsByUserId(initiatorId);
+    if (!initiatorSockets.length) {
+      return;
+    }
+
+    const payload = {
+      channelName,
+      responder: {
+        id: receiver.id,
+        username: receiver.username,
+        nickname: receiver.nickname ?? null,
+      },
+    };
+
+    for (const socket of initiatorSockets) {
+      socket.emit(accepted ? 'call-accepted' : 'call-declined', payload);
+    }
   }
 
   // ================= ЗАПРОШЕННЯ КОРИСТУВАЧА ДО КІМНАТИ =================

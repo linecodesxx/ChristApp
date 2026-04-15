@@ -527,6 +527,44 @@ export class PushService {
     return undefined;
   }
 
+  async sendCallPush(input: {
+    callerId: string;
+    callerName: string;
+    targetUserId: string;
+    targetUrl: string;
+  }) {
+    if (!this.isConfigured) {
+      return;
+    }
+
+    const subscriptions = await this.prisma.pushSubscription.findMany({
+      where: { userId: input.targetUserId },
+      select: { id: true, userId: true, endpoint: true, p256dh: true, auth: true },
+    });
+
+    if (!subscriptions.length) {
+      return;
+    }
+
+    const title = input.callerName;
+    const body = 'Входящий аудиозвонок';
+    const createdAt = new Date().toISOString();
+
+    await Promise.allSettled(
+      subscriptions.map((sub) =>
+        this.sendToSubscription(sub, {
+          title,
+          body,
+          targetUrl: input.targetUrl,
+          roomId: input.callerId,
+          senderId: input.callerId,
+          createdAt,
+          messageId: '',
+        }),
+      ),
+    );
+  }
+
   private async removeInvalidPushSubscription(
     subscription: PushSubscriptionRecord,
     httpStatus: number,

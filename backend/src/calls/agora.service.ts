@@ -17,6 +17,11 @@ export class AgoraService {
       throw new BadRequestException('channelName обязателен');
     }
 
+    const numericUid = Number(uid);
+    if (!Number.isInteger(numericUid) || numericUid <= 0) {
+      throw new BadRequestException('uid должен быть положительным числом');
+    }
+
     if (!appId || !appCertificate) {
       throw new InternalServerErrorException(
         'Agora не настроена: задайте AGORA_APP_ID и AGORA_APP_CERTIFICATE',
@@ -30,7 +35,7 @@ export class AgoraService {
       appId,
       appCertificate,
       normalizedChannelName,
-      uid,
+      numericUid,
       RtcRole.PUBLISHER,
       expirationInSeconds,
     );

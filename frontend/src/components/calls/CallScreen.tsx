@@ -94,11 +94,14 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           return
         }
 
-        const payload = (await response.json()) as { token?: string; uid?: number }
-        if (!payload?.token || typeof payload.uid !== "number") {
+        const payload = (await response.json()) as { token?: string; uid?: number; channelName?: string }
+        if (!payload?.token || typeof payload.uid !== "number" || !payload.channelName) {
           setStatus("Invalid token payload")
           return
         }
+
+        const joinUid = payload.uid
+        const joinChannelName = payload.channelName
 
         // Voice-only call flow, using a supported client codec.
         const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
@@ -132,7 +135,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
 
         client.enableAudioVolumeIndicator()
         client.on("volume-indicator", (volumes) => {
-          const isRemoteSpeaking = volumes.some((item) => Number(item.uid) !== payload.uid && item.level > 6)
+          const isRemoteSpeaking = volumes.some((item) => Number(item.uid) !== joinUid && item.level > 6)
           if (!isRemoteSpeaking) return
           setIsPeerSpeaking(true)
           if (speakingResetTimeoutRef.current) {
@@ -143,7 +146,17 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           }, 280)
         })
 
-        await client.join(AGORA_APP_ID, channelName, payload.token, payload.uid)
+        try {
+          await client.join(AGORA_APP_ID, joinChannelName, payload.token, joinUid)
+        } catch (error) {
+          console.error("Agora join failed", {
+            error,
+            appId: AGORA_APP_ID,
+            channelName: joinChannelName,
+            uid: joinUid,
+          })
+          throw error
+        }
         const micTrack = await AgoraRTC.createMicrophoneAudioTrack({
           encoderConfig: "speech_standard",
         })
@@ -152,7 +165,8 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
         if (active) {
           setStatus("Connected")
         }
-      } catch {
+      } catch (error) {
+        console.error("Call setup failed", error)
         setStatus("Call connection failed")
       }
     }
