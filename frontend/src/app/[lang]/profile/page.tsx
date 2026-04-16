@@ -84,6 +84,7 @@ export default function ProfilePage() {
   const [dayStreak, setDayStreak] = useState(0)
   const [themeBgInput, setThemeBgInput] = useState(SUGGESTED_THEME_BACKGROUND)
   const [themeFontInput, setThemeFontInput] = useState<ThemeFontKey>("inter")
+  const [bioEdit, setBioEdit] = useState("")
   /** Блок «Постійність / стріки» за замовчуванням прихований; відкривається лише кнопкою «Серія днів». */
   const [isPersistenceOpen, setIsPersistenceOpen] = useState(false)
 
@@ -163,6 +164,7 @@ export default function ProfilePage() {
     setHandleEdit(user.username)
     setThemeBgInput(user.themeBackgroundHex || SUGGESTED_THEME_BACKGROUND)
     setThemeFontInput(normalizeThemeFontKey(user.themeFontKey))
+    setBioEdit(user.bio?.trim() ? user.bio : "")
   }, [user])
 
   useEffect(() => {
@@ -525,6 +527,12 @@ export default function ProfilePage() {
       return
     }
 
+    const nextBio = bioEdit.trim()
+    if (nextBio.length > 500) {
+      window.alert(t("bioTooLong"))
+      return
+    }
+
     const hexFg = effectiveThemeForegroundHex(user)
     const hexBg = themeBgInput.trim().toLowerCase()
     if (!/^#[0-9a-f]{6}$/.test(hexBg)) {
@@ -538,6 +546,7 @@ export default function ProfilePage() {
       themeForegroundHex: string
       themeBackgroundHex: string
       themeFontKey: string
+      bio?: string
     } = {
       themeForegroundHex: hexFg,
       themeBackgroundHex: hexBg,
@@ -555,8 +564,14 @@ export default function ProfilePage() {
     const sameTheme = hexBg === effBg && themeFontInput === normalizeThemeFontKey(user.themeFontKey)
     const sameNick = nextNick === (user.nickname ?? user.username)
     const sameHandle = nextHandle === user.username
-    if (sameNick && sameHandle && sameTheme) {
+    const existingBio = (user.bio ?? "").trim()
+    const sameBio = nextBio === existingBio
+    if (sameNick && sameHandle && sameTheme && sameBio) {
       return
+    }
+
+    if (!sameBio) {
+      body.bio = nextBio
     }
 
     const optimisticPatch: Partial<AuthUser> = {
@@ -569,6 +584,9 @@ export default function ProfilePage() {
     }
     if (!sameHandle) {
       optimisticPatch.username = nextHandle
+    }
+    if (!sameBio) {
+      optimisticPatch.bio = nextBio || null
     }
 
     saveProfileMutation.mutate({
@@ -667,6 +685,7 @@ export default function ProfilePage() {
         <div className={styles.info}>
           <span className={styles.username}>{user?.nickname ?? user?.username}</span>
           <span className={styles.userHandle}>@{user?.username}</span>
+          {user?.bio?.trim() ? <p className={styles.userBio}>{user.bio.trim()}</p> : null}
           <span>{t("memberSince", { date: formattedDate })}</span>
           <span className={styles.avatarLikesLine}>
             {t("avatarLikesReceived", { count: myAvatarLikes?.receivedCount ?? 0 })}
@@ -696,6 +715,20 @@ export default function ProfilePage() {
               spellCheck={false}
               maxLength={20}
             />
+          </label>
+
+          <label className={styles.profileLabel}>
+            {t("bio")}
+            <textarea
+              className={styles.profileTextarea}
+              value={bioEdit}
+              onChange={(event) => setBioEdit(event.target.value)}
+              maxLength={500}
+              rows={4}
+              placeholder={t("bioPlaceholder")}
+              spellCheck={true}
+            />
+            <span className={styles.bioHint}>{t("bioHint")}</span>
           </label>
 
           <label className={styles.profileLabel}>

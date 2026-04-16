@@ -84,7 +84,13 @@ function getCachedBooks(queryClient: QueryClient, translation: string): BookType
   return queryClient.getQueryData<BookType[]>(bibleBooksQueryKey(translation)) ?? [];
 }
 
-export default function BibleReader() {
+type BibleReaderProps = {
+  initialBookId?: string
+  initialChapterId?: number
+  initialVerseId?: number
+}
+
+export default function BibleReader({ initialBookId, initialChapterId, initialVerseId }: BibleReaderProps = {}) {
   const tChat = useTranslations("chat");
   const lang = useLocale();
   const { user, users } = useAuth();
@@ -189,11 +195,20 @@ export default function BibleReader() {
     const list = fromCache.length > 0 ? fromCache : books;
     if (!list.length) return;
 
-    const resolved = resolveLastReadBookAndChapter(list);
-    if (!resolved) return;
-
     const translationChanged = readerLayoutTranslationRef.current !== translation;
     readerLayoutTranslationRef.current = translation;
+
+    if (initialBookId) {
+      const targetBook = list.find((b) => b.id === initialBookId);
+      if (targetBook) {
+        setCurrentBook(targetBook);
+        setCurrentChapter(initialChapterId ?? 1);
+        return;
+      }
+    }
+
+    const resolved = resolveLastReadBookAndChapter(list);
+    if (!resolved) return;
 
     if (translationChanged) {
       setCurrentBook(resolved.book);
@@ -379,6 +394,7 @@ export default function BibleReader() {
       const textToSend = lines || "Стих";
       const content = serializeVerseSharePayload({
         bookName: currentBook.name,
+        bookId: currentBook.id,
         chapter: currentChapter,
         verses,
         text: textToSend,
@@ -505,6 +521,19 @@ export default function BibleReader() {
     }
     setFloatingNavScrolledAway(false);
   }, [currentBook?.id, currentChapter, versesIsLoading, hasVersesData]);
+
+  const didScrollToInitialVerseRef = useRef(false);
+  useEffect(() => {
+    if (!initialVerseId || didScrollToInitialVerseRef.current) return;
+    if (!currentBook || versesIsLoading || !hasVersesData) return;
+    if (currentBook.id !== initialBookId || currentChapter !== (initialChapterId ?? 1)) return;
+    const el = document.getElementById(`verse-${initialVerseId}`);
+    if (!el) return;
+    didScrollToInitialVerseRef.current = true;
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [initialVerseId, initialBookId, initialChapterId, currentBook, currentChapter, versesIsLoading, hasVersesData]);
 
   useEffect(() => {
     if (!currentBook || (versesIsLoading && !hasVersesData)) return undefined;

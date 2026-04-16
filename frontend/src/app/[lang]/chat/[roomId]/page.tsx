@@ -31,8 +31,11 @@ import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
+import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { Phone } from "lucide-react"
 import dynamic from "next/dynamic"
+import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame"
+import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame"
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
 const IncomingCallModal = dynamic(() => import("@/components/calls/IncomingCallModal"), { ssr: false })
 import {
@@ -56,6 +59,9 @@ const ALLOWED_FILE_ATTACHMENT_TYPES = new Set([
   "application/epub+zip",
   "audio/mpeg",
   "audio/mp3",
+  "audio/x-m4a",
+  "audio/m4a",
+  "audio/mp4",
 ])
 type AppSocket = ReturnType<typeof createSocket>
 
@@ -107,6 +113,7 @@ type DirectRoomOpenedPayload = {
 type RoomHistoryPayload = {
   roomId: string
   messages: IncomingSocketMessage[]
+  pinnedMessageIds?: string[]
 }
 
 type OnlineUsersPayload = {
@@ -195,6 +202,22 @@ type CallUserSentPayload = {
   offline?: boolean
   channelName?: string
   targetUserId?: string
+}
+
+type DoodleScoreUpdatedPayload = {
+  roomId?: string
+  userId?: string
+  score?: number
+}
+
+type DoodleResetPayload = {
+  roomId?: string
+}
+
+type DoodleStateUpdatedPayload = {
+  roomId?: string
+  userId?: string
+  state?: DoodleRuntimeState
 }
 
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
@@ -458,6 +481,7 @@ export default function ChatPageDetails() {
   /** true після joinRoom до приходу roomHistory (зокрема при skipLoadingSpinner). */
   const awaitingRoomHistoryRef = useRef(false)
   const [messages, setMessages] = useState<Message[]>([])
+  const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([])
   const [roomTitle, setRoomTitle] = useState<string>("")
   const [roomRawTitle, setRoomRawTitle] = useState<string>("")
   const [isSocketConnected, setIsSocketConnected] = useState(false)
@@ -479,9 +503,16 @@ export default function ChatPageDetails() {
   const [roomReadStatesByUserId, setRoomReadStatesByUserId] = useState<Map<string, string>>(() => new Map())
   const [isAvatarPreviewOpen, setIsAvatarPreviewOpen] = useState(false)
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false)
+  /** Профіль користувача з аватара/списку (глобальний чат) — без миттєвого переходу в DM. */
+  const [peekProfileUserId, setPeekProfileUserId] = useState<string | null>(null)
   const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null)
   const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
   const [pendingOutgoingCall, setPendingOutgoingCall] = useState<IncomingCallPayload | null>(null)
+  const [isDoodleOpen, setIsDoodleOpen] = useState(false)
+  const [myDoodleScore, setMyDoodleScore] = useState(0)
+  const [peerDoodleScore, setPeerDoodleScore] = useState(0)
+  const [peerDoodleState, setPeerDoodleState] = useState<DoodleRuntimeState | null>(null)
+  const [peerDoodlePingMs, setPeerDoodlePingMs] = useState<number | null>(null)
   const [socketAuthEpoch, setSocketAuthEpoch] = useState(0)
   const userIdRef = useRef<string | undefined>(undefined)
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null)
@@ -768,6 +799,11 @@ export default function ChatPageDetails() {
     setRoomReadStatesByUserId(new Map())
     setIsAvatarPreviewOpen(false)
     setIsUserProfileOpen(false)
+    setIsDoodleOpen(false)
+    setMyDoodleScore(0)
+    setPeerDoodleScore(0)
+    setPeerDoodleState(null)
+    setPeerDoodlePingMs(null)
   }, [roomId, routeRoomId, effectiveSocketRoomId])
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -1007,6 +1043,7 @@ export default function ChatPageDetails() {
     const onRoomHistory = ({
       roomId: historyRoomId,
       messages: history,
+      pinnedMessageIds: historyPins,
     }: RoomHistoryPayload) => {
       if (historyRoomId !== joinedRoomRef.current) {
         return
@@ -1017,6 +1054,8 @@ export default function ChatPageDetails() {
       const { uniqueHistory, nextMessageIds } = normalizeRoomHistory(history, user?.username)
 
       messageIdsRef.current = nextMessageIds
+
+      setPinnedMessageIds(Array.isArray(historyPins) ? historyPins : [])
 
       const lastMessage = uniqueHistory[uniqueHistory.length - 1]
       if (historyRoomId && lastMessage) {
@@ -1035,6 +1074,23 @@ export default function ChatPageDetails() {
       void queryClient.setQueryData(chatRoomHistoryQueryKey(historyRoomId), history)
     }
     socket.on("roomHistory", onRoomHistory)
+
+    const onRoomPinsUpdated = (payload: { roomId?: string; pinnedMessageIds?: string[] }) => {
+      const rid = payload?.roomId
+      if (!rid || rid !== joinedRoomRef.current) {
+        return
+      }
+      setPinnedMessageIds(Array.isArray(payload.pinnedMessageIds) ? payload.pinnedMessageIds : [])
+    }
+    socket.on("roomPinsUpdated", onRoomPinsUpdated)
+
+    const onPinOrUnpinResult = (payload: { ok?: boolean; error?: string }) => {
+      if (payload?.ok === false && payload?.error) {
+        window.alert(payload.error)
+      }
+    }
+    socket.on("pinMessageResult", onPinOrUnpinResult)
+    socket.on("unpinMessageResult", onPinOrUnpinResult)
 
     const onMyRooms = ({ rooms }: { rooms: MyRoomItem[] }) => {
       queryClient.setQueryData(chatMyRoomsQueryKey(user?.id), rooms)
@@ -1372,6 +1428,73 @@ export default function ChatPageDetails() {
     }
     socket.on("call-user-sent", onCallUserSent)
 
+    const onDoodleScoreUpdated = (payload: DoodleScoreUpdatedPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId || !payload?.userId) {
+        return
+      }
+      const nextScore = Number(payload.score)
+      if (!Number.isFinite(nextScore)) {
+        return
+      }
+      const normalized = Math.max(0, Math.floor(nextScore))
+      if (payload.userId === userIdRef.current) {
+        setMyDoodleScore(normalized)
+      } else {
+        setPeerDoodleScore(normalized)
+      }
+    }
+    socket.on("doodle-score-updated", onDoodleScoreUpdated)
+
+    const onDoodleReset = (payload: DoodleResetPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId) {
+        return
+      }
+      setMyDoodleScore(0)
+      setPeerDoodleScore(0)
+      setPeerDoodleState(null)
+      setPeerDoodlePingMs(null)
+    }
+    socket.on("doodle-reset", onDoodleReset)
+
+    const onDoodleStateUpdated = (payload: DoodleStateUpdatedPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId || !payload?.userId || !payload.state) {
+        return
+      }
+      const state = payload.state
+      if (
+        !Number.isFinite(state.x) ||
+        !Number.isFinite(state.y) ||
+        !Number.isFinite(state.cameraY) ||
+        !Number.isFinite(state.score)
+      ) {
+        return
+      }
+
+      if (payload.userId === userIdRef.current) {
+        setMyDoodleScore(Math.max(0, Math.floor(state.score)))
+        return
+      }
+
+      if (Number.isFinite(state.emittedAt)) {
+        const lag = Math.max(0, Math.min(9999, Math.floor(Date.now() - Number(state.emittedAt))))
+        setPeerDoodlePingMs(lag)
+      }
+
+      setPeerDoodleState({
+        x: state.x,
+        y: state.y,
+        cameraY: state.cameraY,
+        score: Math.max(0, Math.floor(state.score)),
+        alive: Boolean(state.alive),
+        emittedAt: Number.isFinite(state.emittedAt) ? Number(state.emittedAt) : undefined,
+      })
+      setPeerDoodleScore(Math.max(0, Math.floor(state.score)))
+    }
+    socket.on("doodle-state-updated", onDoodleStateUpdated)
+
     return () => {
       socket.off("connect", onConnect)
       socket.off("disconnect", onDisconnect)
@@ -1382,6 +1505,9 @@ export default function ChatPageDetails() {
       socket.off("deleteMessageResult", onDeleteMessageResult)
       socket.off("messageEdited", onMessageEdited)
       socket.off("roomHistory", onRoomHistory)
+      socket.off("roomPinsUpdated", onRoomPinsUpdated)
+      socket.off("pinMessageResult", onPinOrUnpinResult)
+      socket.off("unpinMessageResult", onPinOrUnpinResult)
       socket.off("myRooms", onMyRooms)
       socket.off("directRoomOpened", onDirectRoomOpened)
       socket.off("userInvitedToRoom", onInvitedToRoom)
@@ -1398,6 +1524,9 @@ export default function ChatPageDetails() {
       socket.off("call-accepted", onCallAccepted)
       socket.off("call-declined", onCallDeclined)
       socket.off("call-error", onCallError)
+      socket.off("doodle-score-updated", onDoodleScoreUpdated)
+      socket.off("doodle-reset", onDoodleReset)
+      socket.off("doodle-state-updated", onDoodleStateUpdated)
       stopIncomingRingtone()
       if (outgoingCallTimeoutRef.current !== null) {
         window.clearTimeout(outgoingCallTimeoutRef.current)
@@ -1407,7 +1536,18 @@ export default function ChatPageDetails() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, stopIncomingRingtone, t, user, socketAuthEpoch])
+  }, [
+    joinRoom,
+    leaveCurrentRoom,
+    loading,
+    queryClient,
+    requestMyRooms,
+    router,
+    stopIncomingRingtone,
+    t,
+    user,
+    socketAuthEpoch,
+  ])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
@@ -1591,6 +1731,8 @@ export default function ChatPageDetails() {
     return map
   }, [users])
 
+  const peekProfileUser = peekProfileUserId ? usersById.get(peekProfileUserId) ?? null : null
+
   const participants = useMemo(() => {
     const list: Array<(typeof users)[number]> = []
     if (roomId === GLOBAL_ROOM_ID) {
@@ -1673,8 +1815,19 @@ export default function ChatPageDetails() {
     toggleAvatarLikeMutation.mutate()
   }, [directChatTargetUserId, isPeerSelf, toggleAvatarLikeMutation])
 
-  const directChatTargetJoinedAt = useMemo(() => {
-    const createdAt = directChatTargetUser?.createdAt
+  const profileModalUser =
+    peekProfileUserId != null
+      ? peekProfileUser
+      : isUserProfileOpen && canOpenDirectUserProfile
+        ? directChatTargetUser ?? null
+        : null
+
+  const showUserProfileModal =
+    Boolean(profileModalUser) &&
+    (Boolean(peekProfileUserId) || (isUserProfileOpen && canOpenDirectUserProfile))
+
+  const profileModalJoinedAt = useMemo(() => {
+    const createdAt = profileModalUser?.createdAt
     if (!createdAt) {
       return null
     }
@@ -1689,10 +1842,10 @@ export default function ChatPageDetails() {
       month: "long",
       year: "numeric",
     }).format(joinedAt)
-  }, [directChatTargetUser?.createdAt, lang])
+  }, [profileModalUser?.createdAt, lang])
 
-  const directChatTargetDaysInApp = useMemo(() => {
-    const createdAt = directChatTargetUser?.createdAt
+  const profileModalDaysInApp = useMemo(() => {
+    const createdAt = profileModalUser?.createdAt
     if (!createdAt) {
       return null
     }
@@ -1704,7 +1857,17 @@ export default function ChatPageDetails() {
 
     const daysInApp = Math.max(1, Math.floor((nowTs - joinedAtTs) / (1000 * 60 * 60 * 24)) + 1)
     return t("profileDaysInApp", { count: daysInApp })
-  }, [directChatTargetUser?.createdAt, nowTs, t])
+  }, [profileModalUser?.createdAt, nowTs, t])
+
+  const profileModalTitle =
+    profileModalUser?.nickname?.trim() ||
+    profileModalUser?.username?.trim() ||
+    t("anonymousUser")
+
+  const profileModalAvatarSrc = useMemo(
+    () => resolvePublicAvatarUrl(profileModalUser?.avatarUrl),
+    [profileModalUser?.avatarUrl],
+  )
 
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
@@ -1909,35 +2072,44 @@ export default function ChatPageDetails() {
     [effectiveSocketRoomId, t, user],
   )
 
-  const handleOpenDmFromAvatar = useCallback(
-    (message: Message) => {
-      if (!message.senderId || message.senderId === user?.id) {
-        return
-      }
+  const handleOpenDmFromAvatar = useCallback((message: Message) => {
+    if (!message.senderId || message.senderId === user?.id) {
+      return
+    }
+    setPeekProfileUserId(message.senderId)
+  }, [user?.id])
 
-      const socket = socketRef.current
-      if (socket?.connected) {
-        socket.emit("openDirectRoom", { targetUserId: message.senderId })
-      }
-      router.push(`/chat/${message.senderId}`)
-    },
-    [router, user?.id],
-  )
+  const handleParticipantClick = useCallback((participant: { id: string }) => {
+    if (!participant?.id || participant.id === user?.id) {
+      return
+    }
+    setPeekProfileUserId(participant.id)
+    setIsParticipantsDrawerOpen(false)
+  }, [user?.id])
 
-  const handleParticipantClick = useCallback(
-    (participant: { id: string }) => {
-      if (!participant?.id || participant.id === user?.id) {
-        return
-      }
-      const socket = socketRef.current
-      if (socket?.connected) {
-        socket.emit("openDirectRoom", { targetUserId: participant.id })
-      }
-      setIsParticipantsDrawerOpen(false)
-      router.push(`/chat/${participant.id}`)
-    },
-    [router, user?.id],
-  )
+  const closeUserProfileModal = useCallback(() => {
+    setIsUserProfileOpen(false)
+    setPeekProfileUserId(null)
+  }, [])
+
+  const handleProfileModalWrite = useCallback(() => {
+    const targetId = peekProfileUserId
+    if (!targetId || targetId === user?.id) {
+      return
+    }
+    const socket = socketRef.current
+    if (socket?.connected) {
+      socket.emit("openDirectRoom", { targetUserId: targetId })
+    }
+    router.push(`/chat/${targetId}`)
+    setPeekProfileUserId(null)
+  }, [peekProfileUserId, router, user?.id])
+
+  useEffect(() => {
+    setPeekProfileUserId(null)
+    setIsUserProfileOpen(false)
+    setPinnedMessageIds([])
+  }, [roomId])
 
   const handleToggleReaction = useCallback(
     (message: Message, reaction: AppReactionType) => {
@@ -1955,8 +2127,7 @@ export default function ChatPageDetails() {
     [effectiveSocketRoomId],
   )
 
-  const handleStartCall = useCallback(() => {
-    const socket = socketRef.current
+  const handleStartCall = useCallback(() => {    const socket = socketRef.current
     if (!socket?.connected || !directChatTargetUserId || !user?.id) {
       return
     }
@@ -2000,6 +2171,70 @@ export default function ChatPageDetails() {
     t,
     user,
   ])
+
+  const handleOpenDoodle = useCallback(() => {
+    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+      return
+    }
+    const socket = socketRef.current
+    if (!socket?.connected) {
+      return
+    }
+    setIsDoodleOpen(true)
+    setMyDoodleScore(0)
+    setPeerDoodleScore(0)
+    setPeerDoodleState(null)
+    setPeerDoodlePingMs(null)
+    socket.emit("doodle-reset", { roomId: effectiveSocketRoomId })
+    socket.emit("doodle-score", { roomId: effectiveSocketRoomId, score: 0 })
+  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip])
+
+  const handleDoodleScoreChange = useCallback((score: number) => {
+    setMyDoodleScore(score)
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) {
+      return
+    }
+    socket.emit("doodle-score", {
+      roomId: joinedId,
+      score,
+    })
+  }, [])
+
+  const doodleStateEmitTsRef = useRef(0)
+  const handleDoodleStateChange = useCallback((state: DoodleRuntimeState) => {
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) {
+      return
+    }
+
+    const now = Date.now()
+    if (now - doodleStateEmitTsRef.current < 75 && state.alive) {
+      return
+    }
+    doodleStateEmitTsRef.current = now
+
+    socket.emit("doodle-state", {
+      roomId: joinedId,
+      state: {
+        ...state,
+        emittedAt: Date.now(),
+      },
+    })
+  }, [])
+
+  const handleCallEnded = useCallback((durationSeconds: number) => {
+    const joinedId = joinedRoomRef.current
+    const socket = socketRef.current
+    if (!joinedId || !socket?.connected) return
+    const minutes = Math.floor(durationSeconds / 60)
+    const content = minutes < 1
+      ? t("callEndedShort")
+      : t("callEndedMinutes", { minutes })
+    socket.emit("sendMessage", { roomId: joinedId, content })
+  }, [t])
 
   async function handleSend(text: string, replyTarget?: Message | null) {
     const targetRoomId = effectiveSocketRoomId
@@ -2306,6 +2541,11 @@ export default function ChatPageDetails() {
     [directChatTargetUserId, effectiveSocketRoomId, requestMyRooms, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
   )
 
+  const wideChatLayout = useMediaQuery("(min-width: 1024px)", false)
+  /** Оверлей учасників лише на вузькому екрані; у глобальному чаті на десктопі — колонка `inline`. */
+  const participantsOverlayOpen =
+    isParticipantsDrawerOpen && (roomId !== GLOBAL_ROOM_ID || !wideChatLayout)
+
   const skeletonRows = [
     { side: "left", width: "wide" },
     { side: "right", width: "medium" },
@@ -2322,6 +2562,74 @@ export default function ChatPageDetails() {
     { side: "left", width: "wide" },
     { side: "right", width: "medium" },
   ] as const
+
+  const handleTogglePinMessage = useCallback(
+    (message: Message) => {
+      const socket = socketRef.current
+      const r = effectiveSocketRoomId
+      if (!socket?.connected || !r || !message.id) {
+        return
+      }
+      const isPinned = pinnedMessageIds.includes(message.id)
+      socket.emit(isPinned ? "unpinMessage" : "pinMessage", { roomId: r, messageId: message.id })
+    },
+    [effectiveSocketRoomId, pinnedMessageIds],
+  )
+
+  const pinnedEntries = useMemo(() => {
+    if (pinnedMessageIds.length === 0) {
+      return []
+    }
+    return pinnedMessageIds.map((id) => {
+      const msg = messages.find((m) => m.id === id)
+      const raw = msg
+        ? chatMessagePreview({
+            content: msg.content,
+            type: msg.type,
+            fileUrl: msg.fileUrl ?? null,
+          }).trim()
+        : ""
+      const preview = raw.length > 0 ? raw.slice(0, 120) : t("pinnedMessageUnavailable")
+      return { messageId: id, preview }
+    })
+  }, [pinnedMessageIds, messages, t])
+
+  const canPinMessages = Boolean(effectiveSocketRoomId && isSocketConnected && !authError)
+
+  const messagingPane = (
+    <ChatWindow
+      messages={messages}
+      currentUsername={user?.username}
+      currentUser={user}
+      withSenderAvatars
+      resolveAvatarUrl={(senderId) =>
+        resolvePublicAvatarUrl(users.find((existingUser) => existingUser.id === senderId)?.avatarUrl)
+      }
+      onAvatarClick={handleOpenDmFromAvatar}
+      onReplyMessage={handleReplyMessage}
+      onMissingReferencedMessage={handleMissingReferencedMessage}
+      onEditMessage={handleStartEditMessage}
+      onDeleteMessage={handleDeleteOwnMessage}
+      canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
+      topBanner={shareJesusParchmentBanner}
+      typingStatuses={typingStatuses}
+      readReceiptMessageId={readReceiptMessageId}
+      readReceiptUsersByMessageId={readReceiptUsersByMessageId}
+      readReceiptAvatarSrc={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
+      readReceiptLabel={t("readReceipt")}
+      onToggleReaction={handleToggleReaction}
+      resolveReactionAvatarUrl={(senderId) => resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)}
+      resolveReactionUserLabel={(senderId) => usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username}
+      roomKey={effectiveSocketRoomId ?? routeRoomId}
+      hideSenderNames={hideSenderNamesInMessages}
+      hideOwnSenderName={hideOwnSenderNameInGlobal}
+      senderNameMode={useCompactSenderNamesInGlobal ? "compact-above" : "inline"}
+      pinnedMessageIds={pinnedMessageIds}
+      pinnedEntries={pinnedEntries}
+      canPinMessages={canPinMessages}
+      onTogglePinMessage={handleTogglePinMessage}
+    />
+  )
 
   return (
     <div className={styles.chatScene}>
@@ -2404,6 +2712,19 @@ export default function ChatPageDetails() {
             </button>
           ) : null}
           {directChatTargetUser ? (
+            user?.isVip ? (
+              <button
+                type="button"
+                className={styles.doodleButton}
+                onClick={handleOpenDoodle}
+                aria-label="Открыть игру Doodle"
+                title="Doodle"
+              >
+                Doodle
+              </button>
+            ) : null
+          ) : null}
+          {directChatTargetUser ? (
             <button
               type="button"
               className={styles.callButton}
@@ -2442,37 +2763,22 @@ export default function ChatPageDetails() {
             <div className={styles.messagesSkeletonGrow} />
           </div>
         </div>
+      ) : roomId === GLOBAL_ROOM_ID ? (
+        <div className={styles.chatSplit}>
+          <div className={styles.chatSplitMain}>{messagingPane}</div>
+          {isParticipantsDrawerOpen && wideChatLayout ? (
+            <OnlineUsersDrawer
+              variant="inline"
+              open
+              onClose={() => setIsParticipantsDrawerOpen(false)}
+              participants={participants}
+              title={t("participantsTitle")}
+              onParticipantClick={handleParticipantClick}
+            />
+          ) : null}
+        </div>
       ) : (
-        <ChatWindow
-          messages={messages}
-          currentUsername={user?.username}
-          currentUser={user}
-          withSenderAvatars
-          resolveAvatarUrl={(senderId) =>
-            resolvePublicAvatarUrl(users.find((existingUser) => existingUser.id === senderId)?.avatarUrl)
-          }
-          onAvatarClick={handleOpenDmFromAvatar}
-          onReplyMessage={handleReplyMessage}
-          onMissingReferencedMessage={handleMissingReferencedMessage}
-          onEditMessage={handleStartEditMessage}
-          onDeleteMessage={handleDeleteOwnMessage}
-          canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
-          topBanner={shareJesusParchmentBanner}
-          typingStatuses={typingStatuses}
-          readReceiptMessageId={readReceiptMessageId}
-          readReceiptUsersByMessageId={readReceiptUsersByMessageId}
-          readReceiptAvatarSrc={resolvePublicAvatarUrl(directChatTargetUser?.avatarUrl)}
-          readReceiptLabel={t("readReceipt")}
-          onToggleReaction={handleToggleReaction}
-          resolveReactionAvatarUrl={(senderId) => resolvePublicAvatarUrl(usersById.get(senderId)?.avatarUrl)}
-          resolveReactionUserLabel={(senderId) =>
-            usersById.get(senderId)?.nickname ?? usersById.get(senderId)?.username
-          }
-          roomKey={effectiveSocketRoomId ?? routeRoomId}
-          hideSenderNames={hideSenderNamesInMessages}
-          hideOwnSenderName={hideOwnSenderNameInGlobal}
-          senderNameMode={useCompactSenderNamesInGlobal ? "compact-above" : "inline"}
-        />
+        messagingPane
       )}
 
       <div className={styles.composerDock}>
@@ -2501,7 +2807,7 @@ export default function ChatPageDetails() {
         </div>
       </div>
       <OnlineUsersDrawer
-        open={isParticipantsDrawerOpen}
+        open={participantsOverlayOpen}
         onClose={() => setIsParticipantsDrawerOpen(false)}
         participants={participants}
         title={t("participantsTitle")}
@@ -2545,22 +2851,22 @@ export default function ChatPageDetails() {
         </div>
       ) : null}
 
-      {isUserProfileOpen && canOpenDirectUserProfile ? (
-        <div className={styles.avatarPreviewOverlay} onClick={() => setIsUserProfileOpen(false)}>
+      {showUserProfileModal && profileModalUser ? (
+        <div className={styles.avatarPreviewOverlay} onClick={closeUserProfileModal}>
           <div className={styles.profilePreviewCard} onClick={(event) => event.stopPropagation()}>
             <button
               type="button"
               className={styles.avatarPreviewClose}
-              onClick={() => setIsUserProfileOpen(false)}
+              onClick={closeUserProfileModal}
               aria-label={t("profileCloseAria")}
             >
               ×
             </button>
 
             <AvatarWithFallback
-              src={headerAvatarSrc}
-              initials={getInitials(resolvedTitle)}
-              colorSeed={directChatTargetUser?.id ?? roomId ?? resolvedTitle}
+              src={profileModalAvatarSrc}
+              initials={getInitials(profileModalTitle)}
+              colorSeed={profileModalUser.id ?? roomId ?? profileModalTitle}
               width={88}
               height={88}
               imageClassName={styles.profilePreviewAvatar}
@@ -2570,23 +2876,24 @@ export default function ChatPageDetails() {
             />
 
             <div className={styles.profilePreviewIdentity}>
-              <h3 className={styles.profilePreviewTitle}>{resolvedTitle}</h3>
-              <p className={styles.profilePreviewHandle}>
-                @{directChatTargetUser?.username ?? t("anonymousUser")}
-              </p>
+              <h3 className={styles.profilePreviewTitle}>{profileModalTitle}</h3>
+              <p className={styles.profilePreviewHandle}>@{profileModalUser.username ?? t("anonymousUser")}</p>
+              {profileModalUser.bio?.trim() ? (
+                <p className={styles.profilePreviewBio}>{profileModalUser.bio.trim()}</p>
+              ) : null}
             </div>
 
             <div className={styles.profilePreviewFacts}>
               <div className={styles.profilePreviewFact}>
                 <span className={styles.profilePreviewFactLabel}>{t("profileJoinedAt")}</span>
                 <span className={styles.profilePreviewFactValue}>
-                  {directChatTargetJoinedAt ?? t("profileNoData")}
+                  {profileModalJoinedAt ?? t("profileNoData")}
                 </span>
               </div>
               <div className={styles.profilePreviewFact}>
                 <span className={styles.profilePreviewFactLabel}>{t("profileDaysLabel")}</span>
                 <span className={styles.profilePreviewFactValue}>
-                  {directChatTargetDaysInApp ?? t("profileNoData")}
+                  {profileModalDaysInApp ?? t("profileNoData")}
                 </span>
               </div>
               <div className={styles.profilePreviewFact}>
@@ -2594,6 +2901,12 @@ export default function ChatPageDetails() {
                 <span className={styles.profilePreviewFactValueMuted}>{t("profileNoData")}</span>
               </div>
             </div>
+
+            {peekProfileUserId ? (
+              <button type="button" className={styles.profilePreviewWriteButton} onClick={handleProfileModalWrite}>
+                {t("profileWriteMessage")}
+              </button>
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -2642,6 +2955,18 @@ export default function ChatPageDetails() {
         }
         peerAvatarUrl={activeCall?.initiator?.avatarUrl ?? null}
         onClose={() => setActiveCall(null)}
+        onCallEnded={handleCallEnded}
+      />
+      <DoodleMiniGame
+        open={isDoodleOpen}
+        myScore={myDoodleScore}
+        peerScore={peerDoodleScore}
+        peerName={directChatTargetUser?.nickname ?? directChatTargetUser?.username ?? "Собеседник"}
+        peerState={peerDoodleState}
+        peerPingMs={peerDoodlePingMs}
+        onClose={() => setIsDoodleOpen(false)}
+        onScoreChange={handleDoodleScoreChange}
+        onStateChange={handleDoodleStateChange}
       />
       </section>
     </div>

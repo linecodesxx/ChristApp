@@ -34,6 +34,7 @@ export type RoomHistoryPayload = {
   roomId: string
   messages: IncomingSocketMessage[]
   plasmaBackground?: boolean
+  pinnedMessageIds?: string[]
 }
 
 export type OnlineUsersPayload = {

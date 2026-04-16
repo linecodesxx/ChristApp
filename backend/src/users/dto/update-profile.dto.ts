@@ -38,4 +38,10 @@ export class UpdateProfileDto {
     message: 'Шрифт: inter, achiko, bodoni-moda или пусто',
   })
   themeFontKey?: string;
+
+  /** Порожній рядок — прибрати опис. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  bio?: string;
 }

@@ -53,6 +53,8 @@ type ChatListProps = {
   verseNotesVisible?: boolean
   adminDashboardVisible?: boolean
   isLoading?: boolean
+  /** Поточний користувач — VIP: підсвітка списку чатів. */
+  viewerIsVip?: boolean
 }
 
 function toRenderText(value: unknown, fallback = ""): string {
@@ -74,6 +76,7 @@ const ChatList = ({
   verseNotesVisible = false,
   adminDashboardVisible = false,
   isLoading = false,
+  viewerIsVip = false,
 }: ChatListProps) => {
   const t = useTranslations("chat")
   const list: ChatListItem[] = items
@@ -270,7 +273,10 @@ const ChatList = ({
   }
 
   return (
-    <section className={styles.chatListSection}>
+    <section
+      className={`${styles.chatListSection} ${viewerIsVip ? styles.chatListSectionVip : ""}`}
+      data-viewer-vip={viewerIsVip ? "" : undefined}
+    >
       {isUserPickerOpen && (
         <div className={styles.userPickerOverlay} onClick={closeUserPicker}>
           <section
@@ -356,6 +362,11 @@ const ChatList = ({
       )}
 
       <div className={styles.chatListWrapper}>
+        {viewerIsVip ? (
+          <div className={styles.vipModeBanner} role="status" aria-live="polite">
+            {t("listVipModeBanner")}
+          </div>
+        ) : null}
         <div className={styles.header}>
           <h2>ChristApp</h2>
           <div className={styles.headerActions}>

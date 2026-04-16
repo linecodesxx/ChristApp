@@ -542,4 +542,91 @@ export class MessagesService {
       .trim();
   }
 
+  private readonly MAX_PINS_PER_ROOM = 5;
+
+  async listPinnedMessageIds(roomId: string): Promise<string[]> {
+    const rows = await this.prisma.pinnedMessage.findMany({
+      where: { roomId },
+      orderBy: { pinnedAt: 'asc' },
+      select: { messageId: true },
+    });
+    return rows.map((r) => r.messageId);
+  }
+
+  async pinMessage(
+    roomId: string,
+    messageId: string,
+    userId: string,
+  ): Promise<
+    | { ok: true; pinnedMessageIds: string[] }
+    | { ok: false; error: string }
+  > {
+    const hasAccess = await canUserPostToRoom(this.prisma, userId, roomId);
+    if (!hasAccess) {
+      return { ok: false, error: 'Нет доступа' };
+    }
+
+    const msg = await this.prisma.message.findUnique({
+      where: { id: messageId },
+      select: { id: true, roomId: true },
+    });
+    if (!msg || msg.roomId !== roomId) {
+      return { ok: false, error: 'Сообщение не найдено' };
+    }
+
+    const count = await this.prisma.pinnedMessage.count({ where: { roomId } });
+    if (count >= this.MAX_PINS_PER_ROOM) {
+      return {
+        ok: false,
+        error: `Можно закрепить не более ${this.MAX_PINS_PER_ROOM} сообщений`,
+      };
+    }
+
+    const existing = await this.prisma.pinnedMessage.findUnique({
+      where: {
+        roomId_messageId: { roomId, messageId },
+      },
+    });
+    if (existing) {
+      const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
+      return { ok: true, pinnedMessageIds };
+    }
+
+    await this.prisma.pinnedMessage.create({
+      data: { roomId, messageId, pinnedByUserId: userId },
+    });
+    const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
+    return { ok: true, pinnedMessageIds };
+  }
+
+  async unpinMessage(
+    roomId: string,
+    messageId: string,
+    userId: string,
+  ): Promise<
+    | { ok: true; pinnedMessageIds: string[] }
+    | { ok: false; error: string }
+  > {
+    const hasAccess = await canUserPostToRoom(this.prisma, userId, roomId);
+    if (!hasAccess) {
+      return { ok: false, error: 'Нет доступа' };
+    }
+
+    const existing = await this.prisma.pinnedMessage.findUnique({
+      where: {
+        roomId_messageId: { roomId, messageId },
+      },
+    });
+    if (!existing) {
+      const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
+      return { ok: true, pinnedMessageIds };
+    }
+
+    await this.prisma.pinnedMessage.delete({
+      where: { id: existing.id },
+    });
+    const pinnedMessageIds = await this.listPinnedMessageIds(roomId);
+    return { ok: true, pinnedMessageIds };
+  }
+
 }

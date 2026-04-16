@@ -48,6 +48,9 @@ const FILE_MIME_ALLOW = new Set([
   'application/epub+zip',
   'audio/mpeg',
   'audio/mp3',
+  'audio/x-m4a',
+  'audio/m4a',
+  'audio/mp4',
 ]);
 
 @Controller('messages')

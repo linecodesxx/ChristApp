@@ -3,6 +3,69 @@
   width: 100%;
 }
 
+.pinnedBar {
+  flex-shrink: 0;
+  width: 100%;
+  padding: 8px 10px 10px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, transparent);
+  background: color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+}
+
+.pinnedBarLabel {
+  display: block;
+  font-family: "Inter", sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.pinnedChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pinnedChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #c4a035 35%, var(--line-soft));
+  background: color-mix(in srgb, var(--accent-soft) 12%, var(--surface));
+  color: var(--foreground);
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover {
+    border-color: color-mix(in srgb, #d4af37 55%, var(--line-soft));
+    background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+  }
+}
+
+.pinnedChipIcon {
+  flex-shrink: 0;
+}
+
+.pinnedChipText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .chatWindow {
   display: flex;
   flex-direction: column;
