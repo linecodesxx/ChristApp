@@ -54,7 +54,9 @@
     "signUp": "Sign up",
     "hasAccount": "Already have an account?",
     "signIn": "Sign in",
-    "failedFallback": "Registration failed. Please try again."
+    "failedFallback": "Registration failed. Please try again.",
+    "showPasswordAria": "Show password",
+    "hidePasswordAria": "Hide password"
   },
   "languageSwitcher": {
     "label": "Language",
@@ -71,7 +73,7 @@
     "chapterAbbr": "ch.",
     "greetingAria": "Greeting",
     "greetingHi": "Hi, {name}!",
-    "greetingLead": "Today's a great day — let's read the verse of the day.",
+    "greetingLead": "Great to see you. Let's start the day with the Word.",
     "greetingHintBefore": "Don't forget to share it with friends —",
     "greetingChat": "open chat",
     "greetingHintAfter": ".",

@@ -54,7 +54,9 @@
     "signUp": "Зарегистрироваться",
     "hasAccount": "Уже есть аккаунт?",
     "signIn": "Войти",
-    "failedFallback": "Регистрация не удалась. Попробуйте ещё раз."
+    "failedFallback": "Регистрация не удалась. Попробуйте ещё раз.",
+    "showPasswordAria": "Показать пароль",
+    "hidePasswordAria": "Скрыть пароль"
   },
   "languageSwitcher": {
     "label": "Язык",
@@ -71,8 +73,8 @@
     "chapterAbbr": "гл.",
     "greetingAria": "Приветствие",
     "greetingHi": "Привет, {name}!",
-    "greetingLead": "Сегодня прекрасный день — давай прочитаем слово дня.",
-    "greetingHintBefore": "И не забудь скинуть его своим друзьям —",
+    "greetingLead": "Рад видеть тебя. Давай начнем день со Слова.",
+    "greetingHintBefore": "И не забудь поделиться им с друзьями —",
     "greetingChat": "загляни в чат",
     "greetingHintAfter": ".",
     "streak": "Серия дней",
