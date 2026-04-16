@@ -40,6 +40,10 @@ export type DeleteOwnMessageResult =
   | { ok: true; messageId: string; roomId: string }
   | { ok: false; reason: 'not-found' | 'not-owner' | 'no-access' };
 
+type DeleteMessageOptions = {
+  allowDeleteOthers?: boolean;
+};
+
 export type EditOwnMessageResult =
   | {
       ok: true;
@@ -167,7 +171,12 @@ export class MessagesService {
   /**
   * Видалення свого повідомлення: загальний чат або будь-яка кімната, де користувач — учасник (приватні чати тощо).
    */
-  async deleteOwnMessage(messageId: string, userId: string): Promise<DeleteOwnMessageResult> {
+  async deleteMessageForUser(
+    messageId: string,
+    userId: string,
+    options: DeleteMessageOptions = {},
+  ): Promise<DeleteOwnMessageResult> {
+    const canDeleteOthers = options.allowDeleteOthers === true;
     const existingMessage = await this.prisma.message.findUnique({
       where: { id: messageId },
       select: {
@@ -181,13 +190,15 @@ export class MessagesService {
       return { ok: false, reason: 'not-found' };
     }
 
-    if (existingMessage.senderId !== userId) {
+    const isOwner = existingMessage.senderId === userId;
+
+    if (!isOwner && !canDeleteOthers) {
       return { ok: false, reason: 'not-owner' };
     }
 
     const messageRoomId = existingMessage.roomId;
 
-    if (messageRoomId !== this.GLOBAL_ROOM) {
+    if (isOwner && messageRoomId !== this.GLOBAL_ROOM) {
       const member = await this.prisma.roomMember.findUnique({
         where: {
           roomId_userId: {
@@ -220,6 +231,12 @@ export class MessagesService {
       messageId: existingMessage.id,
       roomId: existingMessage.roomId,
     };
+  }
+
+  async deleteOwnMessage(messageId: string, userId: string): Promise<DeleteOwnMessageResult> {
+    return this.deleteMessageForUser(messageId, userId, {
+      allowDeleteOthers: false,
+    });
   }
 
   /** @deprecated використовуйте deleteOwnMessage */

@@ -74,7 +74,7 @@ describe('ChatGateway', () => {
     createRoomMessage: jest.Mock;
     markRoomAsRead: jest.Mock;
     getRoomMessages: jest.Mock;
-    deleteOwnMessage: jest.Mock;
+    deleteMessageForUser: jest.Mock;
   };
   let pushService: {
     sendChatMessagePush: jest.Mock;
@@ -98,7 +98,7 @@ describe('ChatGateway', () => {
       createRoomMessage: jest.fn(),
       markRoomAsRead: jest.fn().mockResolvedValue(undefined),
       getRoomMessages: jest.fn(),
-      deleteOwnMessage: jest.fn(),
+      deleteMessageForUser: jest.fn(),
     };
 
     pushService = {
@@ -257,7 +257,7 @@ describe('ChatGateway', () => {
     const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
-    messagesService.deleteOwnMessage.mockResolvedValue({
+    messagesService.deleteMessageForUser.mockResolvedValue({
       ok: true,
       messageId: 'm-global-1',
       roomId: '00000000-0000-0000-0000-000000000001',
@@ -268,7 +268,11 @@ describe('ChatGateway', () => {
       client as never,
     );
 
-    expect(messagesService.deleteOwnMessage).toHaveBeenCalledWith('m-global-1', 'u1');
+    expect(messagesService.deleteMessageForUser).toHaveBeenCalledWith(
+      'm-global-1',
+      'u1',
+      { allowDeleteOthers: false },
+    );
 
     expect(roomEmit).toHaveBeenCalledWith('messageDeleted', {
       messageId: 'm-global-1',
@@ -286,7 +290,7 @@ describe('ChatGateway', () => {
     const sender = { id: 'u1', username: 'sender', nickname: 'sender' };
     const client = createClient(sender);
 
-    messagesService.deleteOwnMessage.mockResolvedValue({
+    messagesService.deleteMessageForUser.mockResolvedValue({
       ok: false,
       reason: 'not-owner',
     });
@@ -305,5 +309,32 @@ describe('ChatGateway', () => {
       'messageDeleted',
       expect.anything(),
     );
+  });
+
+  it('allows admin to delete foreign message', async () => {
+    const admin = { id: 'admin-1', username: 'neskai', nickname: 'neskai' };
+    const client = createClient(admin);
+
+    messagesService.deleteMessageForUser.mockResolvedValue({
+      ok: true,
+      messageId: 'm-foreign',
+      roomId: 'room-1',
+    });
+
+    await gateway.handleDeleteMessage(
+      { messageId: 'm-foreign' },
+      client as never,
+    );
+
+    expect(messagesService.deleteMessageForUser).toHaveBeenCalledWith(
+      'm-foreign',
+      'admin-1',
+      { allowDeleteOthers: true },
+    );
+
+    expect(roomEmit).toHaveBeenCalledWith('messageDeleted', {
+      messageId: 'm-foreign',
+      roomId: 'room-1',
+    });
   });
 });

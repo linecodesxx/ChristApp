@@ -289,6 +289,8 @@
     "chatEmpty": "Повідомлень ще немає.",
     "recentDividerAria": "Нещодавні повідомлення нижче",
     "recentDividerLabel": "Нещодавні",
+    "scrollToLatest": "До нових",
+    "scrollToLatestAria": "Прокрутити до нових повідомлень",
     "typingVoiceStatus": "{name} записує голосове",
     "typingTextStatus": "{name} друкує",
     "typingTwo": "{first} і {second} друкують",

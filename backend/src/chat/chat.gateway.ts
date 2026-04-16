@@ -13,6 +13,7 @@ import { MessagesService } from 'src/messages/messages.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { PushService } from 'src/push/push.service';
 import { resolveGlobalRoomId } from 'src/config/global-room';
+import { isAdminDashboardUsername } from 'src/config/admin-dashboard';
 import {
   SHARE_WITH_JESUS_ROOM_PREFIX,
   userMayAccessRoomByTitle,
@@ -1319,7 +1320,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const result = await this.messagesService.deleteOwnMessage(messageId, user.id);
+      const canModerateMessages = isAdminDashboardUsername(user.username);
+      const result = await this.messagesService.deleteMessageForUser(
+        messageId,
+        user.id,
+        {
+          allowDeleteOthers: canModerateMessages,
+        },
+      );
 
       if (!result.ok) {
         const errorMessage =

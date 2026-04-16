@@ -29,6 +29,7 @@ type MessageBubbleProps = {
   onDelete?: (message: Message) => void
   onEdit?: (message: Message) => void
   canDeleteOwnMessage?: boolean
+  canDeleteAnyMessage?: boolean
   showReadReceipt?: boolean
   readReceiptUsers?: Array<{ id: string; avatarSrc?: string; label?: string }>
   readReceiptAvatarSrc?: string
@@ -198,6 +199,7 @@ function MessageBubble({
   onDelete,
   onEdit,
   canDeleteOwnMessage = false,
+  canDeleteAnyMessage = false,
   showReadReceipt = false,
   readReceiptUsers = [],
   readReceiptAvatarSrc,
@@ -246,6 +248,7 @@ function MessageBubble({
       : `${styles.bubble} ${stickerPayload ? styles.stickerBubble : ""}`
 
   const showAvatar = Boolean(avatarSrc || (onAvatarClick && message.senderId && !isOwnMessage))
+  const canDeleteThisMessage = canDeleteOwnMessage && (isOwnMessage || canDeleteAnyMessage)
 
   const reactionGroups = useMemo(() => {
     const grouped = new Map<AppReactionType, { emoji: AppReactionType; count: number; reactedByMe: boolean; latestUserId: string }>()
@@ -695,7 +698,7 @@ function MessageBubble({
               <PenLine size={15} strokeWidth={2.1} aria-hidden />
             </button>
           ) : null}
-          {isOwnMessage && canDeleteOwnMessage ? (
+          {canDeleteThisMessage ? (
             <button
               type="button"
               className={styles.metaActionIcon}
