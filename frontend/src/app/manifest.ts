@@ -7,7 +7,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Read Scripture, chat, and stay connected.",
     start_url: "/en",
     scope: "/",
-    display: "standalone",
+    display: "minimal-ui",
     orientation: "portrait",
     lang: "en",
     background_color: "#2f2e31",
