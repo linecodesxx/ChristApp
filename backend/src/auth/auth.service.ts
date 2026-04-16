@@ -107,7 +107,13 @@ export class AuthService {
         : req.headers['x-forwarded-for']) ||
       'unknown-ip';
     const ua = req.headers['user-agent'] || 'unknown-ua';
-    return `ip=${ip}; ua=${ua}`;
+    const origin = req.headers.origin || 'no-origin';
+    const referer = req.headers.referer || 'no-referer';
+    const host = req.headers.host || 'no-host';
+    const forwardedHost = req.headers['x-forwarded-host'] || 'no-x-forwarded-host';
+    const secFetchSite = req.headers['sec-fetch-site'] || 'no-sec-fetch-site';
+    const cookieHeaderPresent = typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0;
+    return `ip=${ip}; host=${host}; xForwardedHost=${forwardedHost}; origin=${origin}; referer=${referer}; secFetchSite=${secFetchSite}; cookieHeaderPresent=${cookieHeaderPresent}; ua=${ua}`;
   }
 
   async register(dto: RegisterDto, res: Response) {
