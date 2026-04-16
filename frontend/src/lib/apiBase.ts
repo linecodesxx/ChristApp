@@ -7,6 +7,11 @@ const PROXY_PATH = "/api/nest"
  * Якщо змінну не задано — відносний `/api/nest` (проксі у `next.config`, CORS для fetch не потрібен).
  */
 export function getHttpApiBase(): string {
+  const preferDirect = process.env.NEXT_PUBLIC_USE_DIRECT_API?.trim() === "1"
+  if (!preferDirect) {
+    return PROXY_PATH
+  }
+
   const explicit = process.env.NEXT_PUBLIC_API_URL?.trim()
   if (explicit) {
     return explicit.replace(/\/+$/, "")

@@ -71,16 +71,12 @@ export class AuthService {
     return this.config.get<string>('NODE_ENV') === 'production';
   }
 
-  private refreshCookieSameSite(): 'none' | 'lax' {
-    // SameSite=None requires Secure=true in modern browsers.
-    return this.isCookieSecure() ? 'none' : 'lax';
-  }
-
+  /** Refresh cookie: httpOnly, secure in prod (or COOKIE_SECURE), SameSite=Lax, path=/, maxAge from JWT_REFRESH_DAYS. */
   private refreshCookieOptions(maxAgeMs: number) {
     return {
       httpOnly: true,
       secure: this.isCookieSecure(),
-      sameSite: this.refreshCookieSameSite(),
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: maxAgeMs,
     };
@@ -91,7 +87,7 @@ export class AuthService {
       path: '/',
       httpOnly: true,
       secure: this.isCookieSecure(),
-      sameSite: this.refreshCookieSameSite(),
+      sameSite: 'lax',
     });
   }
 

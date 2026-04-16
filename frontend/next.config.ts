@@ -149,7 +149,11 @@ const nextConfig: NextConfig = {
   ...(allowedDevOrigins ? { allowedDevOrigins } : {}),
   /** HTTP к Nest без CORS: браузер бьёт в тот же origin, Next проксирует на бэкенд. */
   async rewrites() {
-    const target = (process.env.BACKEND_PROXY_TARGET?.trim() || "http://127.0.0.1:3001").replace(/\/+$/, "")
+    const target =
+      (process.env.BACKEND_PROXY_TARGET?.trim() || process.env.NEXT_PUBLIC_API_URL?.trim() || "http://127.0.0.1:3001").replace(
+        /\/+$/,
+        "",
+      )
     return [
       {
         source: "/api/nest/:path*",
