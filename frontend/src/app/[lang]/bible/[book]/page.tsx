@@ -1,32 +1,23 @@
-// import { getBibleData } from "@/lib/storage"
 import styles from "./page.module.scss"
 import BibleReader from "@/components/BibleReader/BibleReader";
 
 type Props = {
   params: Promise<{ book: string }>;
-  searchParams?: { chapter?: string; verse?: string };
+  searchParams?: Promise<{ chapter?: string; verse?: string }>;
 };
 
-export default async function BookPage({ params }: Props) {
-  await params;
-  // const { book } = await params;
-  // // const bible = await getBibleData();
-  // const bookId = parseInt(book);
-  // const selectedBook = bible.Books.find((item) => item.BookId === bookId);
-
-  // if (!selectedBook) return <div>Книга не найдена</div>;
-
-  // // розібрати необов'язкові chapter/verse із query
-  // const chapterId = searchParams?.chapter ? parseInt(searchParams.chapter) : undefined;
-  // const verseId = searchParams?.verse ? parseInt(searchParams.verse) : undefined;
+export default async function BookPage({ params, searchParams }: Props) {
+  const { book } = await params;
+  const sp = searchParams ? await searchParams : {};
+  const chapterId = sp.chapter ? parseInt(sp.chapter) : undefined;
+  const verseId = sp.verse ? parseInt(sp.verse) : undefined;
 
   return (
     <main className={`${styles.main} container`}>
       <BibleReader
-        // bible={bible}
-        // initialBookId={bookId}
-        // initialChapterId={chapterId}
-        // initialVerseId={verseId}
+        initialBookId={book}
+        initialChapterId={chapterId}
+        initialVerseId={verseId}
       />
     </main>
   );

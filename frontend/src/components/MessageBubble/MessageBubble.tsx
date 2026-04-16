@@ -1,15 +1,19 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
-import { memo, useCallback, useLayoutEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type TouchEvent } from "react"
 import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/types/message"
+import { useTranslations } from "next-intl"
 import { useHydrated } from "@/hooks/useHydrated"
+import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX, useMediaQuery } from "@/hooks/useMediaQuery"
+import { PenLine, Pin, PinOff, Trash2 } from "lucide-react"
 import { useLongPress } from "@/hooks/useLongPress"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
 import { buildVerseReference, parseVerseSharePayload } from "@/lib/verseShareMessage"
+import { Link } from "@/i18n/navigation"
 import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
 import { parseStickerMessagePayload } from "@/lib/stickerMessage"
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble"
@@ -37,13 +41,132 @@ type MessageBubbleProps = {
   hideSenderName?: boolean
   hideOwnSenderName?: boolean
   senderNameMode?: "inline" | "compact-above"
+  isPinned?: boolean
+  showPinControl?: boolean
+  onTogglePin?: (message: Message) => void
 }
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
 const REACTION_OPTIONS: AppReactionType[] = ["🤍", "😂", "❤️", "🔥", "😊", "😧", "🥲"]
 
-type ReactionPickerPlacement = { left: number; bottom: number; width: number }
+function isAudioFileName(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase()
+  return ext === "mp3" || ext === "m4a"
+}
+
+function isBookFileName(name: string): boolean {
+  const ext = name.split(".").pop()?.toLowerCase()
+  return ext === "pdf" || ext === "epub"
+}
+
+function fmtTime(s: number): string {
+  const m = Math.floor(s / 60)
+  const sec = Math.floor(s % 60)
+  return `${m}:${String(sec).padStart(2, "0")}`
+}
+
+function BookFileBubble({ href, filename }: { href: string; filename: string }) {
+  const ext = filename.split(".").pop()?.toUpperCase() ?? "FILE"
+  return (
+    <a
+      className={styles.bookFileBubble}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className={styles.bookFileIcon} aria-hidden>
+        📖
+      </span>
+      <span className={styles.bookFileInfo}>
+        <span className={styles.bookFileName}>{filename}</span>
+        <span className={styles.bookFileExt}>{ext}</span>
+      </span>
+    </a>
+  )
+}
+
+function AudioFileBubble({ src, filename }: { src: string; filename: string }) {
+  const audioRef = useRef<HTMLAudioElement>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  useEffect(() => {
+    const audio = audioRef.current
+    if (!audio) return
+    const onMeta = () => setDuration(audio.duration)
+    const onTime = () => setCurrentTime(audio.currentTime)
+    const onPlay = () => setIsPlaying(true)
+    const onPause = () => setIsPlaying(false)
+    const onEnded = () => { setIsPlaying(false); setCurrentTime(0) }
+    audio.addEventListener("loadedmetadata", onMeta)
+    audio.addEventListener("timeupdate", onTime)
+    audio.addEventListener("play", onPlay)
+    audio.addEventListener("pause", onPause)
+    audio.addEventListener("ended", onEnded)
+    return () => {
+      audio.removeEventListener("loadedmetadata", onMeta)
+      audio.removeEventListener("timeupdate", onTime)
+      audio.removeEventListener("play", onPlay)
+      audio.removeEventListener("pause", onPause)
+      audio.removeEventListener("ended", onEnded)
+    }
+  }, [])
+
+  const toggle = (e: MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation()
+    const audio = audioRef.current
+    if (!audio) return
+    if (isPlaying) audio.pause()
+    else void audio.play()
+  }
+
+  const handleSeek = (e: ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation()
+    const audio = audioRef.current
+    if (!audio) return
+    const val = parseFloat(e.target.value)
+    audio.currentTime = val
+    setCurrentTime(val)
+  }
+
+  return (
+    <div className={styles.audioFileBubble} data-bubble-control>
+      {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
+      <audio ref={audioRef} src={src} preload="metadata" />
+      <p className={styles.audioFileTitle}>
+        <span className={styles.audioFileIcon} aria-hidden>♪</span>
+        <span className={styles.audioFileName}>{filename}</span>
+      </p>
+      <div className={styles.audioFileControls}>
+        <button
+          type="button"
+          className={styles.audioPlayButton}
+          onClick={toggle}
+          aria-label={isPlaying ? "Пауза" : "Воспроизвести"}
+        >
+          {isPlaying ? "⏸" : "▶"}
+        </button>
+        <input
+          type="range"
+          className={styles.audioFileProgress}
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={currentTime}
+          onChange={handleSeek}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Прогресс воспроизведения"
+        />
+        <span className={styles.audioFileTime}>
+          {duration > 0 ? `${fmtTime(currentTime)} / ${fmtTime(duration)}` : fmtTime(currentTime)}
+        </span>
+      </div>
+    </div>
+  )
+}
 
 function SenderName({ name, isVip, as }: { name: string; isVip: boolean; as: "strong" | "span" }) {
   const Tag = as
@@ -87,60 +210,22 @@ function MessageBubble({
   hideSenderName = false,
   hideOwnSenderName = false,
   senderNameMode = "inline",
+  isPinned = false,
+  showPinControl = false,
+  onTogglePin,
 }: MessageBubbleProps) {
+  const t = useTranslations("chat")
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
-  const reactionAnchorRef = useRef<HTMLDivElement | null>(null)
-  const reactionTriggerRef = useRef<HTMLButtonElement | null>(null)
-  const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
-  const [reactionPickerPlacement, setReactionPickerPlacement] = useState<ReactionPickerPlacement | null>(null)
+  const showReactionPlusButton = useMediaQuery("(min-width: 1024px)", false)
 
-  const updateReactionPickerPlacement = useCallback(() => {
-    const trigger = reactionTriggerRef.current
-    const anchor = reactionAnchorRef.current
-    const picker = reactionPickerRef.current
-    if (!picker || typeof window === "undefined") {
-      return
-    }
-    const placementNode = trigger && trigger.offsetParent !== null ? trigger : anchor
-    if (!placementNode) {
-      return
-    }
-
-    const rect = placementNode.getBoundingClientRect()
-    const pad = 8
-    const maxW = Math.min(380, window.innerWidth - 2 * pad)
-    const fallbackContentW = REACTION_OPTIONS.length * 42 + 24
-    const contentW = Math.max(picker.scrollWidth, fallbackContentW)
-    const w = Math.min(contentW, maxW)
-    let left = rect.right - w
-    left = Math.max(pad, Math.min(left, window.innerWidth - pad - w))
-    setReactionPickerPlacement({
-      left,
-      bottom: window.innerHeight - rect.top + 12,
-      width: w,
-    })
-  }, [])
-
-  useLayoutEffect(() => {
-    if (!isReactionPickerOpen) {
-      setReactionPickerPlacement(null)
-      return
-    }
-    updateReactionPickerPlacement()
-    const rafId = window.requestAnimationFrame(() => {
-      updateReactionPickerPlacement()
-    })
-    window.addEventListener("scroll", updateReactionPickerPlacement, true)
-    window.addEventListener("resize", updateReactionPickerPlacement)
-    return () => {
-      window.cancelAnimationFrame(rafId)
-      window.removeEventListener("scroll", updateReactionPickerPlacement, true)
-      window.removeEventListener("resize", updateReactionPickerPlacement)
-    }
-  }, [isReactionPickerOpen, updateReactionPickerPlacement])
+  /** Планшет/мобилка: без «+», реакции по тапу по пузырю. Десктоп (шире брейкпоинта) — как раньше с «+». */
+  const isNarrowViewport = () =>
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia(`(max-width: ${CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX}px)`).matches
 
   const date = new Date(message.createdAt)
   const formattedDate = hydrated
@@ -193,6 +278,16 @@ function MessageBubble({
     }>
   }, [currentUser?.id, message.reactions])
 
+  const closeOtherReactionPickers = useCallback(() => {
+    window.dispatchEvent(new Event("chat:close-reaction-pickers"))
+  }, [])
+
+  useEffect(() => {
+    const onCloseAll = () => setIsReactionPickerOpen(false)
+    window.addEventListener("chat:close-reaction-pickers", onCloseAll)
+    return () => window.removeEventListener("chat:close-reaction-pickers", onCloseAll)
+  }, [])
+
   const openReactionPickerFromGesture = useCallback(() => {
     if (!onToggleReaction || isReactionPickerOpen) return
 
@@ -200,8 +295,9 @@ function MessageBubble({
     if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
       navigator.vibrate(50)
     }
+    closeOtherReactionPickers()
     setIsReactionPickerOpen(true)
-  }, [isReactionPickerOpen, onToggleReaction])
+  }, [closeOtherReactionPickers, isReactionPickerOpen, onToggleReaction])
 
   const longPressHandlers = useLongPress<HTMLElement>(openReactionPickerFromGesture, {
     ms: 360,
@@ -265,12 +361,7 @@ function MessageBubble({
   }
 
   const handleContextMenu = (event: MouseEvent<HTMLElement>) => {
-    const isCoarsePointer =
-      typeof window !== "undefined" && typeof window.matchMedia === "function"
-        ? window.matchMedia("(pointer: coarse)").matches
-        : false
-
-    if (!isCoarsePointer) {
+    if (!isNarrowViewport()) {
       return
     }
 
@@ -293,6 +384,15 @@ function MessageBubble({
       return
     }
 
+    if (onToggleReaction && isNarrowViewport()) {
+      setIsReactionPickerOpen((prev) => {
+        if (prev) return false
+        closeOtherReactionPickers()
+        return true
+      })
+      return
+    }
+
     handleReplyIntent()
   }
 
@@ -303,7 +403,11 @@ function MessageBubble({
 
   const handleReactionPickerToggle = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    setIsReactionPickerOpen((prev) => !prev)
+    setIsReactionPickerOpen((prev) => {
+      if (prev) return false
+      closeOtherReactionPickers()
+      return true
+    })
   }
 
   const handleReactionPickerClose = (event: MouseEvent<HTMLElement>) => {
@@ -336,7 +440,7 @@ function MessageBubble({
     }
   }
 
-  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""}`
+  const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""} ${isPinned ? styles.bubblePinned : ""}`
   const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen)
   const interactiveBubbleProps = {
     onClick: handleClick,
@@ -428,6 +532,44 @@ function MessageBubble({
             }
           })()
 
+          if (isAudioFileName(fallbackName)) {
+            return (
+              <div className={styles.fileMessage}>
+                {showCompactSender ? (
+                  <p className={styles.senderCompact}>
+                    <SenderName name={senderName} isVip={senderVip} as="span" />
+                  </p>
+                ) : null}
+                {canShowSenderName && !showCompactSender ? (
+                  <p className={styles.fileMessageMeta}>
+                    <SenderName name={senderName} isVip={senderVip} as="strong" />
+                    <span> — музыка</span>
+                  </p>
+                ) : null}
+                <AudioFileBubble src={imgUrl} filename={fallbackName} />
+              </div>
+            )
+          }
+
+          if (isBookFileName(fallbackName)) {
+            return (
+              <div className={styles.fileMessage}>
+                {showCompactSender ? (
+                  <p className={styles.senderCompact}>
+                    <SenderName name={senderName} isVip={senderVip} as="span" />
+                  </p>
+                ) : null}
+                {canShowSenderName && !showCompactSender ? (
+                  <p className={styles.fileMessageMeta}>
+                    <SenderName name={senderName} isVip={senderVip} as="strong" />
+                    <span> — книга</span>
+                  </p>
+                ) : null}
+                <BookFileBubble href={imgUrl} filename={fallbackName} />
+              </div>
+            )
+          }
+
           return (
             <div className={styles.fileMessage}>
               {showCompactSender ? (
@@ -507,115 +649,134 @@ function MessageBubble({
                 <SenderName name={senderName} isVip={senderVip} as="span" />
               </p>
             ) : null}
-            <div className={styles.verseShareCard}>
-              {canShowSenderName && !showCompactSender ? (
-                <p className={styles.verseShareAuthor}>
-                  <SenderName name={senderName} isVip={senderVip} as="span" /> поделился стихом
-                </p>
-              ) : null}
-              <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
-              <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
-            </div>
+            {verseShare.payload.bookId ? (
+              <Link
+                href={`/bible/${verseShare.payload.bookId}?chapter=${verseShare.payload.chapter}&verse=${verseShare.payload.verses[0]}`}
+                className={styles.verseShareCard}
+              >
+                {canShowSenderName && !showCompactSender ? (
+                  <p className={styles.verseShareAuthor}>
+                    <SenderName name={senderName} isVip={senderVip} as="span" /> поделился стихом
+                  </p>
+                ) : null}
+                <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
+                <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
+              </Link>
+            ) : (
+              <div className={styles.verseShareCard}>
+                {canShowSenderName && !showCompactSender ? (
+                  <p className={styles.verseShareAuthor}>
+                    <SenderName name={senderName} isVip={senderVip} as="span" /> поделился стихом
+                  </p>
+                ) : null}
+                <p className={styles.verseShareReference}>{buildVerseReference(verseShare.payload)}</p>
+                <ScriptureText html={verseShare.payload.text} className={styles.verseShareText} />
+              </div>
+            )}
           </>
         )
       })()}
 
       <div className={styles.metaRow}>
         <div className={styles.metaActions}>
+          {showPinControl && onTogglePin ? (
+            <button
+              type="button"
+              className={`${styles.metaActionIcon} ${isPinned ? styles.metaActionIconPinned : ""}`}
+              data-bubble-control
+              onClick={(event) => {
+                event.stopPropagation()
+                onTogglePin(message)
+              }}
+              aria-label={isPinned ? t("unpinMessageAria") : t("pinMessageAria")}
+              title={isPinned ? t("unpinMessage") : t("pinMessage")}
+            >
+              {isPinned ? <PinOff size={15} strokeWidth={2.1} aria-hidden /> : <Pin size={15} strokeWidth={2.1} aria-hidden />}
+            </button>
+          ) : null}
           {isOwnMessage && onEdit && message.type !== "VOICE" && message.type !== "IMAGE" && message.type !== "FILE" ? (
             <button
               type="button"
-              className={styles.metaActionButton}
+              className={styles.metaActionIcon}
               onClick={handleEditClick}
               aria-label="Изменить сообщение"
               title="Изменить сообщение"
             >
-              Изменить
+              <PenLine size={15} strokeWidth={2.1} aria-hidden />
             </button>
           ) : null}
           {isOwnMessage && canDeleteOwnMessage ? (
             <button
               type="button"
-              className={styles.metaActionButton}
+              className={styles.metaActionIcon}
               onClick={handleDeleteClick}
               aria-label="Удалить сообщение"
               title="Удалить сообщение"
             >
-              Удалить
+              <Trash2 size={15} strokeWidth={2.1} aria-hidden />
             </button>
           ) : null}
         </div>
 
-        <span className={styles.date}>
-          {formattedDate}
-          {message.isEdited ? " · изменено" : ""}
-        </span>
-        {onToggleReaction ? (
-          <div ref={reactionAnchorRef} className={styles.reactionAnchor}>
-            <button
-              ref={reactionTriggerRef}
-              type="button"
-              className={styles.reactionTrigger}
-              onClick={handleReactionPickerToggle}
-              aria-label="Добавить реакцию"
-              title="Добавить реакцию"
-            >
-              +
-            </button>
-            <AnimatePresence>
-              {isReactionPickerOpen ? (
-                <>
-                  <motion.button
-                    key="reaction-overlay"
-                    type="button"
-                    className={styles.reactionOverlay}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.16, ease: "easeOut" }}
-                    onClick={handleReactionPickerClose}
-                    aria-label="Закрыть панель реакций"
-                  />
-                  <motion.div
-                    ref={reactionPickerRef}
-                    key="reaction-picker"
-                    className={styles.reactionPicker}
-                    initial={{ opacity: 0, scale: 0.92, y: 12 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.96, y: 12 }}
-                    transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.72 }}
-                    onClick={(event) => event.stopPropagation()}
-                    style={
-                      reactionPickerPlacement
-                        ? {
-                            position: "fixed",
-                            left: reactionPickerPlacement.left,
-                            bottom: reactionPickerPlacement.bottom,
-                            width: reactionPickerPlacement.width,
-                            right: "auto",
-                            top: "auto",
-                            zIndex: 200,
-                          }
-                        : undefined
-                    }
-                  >
-                    {REACTION_OPTIONS.map((emoji) => (
-                      <button
-                        key={emoji}
-                        type="button"
-                        className={styles.emojiButton}
-                        onClick={(event) => handleReactionClick(event, emoji)}
-                        aria-label={`Реакция ${emoji}`}
-                      >
-                        {emoji}
-                      </button>
-                    ))}
-                  </motion.div>
-                </>
+        <div className={styles.metaRowTrailing}>
+          {onToggleReaction ? (
+            <div className={styles.reactionAnchor}>
+              {showReactionPlusButton ? (
+                <button
+                  type="button"
+                  className={styles.reactionTrigger}
+                  onClick={handleReactionPickerToggle}
+                  aria-label="Добавить реакцию"
+                  title="Добавить реакцию"
+                >
+                  +
+                </button>
               ) : null}
-            </AnimatePresence>
-          </div>
-        ) : null}
+              <AnimatePresence>
+                {isReactionPickerOpen ? (
+                  <>
+                    <motion.button
+                      key="reaction-overlay"
+                      type="button"
+                      className={styles.reactionOverlay}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.16, ease: "easeOut" }}
+                      onClick={handleReactionPickerClose}
+                      aria-label="Закрыть панель реакций"
+                    />
+                    <motion.div
+                      key="reaction-picker"
+                      className={styles.reactionPicker}
+                      initial={{ opacity: 0, scale: 0.92, y: 12 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.96, y: 12 }}
+                      transition={{ type: "spring", stiffness: 420, damping: 28, mass: 0.72 }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {REACTION_OPTIONS.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          className={styles.emojiButton}
+                          onClick={(event) => handleReactionClick(event, emoji)}
+                          aria-label={`Реакция ${emoji}`}
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </motion.div>
+                  </>
+                ) : null}
+              </AnimatePresence>
+            </div>
+          ) : null}
+          <span className={styles.date}>
+            {formattedDate}
+            {message.isEdited ? " · изменено" : ""}
+          </span>
+        </div>
       </div>
       {reactionGroups.length > 0 ? (
         <div className={styles.messageReactions}>

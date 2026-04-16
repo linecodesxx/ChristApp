@@ -11,6 +11,8 @@ const VISIBILITY_REFRESH_WINDOW_MS = 2 * 60_000
 const RECOVERY_DELAY_MS = 10_000
 const RECOVERY_TICK_MS = 250
 const RECOVERY_RETURN_TO_KEY = "christ-recovery-return-to"
+/** PWA standalone (iOS Safari): час для підтягування кук у пісочницю перед першим /refresh і /me. */
+const PWA_STANDALONE_BOOTSTRAP_DELAY_MS = 800
 
 export default function AuthSessionSync() {
   const timeoutRef = useRef<number | null>(null)
@@ -170,7 +172,7 @@ export default function AuthSessionSync() {
       }
     }
 
-    const runInitialSync = () => {
+    const runInitialSync = async () => {
       if (process.env.NEXT_PUBLIC_DEBUG_PWA_AUTH === "1" && isPwaStandaloneClient()) {
         try {
           window.alert(`Debug LS: ${Boolean(window.localStorage.getItem("christ_access_token"))}`)
@@ -178,18 +180,20 @@ export default function AuthSessionSync() {
           // ignore
         }
       }
-      void initializeApp().then(() => {
-        void refreshIfNeeded()
-      })
+      await initializeApp()
+      await refreshIfNeeded()
     }
 
-    // PWA (standalone): пауза перед первым /refresh и /me — сетевой стек iOS чаще успевает поднять куки.
-    const bootstrapDelayId = isPwaStandaloneClient()
-      ? window.setTimeout(runInitialSync, 500)
-      : null
-    if (bootstrapDelayId === null) {
-      runInitialSync()
+    const bootstrapAuth = async () => {
+      if (isPwaStandaloneClient()) {
+        await new Promise<void>((resolve) => {
+          window.setTimeout(resolve, PWA_STANDALONE_BOOTSTRAP_DELAY_MS)
+        })
+      }
+      await runInitialSync()
     }
+
+    void bootstrapAuth()
 
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
     window.addEventListener("focus", onFocus)
@@ -197,9 +201,6 @@ export default function AuthSessionSync() {
     document.addEventListener("visibilitychange", onVisibilityChange)
 
     return () => {
-      if (bootstrapDelayId !== null) {
-        window.clearTimeout(bootstrapDelayId)
-      }
       clearScheduledRefresh()
       stopRecoveryUi()
       window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged)

@@ -22,6 +22,8 @@ export type AuthUser = {
   themeForegroundHex?: string | null
   themeBackgroundHex?: string | null
   themeFontKey?: string | null
+  /** Короткий опис у профілі. */
+  bio?: string | null
 }
 
 export type AuthSessionPayload = {

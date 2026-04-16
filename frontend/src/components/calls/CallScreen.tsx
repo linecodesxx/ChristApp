@@ -18,12 +18,19 @@ type CallScreenProps = {
   peerName: string
   peerAvatarUrl?: string | null
   onClose: () => void
+  onCallEnded?: (durationSeconds: number) => void
 }
 
 const HTTP_API = getHttpApiBase()
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID?.trim() ?? ""
 
-export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUrl, onClose }: CallScreenProps) {
+function formatCallDuration(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+}
+
+export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUrl, onClose, onCallEnded }: CallScreenProps) {
   const clientRef = useRef<IAgoraRTCClient | null>(null)
   const micTrackRef = useRef<IMicrophoneAudioTrack | null>(null)
   const remoteTracksRef = useRef<Map<string, IAgoraRTCRemoteUser["audioTrack"]>>(new Map())
@@ -32,15 +39,35 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
   const isHangingUpRef = useRef(false)
   const isSpeakerOnRef = useRef(true)
   const onCloseRef = useRef(onClose)
+  const onCallEndedRef = useRef(onCallEnded)
+  const callStartTimeRef = useRef<number | null>(null)
   const [status, setStatus] = useState("Connecting")
   const [isMuted, setIsMuted] = useState(false)
   const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [isPeerSpeaking, setIsPeerSpeaking] = useState(false)
   const [isHangingUp, setIsHangingUp] = useState(false)
+  const [callDuration, setCallDuration] = useState(0)
 
   useEffect(() => {
     onCloseRef.current = onClose
   }, [onClose])
+
+  useEffect(() => {
+    onCallEndedRef.current = onCallEnded
+  }, [onCallEnded])
+
+  // Call duration timer — starts when connected
+  useEffect(() => {
+    if (status !== "Connected") return
+    if (!callStartTimeRef.current) {
+      callStartTimeRef.current = Date.now()
+    }
+    const tickId = window.setInterval(() => {
+      const start = callStartTimeRef.current
+      if (start) setCallDuration(Math.floor((Date.now() - start) / 1000))
+    }, 1000)
+    return () => window.clearInterval(tickId)
+  }, [status])
 
   const cleanupCall = useCallback(async () => {
     if (speakingResetTimeoutRef.current) {
@@ -140,7 +167,10 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
         })
 
         client.on("user-left", () => {
+          const start = callStartTimeRef.current
+          const elapsed = start ? Math.floor((Date.now() - start) / 1000) : 0
           void cleanupCall()
+          onCallEndedRef.current?.(elapsed)
           onCloseRef.current()
         })
 
@@ -190,6 +220,8 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
       active = false
       isJoiningRef.current = false
       void cleanupCall()
+      callStartTimeRef.current = null
+      setCallDuration(0)
       setIsPeerSpeaking(false)
       setIsMuted(false)
       setIsSpeakerOn(true)
@@ -222,7 +254,10 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
     isHangingUpRef.current = true
     setIsHangingUp(true)
     try {
+      const start = callStartTimeRef.current
+      const elapsed = start ? Math.floor((Date.now() - start) / 1000) : 0
       await cleanupCall()
+      onCallEndedRef.current?.(elapsed)
       onClose()
     } finally {
       isHangingUpRef.current = false
@@ -245,7 +280,9 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           transition={{ duration: 0.28, ease: "easeOut" }}
         >
           <div className={styles.peerName}>{peerName}</div>
-          <div className={styles.status}>{status}</div>
+          <div className={styles.status}>
+            {status === "Connected" ? formatCallDuration(callDuration) : status}
+          </div>
 
           <div className={styles.avatarWrap}>
             <AnimatePresence>

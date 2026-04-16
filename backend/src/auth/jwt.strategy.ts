@@ -43,6 +43,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         themeBackgroundHex: true,
         themeFontKey: true,
         isVip: true,
+        bio: true,
       },
     });
 

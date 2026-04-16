@@ -21,6 +21,7 @@ const profileSelect = {
   themeForegroundHex: true,
   themeBackgroundHex: true,
   themeFontKey: true,
+  bio: true,
 } as const;
 
 @Injectable()
@@ -39,6 +40,7 @@ export class UsersService {
         lastSeenAt: true,
         isActive: true,
         avatarUrl: true,
+        bio: true,
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -57,6 +59,7 @@ export class UsersService {
         lastSeenAt: true,
         isActive: true,
         avatarUrl: true,
+        bio: true,
       },
     });
 
@@ -72,8 +75,9 @@ export class UsersService {
       dto.themeForegroundHex !== undefined ||
       dto.themeBackgroundHex !== undefined ||
       dto.themeFontKey !== undefined;
+    const hasBio = dto.bio !== undefined;
 
-    if (!hasIdentity && !hasAppearance) {
+    if (!hasIdentity && !hasAppearance && !hasBio) {
       throw new BadRequestException('Нет данных для обновления');
     }
 
@@ -117,6 +121,13 @@ export class UsersService {
           ? null
           : dto.themeFontKey;
 
+    const nextBio =
+      dto.bio === undefined
+        ? undefined
+        : dto.bio.trim() === ''
+          ? null
+          : dto.bio.trim();
+
     try {
       return await this.prisma.user.update({
         where: { id: userId },
@@ -126,6 +137,7 @@ export class UsersService {
           ...(themeFg !== undefined ? { themeForegroundHex: themeFg } : {}),
           ...(themeBg !== undefined ? { themeBackgroundHex: themeBg } : {}),
           ...(themeFont !== undefined ? { themeFontKey: themeFont } : {}),
+          ...(nextBio !== undefined ? { bio: nextBio } : {}),
         },
         select: profileSelect,
       });

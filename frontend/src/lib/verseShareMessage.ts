@@ -3,6 +3,7 @@ export const VERSE_SHARE_META_SUFFIX = "]]"
 
 export type VerseSharePayload = {
   bookName: string
+  bookId?: string
   chapter: number
   verses: number[]
   text: string
@@ -11,6 +12,7 @@ export type VerseSharePayload = {
 export function serializeVerseSharePayload(payload: VerseSharePayload) {
   const safePayload: VerseSharePayload = {
     bookName: String(payload.bookName || "").trim() || "Библия",
+    ...(payload.bookId ? { bookId: String(payload.bookId) } : {}),
     chapter: Number(payload.chapter) || 1,
     verses: Array.from(new Set(payload.verses.filter((v) => Number.isFinite(v)).map((v) => Number(v)))).sort(
       (a, b) => a - b,
@@ -52,6 +54,7 @@ export function parseVerseSharePayload(rawContent: string) {
     return {
       payload: {
         bookName: String(parsed.bookName),
+        ...(parsed.bookId ? { bookId: String(parsed.bookId) } : {}),
         chapter: Number(parsed.chapter),
         verses,
         text: String(parsed.text ?? plainContent),

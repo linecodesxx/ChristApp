@@ -25,6 +25,7 @@ interface SocketUser {
   username: string;
   nickname: string;
   email?: string;
+  isVip?: boolean;
 }
 
 interface SocketWithUser extends Socket {
@@ -63,6 +64,27 @@ type EditMessagePayload = {
   content?: string;
 };
 
+type DoodleScorePayload = {
+  roomId?: string;
+  score?: number;
+};
+
+type DoodleResetPayload = {
+  roomId?: string;
+};
+
+type DoodleStatePayload = {
+  roomId?: string;
+  state?: {
+    x?: number;
+    y?: number;
+    cameraY?: number;
+    score?: number;
+    alive?: boolean;
+    emittedAt?: number;
+  };
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -77,7 +99,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly roomPlasmaBackground = new Map<string, boolean>();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set(['🤍', '😂', '❤️', '🔥', '😊', '😧', '🥲']);
+  private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🔥', '🥲', '😭', '🙏🏻']);
 
   constructor(
     private jwt: JwtService,
@@ -351,10 +373,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         lastReadAt: readAt.toISOString(),
       });
 
+      const pinnedMessageIds =
+        await this.messagesService.listPinnedMessageIds(roomId);
+
       client.emit('roomHistory', {
         roomId,
         messages: history,
         plasmaBackground: this.roomPlasmaBackground.get(roomId) ?? false,
+        pinnedMessageIds,
       });
 
       client.emit('roomReadStates', {
@@ -470,6 +496,111 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       handle: user.username,
       isTyping: Boolean(body?.isTyping),
       activity: body?.activity === 'voice' ? 'voice' : 'text',
+    });
+  }
+
+  @SubscribeMessage('doodle-score')
+  async handleDoodleScore(
+    @MessageBody() body: DoodleScorePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    const rawScore = Number(body?.score);
+    if (!Number.isFinite(rawScore)) return;
+    const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
+
+    this.server.to(roomId).emit('doodle-score-updated', {
+      roomId,
+      userId: user.id,
+      score,
+    });
+  }
+
+  @SubscribeMessage('doodle-reset')
+  async handleDoodleReset(
+    @MessageBody() body: DoodleResetPayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    this.server.to(roomId).emit('doodle-reset', {
+      roomId,
+    });
+  }
+
+  @SubscribeMessage('doodle-state')
+  async handleDoodleState(
+    @MessageBody() body: DoodleStatePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    const state = body?.state;
+    if (!state) return;
+
+    const x = Number(state.x);
+    const y = Number(state.y);
+    const cameraY = Number(state.cameraY);
+    const score = Number(state.score);
+    const emittedAt = Number(state.emittedAt);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(cameraY) || !Number.isFinite(score)) {
+      return;
+    }
+
+    this.server.to(roomId).emit('doodle-state-updated', {
+      roomId,
+      userId: user.id,
+      state: {
+        x,
+        y,
+        cameraY,
+        score: Math.max(0, Math.min(999999, Math.floor(score))),
+        alive: Boolean(state.alive),
+        emittedAt: Number.isFinite(emittedAt) ? Math.floor(emittedAt) : Date.now(),
+      },
     });
   }
 
@@ -1086,6 +1217,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         roomId: result.roomId,
       });
 
+      const pinnedAfterDelete = await this.messagesService.listPinnedMessageIds(
+        result.roomId,
+      );
+      this.server.to(result.roomId).emit('roomPinsUpdated', {
+        roomId: result.roomId,
+        pinnedMessageIds: pinnedAfterDelete,
+      });
+
       client.emit('deleteMessageResult', {
         ok: true,
         messageId: result.messageId,
@@ -1105,6 +1244,96 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         error: 'Ошибка удаления сообщения',
       });
     }
+  }
+
+  @SubscribeMessage('pinMessage')
+  async handlePinMessage(
+    @MessageBody() body: { roomId?: string; messageId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      return;
+    }
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    const messageId = typeof body?.messageId === 'string' ? body.messageId.trim() : '';
+    if (!roomId || !messageId) {
+      client.emit('pinMessageResult', {
+        ok: false,
+        error: 'roomId и messageId обязательны',
+        roomId: roomId || undefined,
+        messageId: messageId || undefined,
+      });
+      return;
+    }
+
+    const result = await this.messagesService.pinMessage(roomId, messageId, user.id);
+    if (!result.ok) {
+      client.emit('pinMessageResult', {
+        ok: false,
+        error: result.error,
+        roomId,
+        messageId,
+      });
+      return;
+    }
+
+    this.server.to(roomId).emit('roomPinsUpdated', {
+      roomId,
+      pinnedMessageIds: result.pinnedMessageIds,
+    });
+    client.emit('pinMessageResult', {
+      ok: true,
+      roomId,
+      messageId,
+      pinnedMessageIds: result.pinnedMessageIds,
+    });
+  }
+
+  @SubscribeMessage('unpinMessage')
+  async handleUnpinMessage(
+    @MessageBody() body: { roomId?: string; messageId?: string },
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) {
+      return;
+    }
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    const messageId = typeof body?.messageId === 'string' ? body.messageId.trim() : '';
+    if (!roomId || !messageId) {
+      client.emit('unpinMessageResult', {
+        ok: false,
+        error: 'roomId и messageId обязательны',
+        roomId: roomId || undefined,
+        messageId: messageId || undefined,
+      });
+      return;
+    }
+
+    const result = await this.messagesService.unpinMessage(roomId, messageId, user.id);
+    if (!result.ok) {
+      client.emit('unpinMessageResult', {
+        ok: false,
+        error: result.error,
+        roomId,
+        messageId,
+      });
+      return;
+    }
+
+    this.server.to(roomId).emit('roomPinsUpdated', {
+      roomId,
+      pinnedMessageIds: result.pinnedMessageIds,
+    });
+    client.emit('unpinMessageResult', {
+      ok: true,
+      roomId,
+      messageId,
+      pinnedMessageIds: result.pinnedMessageIds,
+    });
   }
 
   @SubscribeMessage('editMessage')
