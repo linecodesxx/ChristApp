@@ -54,7 +54,9 @@
     "signUp": "Зареєструватися",
     "hasAccount": "Вже є обліковий запис?",
     "signIn": "Увійти",
-    "failedFallback": "Реєстрація не вдалася. Спробуйте ще раз."
+    "failedFallback": "Реєстрація не вдалася. Спробуйте ще раз.",
+    "showPasswordAria": "Показати пароль",
+    "hidePasswordAria": "Приховати пароль"
   },
   "languageSwitcher": {
     "label": "Мова",
@@ -71,7 +73,7 @@
     "chapterAbbr": "розд.",
     "greetingAria": "Привітання",
     "greetingHi": "Привіт, {name}!",
-    "greetingLead": "Сьогодні чудовий день — прочитаємо слово дня.",
+    "greetingLead": "Радий бачити тебе. Почнімо день зі Слова.",
     "greetingHintBefore": "І не забудь поділитися ним із друзями —",
     "greetingChat": "заглянь у чат",
     "greetingHintAfter": ".",

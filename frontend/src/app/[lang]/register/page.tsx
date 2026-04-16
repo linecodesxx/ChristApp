@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("")
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
+  const [showPassword, setShowPassword] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({})
   const [registerError, setRegisterError] = useState<string | null>(null)
   const [registerSubmitting, setRegisterSubmitting] = useState(false)
@@ -153,19 +154,32 @@ export default function RegisterPage() {
             <label htmlFor="password" className={styles.label}>
               {t("passwordLabel")}
             </label>
-            <input
-              id="password"
-              className={`${styles.input} ${fieldErrors.password ? styles.inputInvalid : ""}`}
-              type="password"
-              value={password}
-              autoComplete="new-password"
-              placeholder={t("passwordPlaceholder")}
-              aria-invalid={Boolean(fieldErrors.password)}
-              onChange={(e) => {
-                setPassword(e.target.value)
-                setFieldErrors((prev) => ({ ...prev, password: undefined }))
-              }}
-            />
+            <div className={styles.passwordWrap}>
+              <input
+                id="password"
+                className={`${styles.input} ${styles.inputWithPasswordToggle} ${
+                  fieldErrors.password ? styles.inputInvalid : ""
+                }`}
+                type={showPassword ? "text" : "password"}
+                value={password}
+                autoComplete="new-password"
+                placeholder={t("passwordPlaceholder")}
+                aria-invalid={Boolean(fieldErrors.password)}
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                }}
+              />
+              <button
+                type="button"
+                className={`${styles.passwordToggleBtn} ${showPassword ? styles.passwordToggleBtnActive : ""}`}
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? t("hidePasswordAria") : t("showPasswordAria")}
+                aria-pressed={showPassword}
+              >
+                <Image src="/icon-password.svg" alt="" width={22} height={22} aria-hidden />
+              </button>
+            </div>
             {fieldErrors.password && <p className={styles.fieldError}>{fieldErrors.password}</p>}
           </div>
 

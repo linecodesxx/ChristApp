@@ -2,6 +2,7 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -42,6 +43,7 @@ function randomRefreshToken(): string {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly accessExpiresIn: string;
   private readonly refreshTtlMs: number;
 
@@ -91,6 +93,21 @@ export class AuthService {
       secure: this.isCookieSecure(),
       sameSite: this.refreshCookieSameSite(),
     });
+  }
+
+  private maskTokenHash(hash: string): string {
+    return hash.length > 12 ? `${hash.slice(0, 6)}...${hash.slice(-6)}` : hash;
+  }
+
+  private requestMeta(req: Request): string {
+    const ip =
+      req.ip ||
+      (Array.isArray(req.headers['x-forwarded-for'])
+        ? req.headers['x-forwarded-for'][0]
+        : req.headers['x-forwarded-for']) ||
+      'unknown-ip';
+    const ua = req.headers['user-agent'] || 'unknown-ua';
+    return `ip=${ip}; ua=${ua}`;
   }
 
   async register(dto: RegisterDto, res: Response) {
@@ -169,6 +186,9 @@ export class AuthService {
     });
 
     if (!user) {
+      this.logger.warn(
+        `login failed: account not found for identifier=${identifier}`,
+      );
       throw new UnauthorizedException(
         'Аккаунт с таким email или username не найден. Проверьте написание или зарегистрируйтесь.',
       );
@@ -176,25 +196,39 @@ export class AuthService {
 
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) {
+      this.logger.warn(
+        `login failed: invalid password for userId=${user.id}; username=${user.username}`,
+      );
       throw new UnauthorizedException('Неверный пароль.');
     }
 
     await this.issueRefreshSession(user.id, res);
+    this.logger.log(
+      `login success: userId=${user.id}; username=${user.username}; accessTtl=${this.accessExpiresIn}`,
+    );
     return this.buildAccessResponse(user.id);
   }
 
   async refresh(req: Request, res: Response) {
+    const meta = this.requestMeta(req);
     const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
     if (!raw || typeof raw !== 'string') {
+      this.logger.warn(`refresh denied: no refresh cookie; ${meta}`);
       throw new UnauthorizedException();
     }
 
     const tokenHash = sha256Hex(raw);
+    this.logger.log(
+      `refresh requested: tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+    );
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
     });
 
     if (!session || session.expiresAt < new Date()) {
+      this.logger.warn(
+        `refresh denied: session missing/expired tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      );
       if (session) {
         await this.prisma.refreshSession.delete({ where: { id: session.id } });
       }
@@ -208,6 +242,9 @@ export class AuthService {
     });
 
     if (!user?.isActive) {
+      this.logger.warn(
+        `refresh denied: inactive userId=${session.userId}; ${meta}`,
+      );
       await this.prisma.refreshSession.deleteMany({
         where: { userId: session.userId },
       });
@@ -217,14 +254,21 @@ export class AuthService {
 
     await this.prisma.refreshSession.delete({ where: { id: session.id } });
     await this.issueRefreshSession(session.userId, res);
+    this.logger.log(`refresh success: userId=${session.userId}; ${meta}`);
     return this.buildAccessResponse(session.userId);
   }
 
   async logout(req: Request, res: Response) {
+    const meta = this.requestMeta(req);
     const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
     if (raw && typeof raw === 'string') {
       const tokenHash = sha256Hex(raw);
       await this.prisma.refreshSession.deleteMany({ where: { tokenHash } });
+      this.logger.log(
+        `logout success: tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      );
+    } else {
+      this.logger.log(`logout without cookie; ${meta}`);
     }
     this.clearRefreshCookie(res);
     return { ok: true };
@@ -242,6 +286,10 @@ export class AuthService {
         expiresAt,
       },
     });
+
+    this.logger.log(
+      `issued refresh session: userId=${userId}; tokenHash=${this.maskTokenHash(tokenHash)}; expiresAt=${expiresAt.toISOString()}`,
+    );
 
     res.cookie(
       REFRESH_TOKEN_COOKIE,
@@ -261,6 +309,9 @@ export class AuthService {
     }
 
     const payload = { sub: safe.id, username: safe.username, isVip: Boolean(safe.isVip) };
+    this.logger.log(
+      `issued access token: userId=${safe.id}; username=${safe.username}; ttl=${this.accessExpiresIn}`,
+    );
 
     return {
       access_token: this.jwt.sign(payload, {
