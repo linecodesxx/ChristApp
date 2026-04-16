@@ -7,7 +7,7 @@ import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallba
 import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useTranslations } from "next-intl"
 import { useHydrated } from "@/hooks/useHydrated"
-import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX, useMediaQuery } from "@/hooks/useMediaQuery"
+import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX } from "@/hooks/useMediaQuery"
 import { PenLine, Pin, PinOff, Trash2 } from "lucide-react"
 import { useLongPress } from "@/hooks/useLongPress"
 import { getInitials } from "@/lib/utils"
@@ -219,9 +219,9 @@ function MessageBubble({
   const skipNextClickRef = useRef(false)
   const hydrated = useHydrated()
   const [isReactionPickerOpen, setIsReactionPickerOpen] = useState(false)
-  const showReactionPlusButton = useMediaQuery("(min-width: 1024px)", false)
+  /** Кнопка «+» для реакцій на всіх ширинах; звичайний тап по бульбашці — відповідь. */
+  const showReactionPlusButton = Boolean(onToggleReaction)
 
-  /** Планшет/мобилка: без «+», реакции по тапу по пузырю. Десктоп (шире брейкпоинта) — как раньше с «+». */
   const isNarrowViewport = () =>
     typeof window !== "undefined" &&
     typeof window.matchMedia === "function" &&
@@ -371,7 +371,6 @@ function MessageBubble({
 
     event.preventDefault()
     event.stopPropagation()
-    openReactionPickerFromGesture()
   }
 
   const handleClick = (event: MouseEvent<HTMLElement>) => {
@@ -381,15 +380,6 @@ function MessageBubble({
 
     if (skipNextClickRef.current) {
       skipNextClickRef.current = false
-      return
-    }
-
-    if (onToggleReaction && isNarrowViewport()) {
-      setIsReactionPickerOpen((prev) => {
-        if (prev) return false
-        closeOtherReactionPickers()
-        return true
-      })
       return
     }
 

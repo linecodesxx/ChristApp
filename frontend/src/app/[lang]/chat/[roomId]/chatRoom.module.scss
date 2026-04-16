@@ -120,6 +120,75 @@
     padding-bottom: 0;
   }
 
+  /** Закріпи під шапкою; не всередині прокрутки повідомлень — завжди видно над стрічкою. */
+  .pinnedMessagesDock {
+    flex-shrink: 0;
+    width: 100%;
+    margin: 0 0 8px;
+    padding: 8px 10px 10px;
+    border-radius: 16px;
+    border: 1px solid color-mix(in srgb, rgba(214, 180, 91, 0.42) 65%, var(--line-soft));
+    background: color-mix(in srgb, var(--surface-elevated) 92%, transparent);
+    box-shadow:
+      0 2px 14px -10px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 248, 220, 0.06);
+    z-index: 3;
+  }
+
+  .pinnedMessagesDockLabel {
+    display: block;
+    font-family: "Inter", sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  .pinnedMessagesDockChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pinnedMessagesDockChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    max-width: 100%;
+    padding: 6px 10px;
+    border-radius: 10px;
+    border: 1px solid color-mix(in srgb, #c4a035 35%, var(--line-soft));
+    background: color-mix(in srgb, var(--accent-soft) 12%, var(--surface));
+    color: var(--foreground);
+    font-family: "Inter", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.25;
+    text-align: left;
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      border-color 0.15s ease;
+
+    &:hover {
+      border-color: color-mix(in srgb, #d4af37 55%, var(--line-soft));
+      background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface));
+    }
+  }
+
+  .pinnedMessagesDockChipIcon {
+    flex-shrink: 0;
+  }
+
+  .pinnedMessagesDockChipText {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .headerGlass {
     width: 100%;
     position: sticky;

@@ -1,12 +1,19 @@
 "use client"
 
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+  type ReactNode,
+} from "react"
 import { useTranslations } from "next-intl"
 import type { AppReactionType, Message } from "@/types/message"
 import styles from "@/components/ChatWindow/ChatWindow.module.scss"
 import MessageBubble from "@/components/MessageBubble/MessageBubble"
-
-type PinnedEntry = { messageId: string; preview: string }
 
 type ChatWindowProps = {
   messages: Message[]
@@ -21,9 +28,10 @@ type ChatWindowProps = {
   onEditMessage?: (message: Message) => void
   canDeleteOwnMessages?: boolean
   pinnedMessageIds?: string[]
-  pinnedEntries?: PinnedEntry[]
   canPinMessages?: boolean
   onTogglePinMessage?: (message: Message) => void
+  /** Прокрутка до повідомлення (для панелі закріпів під шапкою). */
+  jumpToMessageRef?: MutableRefObject<((messageId: string) => void) | null>
   /** Контент над списком повідомлень (наприклад, привітання в особливому чаті). */
   topBanner?: ReactNode
   /** Статуси активності співрозмовників у кімнаті. */
@@ -75,9 +83,9 @@ function ChatWindow({
   hideOwnSenderName = false,
   senderNameMode = "inline",
   pinnedMessageIds = [],
-  pinnedEntries = [],
   canPinMessages = false,
   onTogglePinMessage,
+  jumpToMessageRef,
 }: ChatWindowProps) {
   const t = useTranslations("chat")
   const bottomRef = useRef<HTMLDivElement | null>(null)
@@ -160,22 +168,35 @@ function ChatWindow({
     messageRefs.current.set(messageId, element)
   }
 
-  const navigateToReferencedMessage = (messageId: string) => {
-    const target = messageRefs.current.get(messageId)
-    if (!target) {
-      onMissingReferencedMessage?.(messageId)
+  const navigateToReferencedMessage = useCallback(
+    (messageId: string) => {
+      const target = messageRefs.current.get(messageId)
+      if (!target) {
+        onMissingReferencedMessage?.(messageId)
+        return
+      }
+
+      target.scrollIntoView({ behavior: "smooth", block: "center" })
+      setHighlightedMessageId(messageId)
+      if (highlightTimerRef.current !== null) {
+        window.clearTimeout(highlightTimerRef.current)
+      }
+      highlightTimerRef.current = window.setTimeout(() => {
+        setHighlightedMessageId((prev) => (prev === messageId ? null : prev))
+      }, 1700)
+    },
+    [onMissingReferencedMessage],
+  )
+
+  useEffect(() => {
+    if (!jumpToMessageRef) {
       return
     }
-
-    target.scrollIntoView({ behavior: "smooth", block: "center" })
-    setHighlightedMessageId(messageId)
-    if (highlightTimerRef.current !== null) {
-      window.clearTimeout(highlightTimerRef.current)
+    jumpToMessageRef.current = navigateToReferencedMessage
+    return () => {
+      jumpToMessageRef.current = null
     }
-    highlightTimerRef.current = window.setTimeout(() => {
-      setHighlightedMessageId((prev) => (prev === messageId ? null : prev))
-    }, 1700)
-  }
+  }, [jumpToMessageRef, navigateToReferencedMessage])
 
   const renderBubble = (message: Message) => (
     <div key={message.id} ref={(element) => setMessageRef(message.id, element)}>
@@ -218,26 +239,6 @@ function ChatWindow({
   return (
     <div className={styles.chatWindow}>
       {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
-      {pinnedEntries.length > 0 ? (
-        <div className={styles.pinnedBar} role="region" aria-label={t("pinnedRegionAria")}>
-          <span className={styles.pinnedBarLabel}>{t("pinnedLabel")}</span>
-          <div className={styles.pinnedChips}>
-            {pinnedEntries.map((entry) => (
-              <button
-                key={entry.messageId}
-                type="button"
-                className={styles.pinnedChip}
-                onClick={() => navigateToReferencedMessage(entry.messageId)}
-              >
-                <span className={styles.pinnedChipIcon} aria-hidden>
-                  📌
-                </span>
-                <span className={styles.pinnedChipText}>{entry.preview}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
       {messages.length === 0 ? (
         <>
           <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
