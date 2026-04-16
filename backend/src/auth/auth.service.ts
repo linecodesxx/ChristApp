@@ -62,6 +62,10 @@ export class AuthService {
       60 *
       60 *
       1000;
+
+    this.logger.log(
+      `auth config: accessTtl=${this.accessExpiresIn}; refreshTtlMs=${this.refreshTtlMs}; cookieSecure=${this.isCookieSecure()}; nodeEnv=${this.config.get<string>('NODE_ENV') ?? 'unknown'}`,
+    );
   }
 
   private isCookieSecure(): boolean {
@@ -110,6 +114,12 @@ export class AuthService {
     const secFetchSite = req.headers['sec-fetch-site'] || 'no-sec-fetch-site';
     const cookieHeaderPresent = typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0;
     return `ip=${ip}; host=${host}; xForwardedHost=${forwardedHost}; origin=${origin}; referer=${referer}; secFetchSite=${secFetchSite}; cookieHeaderPresent=${cookieHeaderPresent}; ua=${ua}`;
+  }
+
+  private requestCookieInfo(req: Request): string {
+    const cookieNames = Object.keys(req.cookies ?? {});
+    const hasRefreshCookie = Boolean(req.cookies?.[REFRESH_TOKEN_COOKIE]);
+    return `cookieNames=[${cookieNames.join(',')}]; hasRefreshCookie=${hasRefreshCookie}`;
   }
 
   async register(dto: RegisterDto, res: Response) {
@@ -213,15 +223,16 @@ export class AuthService {
 
   async refresh(req: Request, res: Response) {
     const meta = this.requestMeta(req);
+    const cookieInfo = this.requestCookieInfo(req);
     const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
     if (!raw || typeof raw !== 'string') {
-      this.logger.warn(`refresh denied: no refresh cookie; ${meta}`);
+      this.logger.warn(`refresh denied: no refresh cookie; ${cookieInfo}; ${meta}`);
       throw new UnauthorizedException();
     }
 
     const tokenHash = sha256Hex(raw);
     this.logger.log(
-      `refresh requested: tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      `refresh requested: tokenHash=${this.maskTokenHash(tokenHash)}; ${cookieInfo}; ${meta}`,
     );
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
@@ -290,7 +301,7 @@ export class AuthService {
     });
 
     this.logger.log(
-      `issued refresh session: userId=${userId}; tokenHash=${this.maskTokenHash(tokenHash)}; expiresAt=${expiresAt.toISOString()}`,
+      `issued refresh session: userId=${userId}; tokenHash=${this.maskTokenHash(tokenHash)}; expiresAt=${expiresAt.toISOString()}; cookieSameSite=lax; cookieSecure=${this.isCookieSecure()}; cookieMaxAgeMs=${this.refreshTtlMs}`,
     );
 
     res.cookie(
@@ -311,14 +322,23 @@ export class AuthService {
     }
 
     const payload = { sub: safe.id, username: safe.username, isVip: Boolean(safe.isVip) };
+    const signedToken = this.jwt.sign(payload, {
+      expiresIn: this.accessExpiresIn as import('jsonwebtoken').SignOptions['expiresIn'],
+    });
+    const decoded = this.jwt.decode(signedToken) as
+      | { exp?: number; iat?: number }
+      | null;
+    const expIso =
+      typeof decoded?.exp === 'number'
+        ? new Date(decoded.exp * 1000).toISOString()
+        : 'unknown';
+
     this.logger.log(
-      `issued access token: userId=${safe.id}; username=${safe.username}; ttl=${this.accessExpiresIn}`,
+      `issued access token: userId=${safe.id}; username=${safe.username}; ttl=${this.accessExpiresIn}; expAt=${expIso}`,
     );
 
     return {
-      access_token: this.jwt.sign(payload, {
-        expiresIn: this.accessExpiresIn as import('jsonwebtoken').SignOptions['expiresIn'],
-      }),
+      access_token: signedToken,
       user: safe,
     };
   }
