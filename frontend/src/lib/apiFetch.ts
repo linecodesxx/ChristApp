@@ -5,7 +5,7 @@ import axios, {
   type AxiosError,
   type Method,
 } from "axios"
-import { logout, refreshToken } from "@/lib/authSession"
+import { isUnauthorizedAuthError, logout, refreshToken } from "@/lib/authSession"
 
 export type ApiFetchInit = RequestInit & {
   /** Таймаут для холодного старту / «засинаючого» API (AbortError при перевищенні). */
@@ -160,13 +160,20 @@ apiClient.interceptors.response.use(async (response) => {
     const nextHeaders = new Headers(originalRequest.headers as HeadersInit | undefined)
     nextHeaders.set("Authorization", `Bearer ${nextToken}`)
 
-    return await apiClient.request({
+    const retryRequest: AxiosRequestConfig & {
+      _authRetryAttempted?: boolean
+      _skipAuthRefresh?: boolean
+    } = {
       ...originalRequest,
       headers: Object.fromEntries(nextHeaders.entries()),
       _authRetryAttempted: true,
-    })
-  } catch {
-    await logout({ callBackend: false })
+    }
+
+    return await apiClient.request(retryRequest)
+  } catch (error) {
+    if (isUnauthorizedAuthError(error)) {
+      await logout({ callBackend: false })
+    }
     return response
   }
 })

@@ -29,6 +29,8 @@ import {
   type AuthUser,
 } from "@/lib/authSession"
 
+export type { AuthSessionPayload, AuthUser } from "@/lib/authSession"
+
 type UseAuthOptions = {
   redirectIfUnauthenticated?: string
 }

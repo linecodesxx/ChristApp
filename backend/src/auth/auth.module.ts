@@ -20,7 +20,7 @@ import { JwtStrategy } from './jwt.strategy';
         }
 
         const expiresIn =
-          configService.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
+          configService.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '7d';
 
         return {
           secret: jwtSecret,
