@@ -7,6 +7,12 @@ const PROXY_PATH = "/api/nest"
  * Якщо змінну не задано — відносний `/api/nest` (проксі у `next.config`, CORS для fetch не потрібен).
  */
 export function getHttpApiBase(): string {
+  // In production (including iOS Safari PWA), always use same-origin proxy
+  // to avoid cross-site cookie restrictions for refresh session flow.
+  if (process.env.NODE_ENV === "production") {
+    return PROXY_PATH
+  }
+
   const preferDirect = process.env.NEXT_PUBLIC_USE_DIRECT_API?.trim() === "1"
   if (!preferDirect) {
     return PROXY_PATH

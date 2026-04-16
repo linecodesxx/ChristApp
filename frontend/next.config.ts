@@ -187,6 +187,10 @@ const nextConfig: NextConfig = {
         source: "/sw.js",
         headers: [
           {
+            key: "Cache-Control",
+            value: "no-store, no-cache, must-revalidate",
+          },
+          {
             key: "Content-Security-Policy",
             value: [
               "default-src 'self'",
