@@ -30,7 +30,8 @@ const USER_SAFE_SELECT = {
   isVip: true,
 } as const;
 
-const REFRESH_TOKEN_TTL_DAYS = 30;
+const REFRESH_TOKEN_TTL_DAYS = 7;
+const REFRESH_ROTATION_GRACE_MS = 30_000;
 const ACCESS_TOKEN_TTL = '7d';
 
 function sha256Hex(value: string): string {
@@ -234,17 +235,82 @@ export class AuthService {
     this.logger.log(
       `refresh requested: tokenHash=${this.maskTokenHash(tokenHash)}; ${cookieInfo}; ${meta}`,
     );
+
+    await this.prisma.refreshSession.deleteMany({
+      where: {
+        isRevoked: true,
+        revokedAt: {
+          lt: new Date(Date.now() - REFRESH_ROTATION_GRACE_MS),
+        },
+      },
+    });
+
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
     });
 
-    if (!session || session.expiresAt < new Date()) {
+    if (!session) {
       this.logger.warn(
-        `refresh denied: session missing/expired tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+        `refresh denied: session missing tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
       );
-      if (session) {
-        await this.prisma.refreshSession.delete({ where: { id: session.id } });
+      this.clearRefreshCookie(res);
+      throw new UnauthorizedException();
+    }
+
+    if (session.expiresAt < new Date()) {
+      this.logger.warn(
+        `refresh denied: session expired tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      );
+      await this.prisma.refreshSession.delete({ where: { id: session.id } }).catch(() => undefined);
+      this.clearRefreshCookie(res);
+      throw new UnauthorizedException();
+    }
+
+    if (session.isRevoked) {
+      const revokedAt = session.revokedAt?.getTime() ?? 0;
+      const inGrace =
+        session.graceAccessToken &&
+        revokedAt > 0 &&
+        Date.now() - revokedAt <= REFRESH_ROTATION_GRACE_MS;
+
+      if (inGrace) {
+        const activeUser = await this.prisma.user.findUnique({
+          where: { id: session.userId },
+          select: { id: true, isActive: true },
+        });
+        if (!activeUser?.isActive) {
+          this.logger.warn(
+            `refresh denied: inactive userId=${session.userId} (grace replay); ${meta}`,
+          );
+          await this.prisma.refreshSession.deleteMany({
+            where: { userId: session.userId },
+          });
+          this.clearRefreshCookie(res);
+          throw new UnauthorizedException();
+        }
+
+        const safe = await this.prisma.user.findUnique({
+          where: { id: session.userId },
+          select: USER_SAFE_SELECT,
+        });
+        if (!safe) {
+          this.clearRefreshCookie(res);
+          throw new UnauthorizedException();
+        }
+
+        this.logger.log(
+          `refresh grace replay: userId=${session.userId}; tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+        );
+        return {
+          access_token: session.graceAccessToken as string,
+          user: safe,
+        };
       }
+
+      this.logger.warn(
+        `refresh denied: revoked past grace tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      );
+      await this.prisma.refreshSession.delete({ where: { id: session.id } }).catch(() => undefined);
       this.clearRefreshCookie(res);
       throw new UnauthorizedException();
     }
@@ -265,10 +331,53 @@ export class AuthService {
       throw new UnauthorizedException();
     }
 
-    await this.prisma.refreshSession.delete({ where: { id: session.id } });
+    const accessPayload = await this.buildAccessResponse(session.userId);
+
+    const rotated = await this.prisma.refreshSession.updateMany({
+      where: { id: session.id, isRevoked: false },
+      data: {
+        isRevoked: true,
+        revokedAt: new Date(),
+        graceAccessToken: accessPayload.access_token,
+      },
+    });
+
+    if (rotated.count === 0) {
+      const again = await this.prisma.refreshSession.findUnique({
+        where: { tokenHash },
+      });
+      const ra = again?.revokedAt?.getTime() ?? 0;
+      const replayOk =
+        again?.isRevoked &&
+        again.graceAccessToken &&
+        ra > 0 &&
+        Date.now() - ra <= REFRESH_ROTATION_GRACE_MS;
+
+      if (replayOk) {
+        const safe = await this.prisma.user.findUnique({
+          where: { id: again.userId },
+          select: USER_SAFE_SELECT,
+        });
+        if (!safe) {
+          this.clearRefreshCookie(res);
+          throw new UnauthorizedException();
+        }
+        this.logger.log(
+          `refresh concurrent replay: userId=${again.userId}; tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+        );
+        return {
+          access_token: again.graceAccessToken as string,
+          user: safe,
+        };
+      }
+
+      this.clearRefreshCookie(res);
+      throw new UnauthorizedException();
+    }
+
     await this.issueRefreshSession(session.userId, res);
     this.logger.log(`refresh success: userId=${session.userId}; ${meta}`);
-    return this.buildAccessResponse(session.userId);
+    return accessPayload;
   }
 
   async logout(req: Request, res: Response) {

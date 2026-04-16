@@ -413,6 +413,47 @@ function MessageBubble({
           )
         }
 
+        if (message.type === "FILE" && imgUrl) {
+          const fallbackName = (() => {
+            const raw = message.content?.trim()
+            if (raw) {
+              return raw
+            }
+            try {
+              const pathname = new URL(imgUrl).pathname
+              const segment = pathname.split("/").filter(Boolean).pop()
+              return segment ? decodeURIComponent(segment) : "file"
+            } catch {
+              return "file"
+            }
+          })()
+
+          return (
+            <div className={styles.fileMessage}>
+              {showCompactSender ? (
+                <p className={styles.senderCompact}>
+                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                </p>
+              ) : null}
+              {canShowSenderName && !showCompactSender ? (
+                <p className={styles.fileMessageMeta}>
+                  <SenderName name={senderName} isVip={senderVip} as="strong" />
+                  <span> — файл</span>
+                </p>
+              ) : null}
+              <a
+                className={styles.fileLink}
+                href={imgUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {fallbackName}
+              </a>
+            </div>
+          )
+        }
+
         const rawUrl = message.content.trim()
         if (rawUrl.startsWith(VOICE_META_PREFIX) && rawUrl.endsWith(VOICE_META_SUFFIX)) {
           const cleanUrl = rawUrl.replace(VOICE_META_PREFIX, "").replace(VOICE_META_SUFFIX, "")
@@ -481,7 +522,7 @@ function MessageBubble({
 
       <div className={styles.metaRow}>
         <div className={styles.metaActions}>
-          {isOwnMessage && onEdit && message.type !== "VOICE" && message.type !== "IMAGE" ? (
+          {isOwnMessage && onEdit && message.type !== "VOICE" && message.type !== "IMAGE" && message.type !== "FILE" ? (
             <button
               type="button"
               className={styles.metaActionButton}

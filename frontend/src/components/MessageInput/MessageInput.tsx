@@ -362,7 +362,7 @@ export default function MessageInput({
         <input
           ref={imageFileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp,video/*,audio/*,.pdf,.zip,.doc,.docx,.txt"
+          accept="image/jpeg,image/png,image/webp,audio/mpeg,audio/mp3,application/pdf,application/epub+zip,.mp3,.pdf,.epub"
           multiple
           className={styles.visuallyHidden}
           tabIndex={-1}

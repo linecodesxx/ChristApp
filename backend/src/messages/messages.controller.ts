@@ -42,6 +42,13 @@ const VOICE_MIME_ALLOW = new Set([
 ]);
 
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const FILE_MAX_BYTES = 50 * 1024 * 1024;
+const FILE_MIME_ALLOW = new Set([
+  'application/pdf',
+  'application/epub+zip',
+  'audio/mpeg',
+  'audio/mp3',
+]);
 
 @Controller('messages')
 export class MessagesController {
@@ -238,6 +245,73 @@ export class MessagesController {
       this.logger.warn('uploadImage failed', err);
       const reason = uploadErrorMessage(err);
       throw new ServiceUnavailableException(`Не удалось загрузить изображение: ${reason}`);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('file')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: FILE_MAX_BYTES },
+    }),
+  )
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body() body: ImageUploadDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+
+    if (!this.cloudinaryService.isReady()) {
+      throw new ServiceUnavailableException(
+        'Загрузка файлов недоступна: задайте CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET в .env (см. backend/.env.example).',
+      );
+    }
+
+    const rid = body.roomId.trim();
+    if (!rid) {
+      throw new BadRequestException('roomId обязателен');
+    }
+
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Нужен файл в поле file');
+    }
+
+    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
+    if (!FILE_MIME_ALLOW.has(mime)) {
+      throw new BadRequestException(`Неподдерживаемый тип файла: ${mime || '—'}`);
+    }
+
+    const mayPost = await this.messagesService.userCanPostToRoom(userId, rid);
+    if (!mayPost) {
+      throw new ForbiddenException('Нет доступа к комнате');
+    }
+
+    try {
+      const url = await this.cloudinaryService.uploadChatFile(file.buffer, file.originalname);
+      const message = await this.messagesService.createRoomMessage({
+        type: 'FILE',
+        content: file.originalname || undefined,
+        fileUrl: url,
+        senderId: userId,
+        roomId: rid,
+      });
+      await this.chatGateway.broadcastNewChatMessage(rid, message);
+      return {
+        ok: true,
+        id: message.id,
+        type: message.type,
+        fileUrl: message.fileUrl,
+        content: message.content,
+      };
+    } catch (err) {
+      this.logger.warn('uploadFile failed', err);
+      const reason = uploadErrorMessage(err);
+      throw new ServiceUnavailableException(`Не удалось загрузить файл: ${reason}`);
     }
   }
 }
