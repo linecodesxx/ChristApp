@@ -44,6 +44,7 @@ import {
   fetchAvatarLikesForUser,
   toggleAvatarLikeForUser,
 } from "@/lib/queries/avatarLikesQueries"
+import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav"
 
 const CHAT_SOCKET_URL = getDirectApiOrigin()
 const CHAT_HTTP_API = getHttpApiBase()
@@ -2046,7 +2047,9 @@ export default function ChatPageDetails() {
     })
   }, [t])
 
-  const handleDeleteOwnMessage = useCallback(
+  const canModerateMessages = useMemo(() => canSeeAdminPanelNav(user?.username), [user?.username])
+
+  const handleDeleteMessage = useCallback(
     (message: Message) => {
       if (!effectiveSocketRoomId) {
         return
@@ -2058,7 +2061,8 @@ export default function ChatPageDetails() {
         return
       }
 
-      if (!isMessageFromCurrentUser(message, user)) {
+      const isOwnMessage = isMessageFromCurrentUser(message, user)
+      if (!isOwnMessage && !canModerateMessages) {
         return
       }
 
@@ -2070,7 +2074,7 @@ export default function ChatPageDetails() {
 
       socket.emit("deleteMessage", { messageId: message.id })
     },
-    [effectiveSocketRoomId, t, user],
+    [canModerateMessages, effectiveSocketRoomId, t, user],
   )
 
   const handleOpenDmFromAvatar = useCallback((message: Message) => {
@@ -2610,8 +2614,9 @@ export default function ChatPageDetails() {
       onReplyMessage={handleReplyMessage}
       onMissingReferencedMessage={handleMissingReferencedMessage}
       onEditMessage={handleStartEditMessage}
-      onDeleteMessage={handleDeleteOwnMessage}
+      onDeleteMessage={handleDeleteMessage}
       canDeleteOwnMessages={Boolean(effectiveSocketRoomId)}
+      canModerateMessages={canModerateMessages}
       topBanner={shareJesusParchmentBanner}
       typingStatuses={typingStatuses}
       readReceiptMessageId={readReceiptMessageId}

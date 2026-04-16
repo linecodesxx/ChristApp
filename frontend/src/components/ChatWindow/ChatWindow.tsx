@@ -27,6 +27,7 @@ type ChatWindowProps = {
   onDeleteMessage?: (message: Message) => void
   onEditMessage?: (message: Message) => void
   canDeleteOwnMessages?: boolean
+  canModerateMessages?: boolean
   pinnedMessageIds?: string[]
   canPinMessages?: boolean
   onTogglePinMessage?: (message: Message) => void
@@ -55,6 +56,8 @@ type ChatWindowProps = {
 /** Мінімум повідомлень у кімнаті, щоб показати лінію Recent. */
 const MIN_MESSAGES_FOR_RECENT_LINE = 14
 const DEFAULT_RECENT_MESSAGES_COUNT = 12
+const SCROLL_DOWN_TRIGGER_MESSAGES = 20
+const CHAT_VERTICAL_GAP_PX = 10
 
 function ChatWindow({
   messages,
@@ -67,6 +70,7 @@ function ChatWindow({
   onDeleteMessage,
   onEditMessage,
   canDeleteOwnMessages = false,
+  canModerateMessages = false,
   topBanner,
   typingStatuses = [],
   readReceiptMessageId,
@@ -88,10 +92,12 @@ function ChatWindow({
   jumpToMessageRef,
 }: ChatWindowProps) {
   const t = useTranslations("chat")
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const didInitialScrollRef = useRef(false)
   const messageRefs = useRef<Map<string, HTMLElement>>(new Map())
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const [showScrollDown, setShowScrollDown] = useState(false)
   const highlightTimerRef = useRef<number | null>(null)
 
   const formatTypingLine = (statuses: Array<{ username: string; activity: "text" | "voice" }>) => {
@@ -126,6 +132,7 @@ function ChatWindow({
     didInitialScrollRef.current = false
     messageRefs.current.clear()
     setHighlightedMessageId(null)
+    setShowScrollDown(false)
     if (highlightTimerRef.current !== null) {
       window.clearTimeout(highlightTimerRef.current)
       highlightTimerRef.current = null
@@ -146,6 +153,55 @@ function ChatWindow({
     bottomRef.current?.scrollIntoView({ behavior: didInitialScrollRef.current ? "smooth" : "auto" })
     didInitialScrollRef.current = true
   }, [messages.length, typingStatusesKey])
+
+  const estimateScrollDownThresholdPx = useCallback(() => {
+    const lastMessages = messages.slice(-SCROLL_DOWN_TRIGGER_MESSAGES)
+    if (lastMessages.length === 0) {
+      return 0
+    }
+
+    const measuredHeight = lastMessages.reduce((total, message) => {
+      const element = messageRefs.current.get(message.id)
+      return total + (element?.offsetHeight ?? 0)
+    }, 0)
+
+    const fallbackAverageHeight = 76
+    const fallbackHeight = fallbackAverageHeight * lastMessages.length
+    const baseHeight = measuredHeight > 0 ? measuredHeight : fallbackHeight
+    const gapHeight = Math.max(0, lastMessages.length - 1) * CHAT_VERTICAL_GAP_PX
+
+    return baseHeight + gapHeight
+  }, [messages])
+
+  const updateScrollDownVisibility = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) {
+      return
+    }
+
+    const distanceFromBottom = container.scrollHeight - container.clientHeight - container.scrollTop
+    const thresholdPx = estimateScrollDownThresholdPx()
+    setShowScrollDown(distanceFromBottom > thresholdPx)
+  }, [estimateScrollDownThresholdPx])
+
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) {
+      return
+    }
+
+    const onScroll = () => updateScrollDownVisibility()
+    container.addEventListener("scroll", onScroll, { passive: true })
+    updateScrollDownVisibility()
+
+    return () => {
+      container.removeEventListener("scroll", onScroll)
+    }
+  }, [updateScrollDownVisibility])
+
+  useEffect(() => {
+    updateScrollDownVisibility()
+  }, [messages.length, updateScrollDownVisibility])
 
   const typingLine = formatTypingLine(typingStatuses)
   const typingBlock =
@@ -216,6 +272,7 @@ function ChatWindow({
         onDelete={onDeleteMessage}
         onEdit={onEditMessage}
         canDeleteOwnMessage={canDeleteOwnMessages}
+        canDeleteAnyMessage={canModerateMessages}
         showReadReceipt={Boolean(readReceiptUsers.length || (readReceiptMessageId && readReceiptMessageId === message.id))}
         readReceiptUsers={readReceiptUsers}
         readReceiptAvatarSrc={readReceiptAvatarSrc}
@@ -236,38 +293,57 @@ function ChatWindow({
     </div>
   )
 
+  const handleScrollToBottom = useCallback(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+  }, [])
+
   return (
-    <div className={styles.chatWindow}>
-      {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
-      {messages.length === 0 ? (
-        <>
-          <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
-          {typingBlock}
-          <div ref={bottomRef} />
-        </>
-      ) : (
-        <>
-          {recentSplitIndex == null ? (
-            messages.map((message) => renderBubble(message))
-          ) : (
-            <>
-              {messages.slice(0, recentSplitIndex).map((message) => renderBubble(message))}
-              <div
-                className={styles.recentDivider}
-                role="separator"
-                aria-label={t("recentDividerAria")}
-              >
-                <span className={styles.recentDividerLine} aria-hidden />
-                <span className={styles.recentDividerLabel}>{t("recentDividerLabel")}</span>
-                <span className={styles.recentDividerLine} aria-hidden />
-              </div>
-              {messages.slice(recentSplitIndex).map((message) => renderBubble(message))}
-            </>
-          )}
-          {typingBlock}
-          <div ref={bottomRef} />
-        </>
-      )}
+    <div className={styles.chatWindowFrame}>
+      <div className={styles.chatWindow} ref={scrollContainerRef}>
+        {topBanner ? <div className={styles.topBanner}>{topBanner}</div> : null}
+        {messages.length === 0 ? (
+          <>
+            <p className={styles.empty}>{topBanner ? "" : t("chatEmpty")}</p>
+            {typingBlock}
+            <div ref={bottomRef} />
+          </>
+        ) : (
+          <>
+            {recentSplitIndex == null ? (
+              messages.map((message) => renderBubble(message))
+            ) : (
+              <>
+                {messages.slice(0, recentSplitIndex).map((message) => renderBubble(message))}
+                <div
+                  className={styles.recentDivider}
+                  role="separator"
+                  aria-label={t("recentDividerAria")}
+                >
+                  <span className={styles.recentDividerLine} aria-hidden />
+                  <span className={styles.recentDividerLabel}>{t("recentDividerLabel")}</span>
+                  <span className={styles.recentDividerLine} aria-hidden />
+                </div>
+                {messages.slice(recentSplitIndex).map((message) => renderBubble(message))}
+              </>
+            )}
+            {typingBlock}
+            <div ref={bottomRef} />
+          </>
+        )}
+      </div>
+
+      {showScrollDown ? (
+        <button
+          type="button"
+          className={styles.scrollDownButton}
+          onClick={handleScrollToBottom}
+          aria-label={t("scrollToLatestAria")}
+          title={t("scrollToLatest")}
+        >
+          <span aria-hidden>↓</span>
+          <span>{t("scrollToLatest")}</span>
+        </button>
+      ) : null}
     </div>
   )
 }

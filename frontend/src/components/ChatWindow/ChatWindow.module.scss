@@ -3,6 +3,13 @@
   width: 100%;
 }
 
+.chatWindowFrame {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+
 .chatWindow {
   display: flex;
   flex-direction: column;
@@ -19,6 +26,46 @@
     content: "";
     display: block;
     height: 10px;
+  }
+}
+
+.scrollDownButton {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  z-index: 8;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 70%, var(--accent) 25%);
+  background: color-mix(in srgb, var(--surface-elevated) 82%, transparent);
+  color: var(--foreground);
+  border-radius: 999px;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: "Inter", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 8px 24px -14px rgba(0, 0, 0, 0.35),
+    0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: scrollDownIn 0.22s ease-out;
+
+  &:hover {
+    background: color-mix(in srgb, var(--accent-soft) 22%, var(--surface-elevated));
+    border-color: color-mix(in srgb, var(--accent) 36%, var(--line-soft));
+  }
+}
+
+@media (max-width: 720px) {
+  .scrollDownButton {
+    right: 10px;
+    bottom: 12px;
+    padding: 7px 11px;
+    font-size: 11px;
   }
 }
 
@@ -170,5 +217,17 @@ html[data-theme="light"] .recentDividerLine {
   30% {
     opacity: 1;
     transform: translateY(-4px) scale(1.12);
+  }
+}
+
+@keyframes scrollDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }

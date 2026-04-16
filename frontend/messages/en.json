@@ -289,6 +289,8 @@
     "chatEmpty": "No messages yet.",
     "recentDividerAria": "Recent messages below",
     "recentDividerLabel": "Recent",
+    "scrollToLatest": "To latest",
+    "scrollToLatestAria": "Scroll to latest messages",
     "typingVoiceStatus": "{name} is recording a voice message",
     "typingTextStatus": "{name} is typing",
     "typingTwo": "{first} and {second} are typing",
