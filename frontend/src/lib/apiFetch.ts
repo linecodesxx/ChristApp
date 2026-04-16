@@ -129,6 +129,10 @@ const apiClient: Axios = axios.create({
   validateStatus: () => true,
 })
 
+/**
+ * 401 → один спільний refresh через `refreshToken()` у `authSession.ts` (mutex + черга),
+ * потім повтор запиту з новим Bearer.
+ */
 apiClient.interceptors.response.use(async (response) => {
   const originalRequest = response.config as AxiosRequestConfig & {
     _authRetryAttempted?: boolean

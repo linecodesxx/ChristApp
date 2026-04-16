@@ -19,7 +19,8 @@
 ## Текущая модель авторизации
 
 - Access token (JWT): живет 7 дней.
-- Refresh token: HttpOnly cookie, сессия хранится в таблице `RefreshSession` (обычно 30 дней).
+- Refresh token: HttpOnly cookie, сессия хранится в таблице `RefreshSession` (по умолчанию 7 дней, `JWT_REFRESH_DAYS`).
+- При ротации refresh старая строка помечается `isRevoked` и ещё ~30 секунд принимает повторный refresh с тем же cookie (тот же access JWT), чтобы не ловить race из двух параллельных запросов.
 - Клиент сначала пытается использовать уже сохраненный access token.
 - Refresh выполняется только когда нужен новый токен.
 - Ошибки сети и временная недоступность backend не считаются причиной немедленного logout.
@@ -36,15 +37,16 @@
 Зачем:
 - Для браузера запрос становится same-origin к фронту, а не прямым cross-origin к backend.
 
-### 2) Rewrites в Next.js
+### 2) Rewrites в Next.js и на Vercel
 
 Файл: `frontend/next.config.ts`
 
-- Настроен rewrite:
+- Локально / `next dev`: rewrite
   - `/api/nest/:path* -> ${BACKEND_PROXY_TARGET || NEXT_PUBLIC_API_URL || http://127.0.0.1:3001}/:path*`
+- На деплое Vercel (`VERCEL=1`) rewrites из `next.config.ts` отключены; edge-правила задаются в `frontend/vercel.json` (тот же `/api/nest/:path*` → прод-бэкенд, например Render).
 
 Зачем:
-- Прозрачный прокси всех HTTP вызовов к Nest API.
+- Прозрачный прокси всех HTTP вызовов к Nest API и first-party origin для кук в PWA.
 
 ### 3) Отдельный auth proxy route для cookie-операций
 
@@ -76,6 +78,8 @@
 - Сначала используется существующий access token из памяти/storage.
 - Если `/auth/me` дал 401/403, только тогда выполняется refresh.
 - При не-auth ошибках не происходит немедленный reset всей сессии.
+- В режиме PWA `standalone` первый запуск `initializeApp` откладывается на 500 ms в `AuthSessionSync` (iOS: сеть/куки).
+- Опционально: `NEXT_PUBLIC_DEBUG_PWA_AUTH=1` — `alert` в том же потоке (только в standalone).
 
 Зачем:
 - Убирает ложные logout при временных сбоях сети.
@@ -146,6 +150,7 @@
 
 - `CORS_ORIGIN` = точный origin фронта.
 - `JWT_ACCESS_EXPIRES_IN=7d`.
+- `JWT_REFRESH_DAYS=7` (срок HttpOnly refresh-куки и строки в `RefreshSession`).
 
 ## Почему это должно работать в Safari PWA
 

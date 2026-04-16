@@ -96,6 +96,39 @@ export class CloudinaryService {
     });
   }
 
+  /** Документи/аудіо-файли в чат (папка `christapp/chat-files`). */
+  async uploadChatFile(buffer: Buffer, originalFilename?: string): Promise<string> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/chat-files',
+          resource_type: 'auto',
+          use_filename: true,
+          unique_filename: true,
+          filename_override: originalFilename,
+        },
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const url = result?.secure_url;
+          if (!url) {
+            reject(new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve(url);
+        },
+      );
+
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
   /**
   * Аватар: один ресурс на користувача (public_id = userId), перезапис при новому завантаженні.
   * У БД зберігається лише secure_url.

@@ -59,9 +59,14 @@ model RefreshSession {
   tokenHash String   @unique
   expiresAt DateTime
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// After rotation, old row is kept ~30s so a duplicate refresh with the same cookie replays the same access JWT.
+  isRevoked        Boolean   @default(false)
+  revokedAt        DateTime?
+  graceAccessToken String?
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([isRevoked, revokedAt])
 }
 
 enum MessageType {

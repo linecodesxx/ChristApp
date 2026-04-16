@@ -51,6 +51,12 @@ const REPLY_META_SUFFIX = "]]"
 const MAX_REPLY_PREVIEW_LENGTH = 180
 const MAX_ATTACHMENT_SIZE_BYTES = 50 * 1024 * 1024
 const ALLOWED_IMAGE_ATTACHMENT_TYPES = new Set(["image/jpeg", "image/png", "image/webp"])
+const ALLOWED_FILE_ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "application/epub+zip",
+  "audio/mpeg",
+  "audio/mp3",
+])
 type AppSocket = ReturnType<typeof createSocket>
 
 type IncomingSocketMessage = {
@@ -2157,6 +2163,63 @@ export default function ChatPageDetails() {
     [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
   )
 
+  const handleSendFile = useCallback(
+    async (chatFile: File): Promise<boolean> => {
+      const targetRoomId = effectiveSocketRoomId
+      if (!targetRoomId || !chatFile?.size) {
+        return false
+      }
+
+      if (routeRoomId === user?.id) {
+        return false
+      }
+
+      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+        setSendNotice(t("roomConnecting"))
+        return false
+      }
+
+      if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+          openingDirectRoomRef.current.add(routeRoomId)
+          socketRef.current?.emit("openDirectRoom", { targetUserId: routeRoomId })
+        }
+        setSendNotice(t("roomNotReady"))
+        return false
+      }
+
+      const token = (await ensureAccessToken().catch(() => null)) ?? getAuthToken()
+      if (!token) {
+        setSendNotice(t("noAuthTokenNotice"))
+        return false
+      }
+
+      const formData = new FormData()
+      formData.append("file", chatFile)
+      formData.append("roomId", targetRoomId)
+
+      setSendNotice(null)
+      try {
+        const response = await apiFetch(`${CHAT_HTTP_API}/messages/file`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        })
+
+        if (!response.ok) {
+          const text = (await response.text()).trim()
+          setSendNotice(text.slice(0, 280) || t("fileSendFailed"))
+          return false
+        }
+        return true
+      } catch {
+        setSendNotice(t("fileSendFailed"))
+        return false
+      }
+    },
+    [effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t, user?.id],
+  )
+
   const handleSelectAttachments = useCallback(
     async (files: File[]) => {
       if (!files.length) return
@@ -2167,7 +2230,7 @@ export default function ChatPageDetails() {
         return
       }
 
-      let sentImages = 0
+      let sentCount = 0
       const unsupportedNames: string[] = []
 
       for (const file of files) {
@@ -2175,7 +2238,14 @@ export default function ChatPageDetails() {
         if (ALLOWED_IMAGE_ATTACHMENT_TYPES.has(mimeType)) {
           const sent = await handleSendImage(file)
           if (sent) {
-            sentImages += 1
+            sentCount += 1
+          }
+          continue
+        }
+        if (ALLOWED_FILE_ATTACHMENT_TYPES.has(mimeType)) {
+          const sent = await handleSendFile(file)
+          if (sent) {
+            sentCount += 1
           }
           continue
         }
@@ -2186,19 +2256,19 @@ export default function ChatPageDetails() {
         const unsupportedPreview = unsupportedNames.slice(0, 2).join(", ")
         const restCount = unsupportedNames.length - 2
         setSendNotice(
-          t("imagesOnly", {
+          t("allowedFilesOnly", {
             list: unsupportedPreview,
-            more: restCount > 0 ? t("imagesOnlyMore", { count: restCount }) : "",
+            more: restCount > 0 ? t("allowedFilesOnlyMore", { count: restCount }) : "",
           }),
         )
         return
       }
 
-      if (sentImages > 0) {
+      if (sentCount > 0) {
         setSendNotice(null)
       }
     },
-    [handleSendImage, t],
+    [handleSendFile, handleSendImage, t],
   )
 
   const handleSendSticker = useCallback(

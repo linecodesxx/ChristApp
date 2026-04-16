@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { AUTH_CHANGED_EVENT, getAuthToken, isPwaStandaloneClient } from "@/lib/auth"
 import { initializeApp, isUnauthorizedAuthError, logout, refreshToken } from "@/lib/authSession"
 import { getJwtExpiresAt } from "@/lib/jwtUser"
 
@@ -170,9 +170,26 @@ export default function AuthSessionSync() {
       }
     }
 
-    void initializeApp().then(() => {
-      void refreshIfNeeded()
-    })
+    const runInitialSync = () => {
+      if (process.env.NEXT_PUBLIC_DEBUG_PWA_AUTH === "1" && isPwaStandaloneClient()) {
+        try {
+          window.alert(`Debug LS: ${Boolean(window.localStorage.getItem("christ_access_token"))}`)
+        } catch {
+          // ignore
+        }
+      }
+      void initializeApp().then(() => {
+        void refreshIfNeeded()
+      })
+    }
+
+    // PWA (standalone): пауза перед первым /refresh и /me — сетевой стек iOS чаще успевает поднять куки.
+    const bootstrapDelayId = isPwaStandaloneClient()
+      ? window.setTimeout(runInitialSync, 500)
+      : null
+    if (bootstrapDelayId === null) {
+      runInitialSync()
+    }
 
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
     window.addEventListener("focus", onFocus)
@@ -180,6 +197,9 @@ export default function AuthSessionSync() {
     document.addEventListener("visibilitychange", onVisibilityChange)
 
     return () => {
+      if (bootstrapDelayId !== null) {
+        window.clearTimeout(bootstrapDelayId)
+      }
       clearScheduledRefresh()
       stopRecoveryUi()
       window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
