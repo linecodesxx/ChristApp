@@ -43,6 +43,11 @@ const AUTH_UNAUTHORIZED_ERROR_NAME = "AuthUnauthorizedError"
 
 const API_URL = getHttpApiBase()
 
+// Cookie-sensitive auth operations go through our same-origin Next.js proxy so
+// that Safari PWA (which blocks cross-site cookies) can still authenticate.
+// The proxy is at /api/auth/[...path] and re-issues Set-Cookie on the Vercel domain.
+const AUTH_PROXY_URL = "/api/auth"
+
 let authSnapshot: AuthSnapshot = {
   initialized: false,
   user: null,
@@ -86,7 +91,7 @@ export function isUnauthorizedAuthError(error: unknown): boolean {
 }
 
 async function refreshRequest(): Promise<AuthSessionPayload> {
-  const response = await fetch(`${API_URL}/auth/refresh`, {
+  const response = await fetch(`${AUTH_PROXY_URL}/auth/refresh`, {
     method: "POST",
     credentials: "include",
     cache: "no-store",
@@ -269,7 +274,7 @@ export async function initializeApp(): Promise<void> {
 }
 
 export async function loginWithPassword(email: string, password: string): Promise<AuthSessionPayload> {
-  const response = await fetch(`${API_URL}/login`, {
+  const response = await fetch(`${AUTH_PROXY_URL}/login`, {
     method: "POST",
     credentials: "include",
     headers: {
@@ -326,7 +331,7 @@ export async function logout(options?: { redirectTo?: string; callBackend?: bool
 
     if (callBackend) {
       try {
-        await fetch(`${API_URL}/auth/logout`, {
+        await fetch(`${AUTH_PROXY_URL}/auth/logout`, {
           method: "POST",
           credentials: "include",
         })
