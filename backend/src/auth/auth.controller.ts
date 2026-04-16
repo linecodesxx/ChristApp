@@ -20,18 +20,20 @@ export class AuthController {
   @Post('register')
   register(
     @Body() dto: RegisterDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.register(dto, res);
+    return this.authService.register(dto, res, req);
   }
 
   @Post('login')
   @HttpCode(200)
   login(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    return this.authService.login(dto, res);
+    return this.authService.login(dto, res, req);
   }
 
   @Post('auth/refresh')
