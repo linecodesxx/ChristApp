@@ -13,7 +13,8 @@ import { useRouter } from "@/i18n/navigation"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { useAuth } from "@/hooks/useAuth"
-import { getAuthToken } from "@/lib/auth"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { ensureAccessToken } from "@/lib/authSession"
 import { apiFetch } from "@/lib/apiFetch"
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
 import { showChatNotification } from "@/lib/notifications"
@@ -23,6 +24,7 @@ import Image from "next/image"
 import { GLOBAL_ROOM_ID, GLOBAL_ROOM_SLUG, SHARE_WITH_JESUS_ROOM_PREFIX, SHARE_WITH_JESUS_SLUG } from "@/lib/chatRooms"
 import { chatMessagePreview } from "@/lib/chatMessagePreview"
 import { buildStickerMessagePayload } from "@/lib/stickerMessage"
+import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat"
 import { type StickerItem } from "@/components/StickerPicker/StickerPicker"
 import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
@@ -474,6 +476,7 @@ export default function ChatPageDetails() {
   const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null)
   const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
   const [pendingOutgoingCall, setPendingOutgoingCall] = useState<IncomingCallPayload | null>(null)
+  const [socketAuthEpoch, setSocketAuthEpoch] = useState(0)
   const userIdRef = useRef<string | undefined>(undefined)
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null)
   const outgoingCallTimeoutRef = useRef<number | null>(null)
@@ -537,9 +540,11 @@ export default function ChatPageDetails() {
   useEffect(() => {
     routeRoomIdRef.current = routeRoomId
   }, [routeRoomId])
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setDirectRouteRoomId(null)
   }, [routeRoomId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     document.body.classList.add("chatRoomPage")
@@ -650,6 +655,12 @@ export default function ChatPageDetails() {
     pendingOutgoingCallRef.current = pendingOutgoingCall
   }, [pendingOutgoingCall])
 
+  useEffect(() => {
+    const onAuthChanged = () => setSocketAuthEpoch((value) => value + 1)
+    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
+    return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
+  }, [])
+
   const stopIncomingRingtone = useCallback(() => {
     if (ringtoneIntervalRef.current !== null) {
       window.clearInterval(ringtoneIntervalRef.current)
@@ -704,6 +715,7 @@ export default function ChatPageDetails() {
     return () => stopIncomingRingtone()
   }, [incomingCall, stopIncomingRingtone])
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setMessages([])
     messageIdsRef.current = new Set()
@@ -751,6 +763,7 @@ export default function ChatPageDetails() {
     setIsAvatarPreviewOpen(false)
     setIsUserProfileOpen(false)
   }, [roomId, routeRoomId, effectiveSocketRoomId])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
     const tickId = window.setInterval(() => {
@@ -781,8 +794,12 @@ export default function ChatPageDetails() {
 
     const token = getAuthToken()
     if (!token) {
-      setAuthError(roomI18nRef.current.noAuthToken)
-      setIsHistoryLoading(false)
+      void ensureAccessToken()
+        .then(() => setSocketAuthEpoch((value) => value + 1))
+        .catch(() => {
+          setAuthError(roomI18nRef.current.noAuthToken)
+          setIsHistoryLoading(false)
+        })
       return
     }
 
@@ -1384,7 +1401,7 @@ export default function ChatPageDetails() {
       socket.disconnect()
       socketRef.current = null
     }
-  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, stopIncomingRingtone, t, user])
+  }, [joinRoom, leaveCurrentRoom, loading, queryClient, requestMyRooms, router, stopIncomingRingtone, t, user, socketAuthEpoch])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
 
@@ -1537,6 +1554,7 @@ export default function ChatPageDetails() {
   const useCompactSenderNamesInGlobal = roomId === GLOBAL_ROOM_ID
   const hideOwnSenderNameInGlobal = roomId === GLOBAL_ROOM_ID
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (roomId === GLOBAL_ROOM_ID) {
       setRoomTitle(titleLabels.globalChatTitle)
@@ -1557,6 +1575,7 @@ export default function ChatPageDetails() {
       setRoomTitle(getReadableRoomTitle(roomId, roomRawTitle, user?.id, users, peer, titleLabels))
     }
   }, [directChatTargetUser, roomId, roomRawTitle, routeRoomId, titleLabels, user?.id, users])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const usersById = useMemo(() => {
     const map = new Map<string, (typeof users)[number]>()
@@ -1677,9 +1696,9 @@ export default function ChatPageDetails() {
       return null
     }
 
-    const daysInApp = Math.max(1, Math.floor((Date.now() - joinedAtTs) / (1000 * 60 * 60 * 24)) + 1)
+    const daysInApp = Math.max(1, Math.floor((nowTs - joinedAtTs) / (1000 * 60 * 60 * 24)) + 1)
     return t("profileDaysInApp", { count: daysInApp })
-  }, [directChatTargetUser?.createdAt, t])
+  }, [directChatTargetUser?.createdAt, nowTs, t])
 
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
@@ -1700,13 +1719,17 @@ export default function ChatPageDetails() {
       return t("offline")
     }
 
-    const lastSeenTs = new Date(lastSeenIso).getTime()
-    if (Number.isNaN(lastSeenTs)) {
+    const formatted = formatLastSeenRelative(lastSeenIso, nowTs, {
+      seconds: (count) => t("lastSeenSeconds", { count }),
+      minutes: (count) => t("lastSeenMinutes", { count }),
+      hours: (count) => t("lastSeenHours", { count }),
+    })
+
+    if (!formatted) {
       return t("offline")
     }
 
-    const minutesAgo = Math.max(1, Math.floor((nowTs - lastSeenTs) / (60 * 1000)))
-    return t("lastSeenMinutes", { count: minutesAgo })
+    return formatted
   }
 
   const statusLine = isHistoryLoading
@@ -1966,12 +1989,10 @@ export default function ChatPageDetails() {
       setSendNotice(t("callNoAnswerNotice"))
     }, 30_000)
   }, [
-    directChatTargetUser?.avatarUrl,
-    directChatTargetUser?.nickname,
-    directChatTargetUser?.username,
+    directChatTargetUser,
     directChatTargetUserId,
     t,
-    user?.id,
+    user,
   ])
 
   async function handleSend(text: string, replyTarget?: Message | null) {
@@ -2044,7 +2065,7 @@ export default function ChatPageDetails() {
         return false
       }
 
-      const token = getAuthToken()
+      const token = (await ensureAccessToken().catch(() => null)) ?? getAuthToken()
       if (!token) {
         setSendNotice(t("noAuthTokenNotice"))
         return false
@@ -2104,7 +2125,7 @@ export default function ChatPageDetails() {
         return false
       }
 
-      const token = getAuthToken()
+      const token = (await ensureAccessToken().catch(() => null)) ?? getAuthToken()
       if (!token) {
         setSendNotice(t("noAuthTokenNotice"))
         return false

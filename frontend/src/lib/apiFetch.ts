@@ -1,9 +1,11 @@
 import axios, {
+  Axios,
   type AxiosHeaders,
   type AxiosRequestConfig,
   type AxiosError,
   type Method,
 } from "axios"
+import { logout, refreshToken } from "@/lib/authSession"
 
 export type ApiFetchInit = RequestInit & {
   /** Таймаут для холодного старту / «засинаючого» API (AbortError при перевищенні). */
@@ -56,7 +58,10 @@ async function axiosRequestAsWebResponse(
 
   const timeout = init.timeoutMs != null && init.timeoutMs > 0 ? init.timeoutMs : undefined
 
-  const cfg: AxiosRequestConfig = {
+  const cfg: AxiosRequestConfig & {
+    _authRetryAttempted?: boolean
+    _skipAuthRefresh?: boolean
+  } = {
     url,
     method,
     headers,
@@ -69,7 +74,7 @@ async function axiosRequestAsWebResponse(
   }
 
   try {
-    const r = await axios.request<ArrayBuffer>(cfg)
+    const r = await apiClient.request<ArrayBuffer>(cfg)
     const outHeaders = new Headers()
     const raw = r.headers
     const flat =
@@ -110,96 +115,58 @@ async function axiosRequestAsWebResponse(
 export function apiFetch(input: string | URL, init: ApiFetchInit = {}): Promise<Response> {
   const { timeoutMs, signal: outerSignal, _authRetryAttempted, ...rest } = init
   const url = typeof input === "string" ? input : input.href
+  return axiosRequestAsWebResponse(url, {
+    ...rest,
+    signal: outerSignal,
+    timeoutMs,
+    _authRetryAttempted,
+  } as RequestInit & { timeoutMs?: number; _authRetryAttempted?: boolean })
+}
 
-  const fetchWithTimeout = (requestInit: RequestInit): Promise<Response> => {
-    return axiosRequestAsWebResponse(url, {
-      ...requestInit,
-      timeoutMs,
-    })
+const apiClient: Axios = axios.create({
+  withCredentials: true,
+  responseType: "arraybuffer",
+  validateStatus: () => true,
+})
+
+apiClient.interceptors.response.use(async (response) => {
+  const originalRequest = response.config as AxiosRequestConfig & {
+    _authRetryAttempted?: boolean
+    _skipAuthRefresh?: boolean
   }
 
-  const currentUrl = url
-  const isRefreshRequest = currentUrl.includes("/auth/refresh")
-  const authHeaderRaw =
-    rest.headers instanceof Headers
-      ? rest.headers.get("Authorization")
-      : Array.isArray(rest.headers)
-        ? rest.headers.find(([key]) => key.toLowerCase() === "authorization")?.[1] ?? null
-        : (rest.headers?.["Authorization" as keyof typeof rest.headers] as string | null | undefined) ??
-          (rest.headers?.["authorization" as keyof typeof rest.headers] as string | null | undefined) ??
-          null
-  const hasBearerAuth =
-    typeof authHeaderRaw === "string" && authHeaderRaw.toLowerCase().startsWith("bearer ")
+  const requestUrl = String(originalRequest.url ?? "")
+  const isRefreshRequest = requestUrl.includes("/auth/refresh")
+  const authHeader = String(
+    (originalRequest.headers as Record<string, unknown> | undefined)?.Authorization ??
+      (originalRequest.headers as Record<string, unknown> | undefined)?.authorization ??
+      "",
+  )
+  const hasBearerAuth = authHeader.toLowerCase().startsWith("bearer ")
 
-  return fetchWithTimeout(rest).then(async (response) => {
-    if (
-      response.status !== 401 ||
-      _authRetryAttempted ||
-      isRefreshRequest ||
-      !hasBearerAuth ||
-      typeof window === "undefined"
-    ) {
-      return response
-    }
+  if (
+    response.status !== 401 ||
+    isRefreshRequest ||
+    originalRequest._skipAuthRefresh ||
+    originalRequest._authRetryAttempted ||
+    !hasBearerAuth ||
+    typeof window === "undefined"
+  ) {
+    return response
+  }
 
-    const refreshed = await refreshAccessTokenOnce(timeoutMs)
-    if (!refreshed) {
-      return response
-    }
-
-    const { getAuthToken } = await import("@/lib/auth")
-    const nextToken = getAuthToken()
-    if (!nextToken) {
-      return response
-    }
-
-    const nextHeaders = new Headers(rest.headers)
+  try {
+    const nextToken = await refreshToken()
+    const nextHeaders = new Headers(originalRequest.headers as HeadersInit | undefined)
     nextHeaders.set("Authorization", `Bearer ${nextToken}`)
-    return fetchWithTimeout({
-      ...rest,
-      headers: nextHeaders,
-      signal: outerSignal,
+
+    return await apiClient.request({
+      ...originalRequest,
+      headers: Object.fromEntries(nextHeaders.entries()),
+      _authRetryAttempted: true,
     })
-  })
-}
-
-let refreshInFlight: Promise<boolean> | null = null
-
-async function refreshAccessTokenOnce(timeoutMs?: number): Promise<boolean> {
-  if (refreshInFlight) {
-    return refreshInFlight
+  } catch {
+    await logout({ callBackend: false })
+    return response
   }
-
-  refreshInFlight = (async () => {
-    try {
-      const { getHttpApiBase } = await import("@/lib/apiBase")
-      const { setAuthToken, clearAuthToken } = await import("@/lib/auth")
-      const refreshUrl = `${getHttpApiBase()}/auth/refresh`
-      const response = await apiFetch(refreshUrl, {
-        method: "POST",
-        timeoutMs,
-        _authRetryAttempted: true,
-      })
-
-      if (!response.ok) {
-        clearAuthToken()
-        return false
-      }
-
-      const payload = (await response.json()) as { access_token?: string }
-      if (typeof payload.access_token !== "string" || payload.access_token.length === 0) {
-        clearAuthToken()
-        return false
-      }
-
-      setAuthToken(payload.access_token)
-      return true
-    } catch {
-      return false
-    }
-  })().finally(() => {
-    refreshInFlight = null
-  })
-
-  return refreshInFlight
-}
+})

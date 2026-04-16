@@ -5,7 +5,7 @@ import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser, type IMicroph
 import { AnimatePresence, motion } from "framer-motion"
 import { Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
-import { getAuthToken } from "@/lib/auth"
+import { ensureAccessToken } from "@/lib/authSession"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { apiFetch } from "@/lib/apiFetch"
@@ -24,8 +24,6 @@ const HTTP_API = getHttpApiBase()
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID?.trim() ?? ""
 
 export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUrl, onClose }: CallScreenProps) {
-  if (typeof window === "undefined") return null
-
   const clientRef = useRef<IAgoraRTCClient | null>(null)
   const micTrackRef = useRef<IMicrophoneAudioTrack | null>(null)
   const remoteTracksRef = useRef<Map<string, IAgoraRTCRemoteUser["audioTrack"]>>(new Map())
@@ -90,7 +88,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
         return
       }
 
-      const token = getAuthToken()
+      const token = await ensureAccessToken().catch(() => null)
       if (!token) {
         setStatus("No auth token")
         return
@@ -231,6 +229,10 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
       setIsHangingUp(false)
     }
   }, [cleanupCall, onClose])
+
+  if (typeof window === "undefined") {
+    return null
+  }
 
   return (
     <AnimatePresence>

@@ -1,7 +1,6 @@
-import { AUTH_COOKIE_NAME, isAuthenticated } from "@/lib/auth"
 import { routing } from "@/i18n/routing"
 import createMiddleware from "next-intl/middleware"
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 
 const intlMiddleware = createMiddleware(routing)
 
@@ -30,22 +29,6 @@ export default function middleware(request: NextRequest) {
   const stripped = pathnameWithoutLang(request.nextUrl.pathname)
   if (stripped === null) {
     return response
-  }
-
-  const publicRoutes = ["/", "/register", "/offline"]
-  const isPublic = publicRoutes.some(
-    (route) => stripped === route || stripped.startsWith(`${route}/`),
-  )
-
-  if (isPublic) {
-    return response
-  }
-
-  const cookieValue = request.cookies.get(AUTH_COOKIE_NAME)?.value
-  if (!isAuthenticated(cookieValue)) {
-    const seg = request.nextUrl.pathname.split("/")[1]
-    const safeLang = langs.includes(seg as (typeof langs)[number]) ? seg : routing.defaultLang
-    return NextResponse.redirect(new URL(`/${safeLang}`, request.url))
   }
 
   return response

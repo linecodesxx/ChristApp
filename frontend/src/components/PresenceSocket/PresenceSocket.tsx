@@ -3,11 +3,11 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import createSocket from "socket.io-client"
 import { getDirectApiOrigin } from "@/lib/apiBase"
-import { getAuthToken } from "@/lib/auth"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { ensureAccessToken } from "@/lib/authSession"
 import { usePathname } from "@/i18n/navigation"
 
 const WS_URL = getDirectApiOrigin()
-const TOKEN_SYNC_INTERVAL_MS = 4000
 type PresenceSocket = ReturnType<typeof createSocket>
 
 type PresenceSocketContextValue = {
@@ -37,22 +37,41 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
   const [isConnected, setIsConnected] = useState(false)
 
   useEffect(() => {
-    const syncPresenceSocket = () => {
-      const token = getAuthToken()
+    const disconnectSocket = () => {
+      currentTokenRef.current = null
+      setIsConnected(false)
+      if (socketRef.current) {
+        socketRef.current.disconnect()
+        socketRef.current = null
+      }
+      setSocket(null)
+    }
 
-      if (!token || !shouldUsePresenceSocket) {
-        currentTokenRef.current = null
-        setIsConnected(false)
-        if (socketRef.current) {
-          socketRef.current.disconnect()
-          socketRef.current = null
+    const syncPresenceSocket = async () => {
+      if (!shouldUsePresenceSocket) {
+        disconnectSocket()
+        return
+      }
+
+      let token = getAuthToken()
+      if (!token) {
+        try {
+          token = await ensureAccessToken()
+        } catch {
+          token = null
         }
-        setSocket(null)
+      }
+
+      if (!token) {
+        disconnectSocket()
         return
       }
 
       const hasTokenChanged = currentTokenRef.current !== token
       if (socketRef.current && !hasTokenChanged) {
+        if (!socketRef.current.connected) {
+          socketRef.current.connect()
+        }
         return
       }
 
@@ -73,25 +92,21 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       currentTokenRef.current = token
     }
 
-    syncPresenceSocket()
+    void syncPresenceSocket()
 
-    const intervalId = window.setInterval(syncPresenceSocket, TOKEN_SYNC_INTERVAL_MS)
-    window.addEventListener("focus", syncPresenceSocket)
-    window.addEventListener("storage", syncPresenceSocket)
-    document.addEventListener("visibilitychange", syncPresenceSocket)
+    const onAuthChanged = () => {
+      void syncPresenceSocket()
+    }
+
+    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
+    window.addEventListener("focus", onAuthChanged)
+    document.addEventListener("visibilitychange", onAuthChanged)
 
     return () => {
-      window.clearInterval(intervalId)
-      window.removeEventListener("focus", syncPresenceSocket)
-      window.removeEventListener("storage", syncPresenceSocket)
-      document.removeEventListener("visibilitychange", syncPresenceSocket)
-
-      if (socketRef.current) {
-        socketRef.current.disconnect()
-        socketRef.current = null
-      }
-      setSocket(null)
-      setIsConnected(false)
+      window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
+      window.removeEventListener("focus", onAuthChanged)
+      document.removeEventListener("visibilitychange", onAuthChanged)
+      disconnectSocket()
     }
   }, [shouldUsePresenceSocket])
 

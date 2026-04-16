@@ -56,12 +56,22 @@
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  border-radius: 16px 16px 16px 0;
-  border: 1px solid var(--line-soft);
-  background: var(--surface-elevated);
-  color: var(--foreground);
-  box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
+  // border-radius: 16px 16px 16px 0;
+  // border: 1px solid var(--line-soft);
+  // background: var(--surface-elevated);
+  // color: var(--foreground);
+  // box-shadow: 0 1px 3px rgba(38, 28, 16, 0.08);
   transition: all 0.2s ease-in-out;
+
+  border: 1px solid rgba(198, 163, 84, 0.35);
+  background:
+    radial-gradient(circle at 10% 10%, rgba(246, 214, 132, 0.25) 0%, rgba(246, 214, 132, 0) 50%),
+    linear-gradient(165deg, #fdfaf3, #f4eee0);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 4px 15px -10px rgba(112, 86, 38, 0.2);
+  color: #4a3f28;
+  border-radius: 18px 18px 4px 18px;
   word-break: break-word;
   cursor: pointer;
   overflow: visible;
@@ -219,6 +229,13 @@
   animation: vip-name-pulse 2.4s ease-in-out infinite;
 }
 
+html[data-theme="light"] .vipName {
+  text-shadow:
+    0 0 6px rgb(139 220 78 / 66%),
+    0 0 14px rgba(56, 189, 248, 0.75),
+    0 0 22px rgba(52, 211, 153, 0.55);
+}
+
 @keyframes vip-name-pulse {
   0%,
   100% {
@@ -236,12 +253,11 @@
   border-radius: 12px;
   padding: 10px;
   border: 1px solid color-mix(in srgb, #d8bf7a 68%, var(--line-soft));
-  background:
-    linear-gradient(
-      130deg,
-      color-mix(in srgb, #3f2f13 46%, var(--surface-elevated)),
-      color-mix(in srgb, #d2b068 32%, var(--surface-elevated))
-    );
+  background: linear-gradient(
+    130deg,
+    color-mix(in srgb, #3f2f13 46%, var(--surface-elevated)),
+    color-mix(in srgb, #d2b068 32%, var(--surface-elevated))
+  );
   box-shadow:
     inset 0 0 0 1px color-mix(in srgb, #f2dd9f 38%, transparent),
     0 8px 20px -16px color-mix(in srgb, #caa24d 75%, transparent);
@@ -278,6 +294,16 @@
   .replyPreview {
     background: color-mix(in srgb, var(--surface-elevated) 45%, var(--accent-soft) 55%);
   }
+}
+
+html[data-theme="light"] .myBubble {
+  border: 1px solid rgba(198, 163, 84, 0.42);
+  background:
+    radial-gradient(circle at 16% 6%, rgba(246, 214, 132, 0.28) 0%, rgba(246, 214, 132, 0) 44%),
+    linear-gradient(164deg, rgba(244, 236, 220, 0.96), rgba(232, 223, 205, 0.96)) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 251, 238, 0.85),
+    0 12px 28px -24px rgba(112, 86, 38, 0.34);
 }
 
 html[data-theme="dark"] .myBubble {
@@ -531,12 +557,16 @@ html[data-theme="dark"] .myBubble {
 }
 
 html[data-theme="dark"] .bubble {
-  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  -webkit-backdrop-filter: blur(15px);
+  backdrop-filter: blur(15px);
   box-shadow:
-    0 4px 6px -4px rgba(196, 162, 101, 0.2),
-    0 4px 12px -3px rgba(196, 162, 101, 0.16),
-    0 0 0 0 rgba(0, 0, 0, 0),
-    0 0 0 0 rgba(0, 0, 0, 0);
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    0 4px 15px rgba(0, 0, 0, 0.2);
+  color: #f5f5f5;
+  border-radius: 18px 18px 4px 18px;
+  padding: 10px 14px;
 
   .replyPreview {
     background: color-mix(in srgb, var(--my-bubble-dark-bg) 26%, var(--surface) 74%);
