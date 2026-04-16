@@ -130,6 +130,14 @@
 
 }
 
+html:not([data-theme="dark"]) .message {
+  background: transparent;
+
+  .input {
+    background: transparent;
+  }
+}
+
 .iconButton {
   display: flex;
   align-items: center;

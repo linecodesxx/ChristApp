@@ -1,28 +1,16 @@
 "use client"
 
 import { useEffect, useRef } from "react"
-import {
-  AUTH_CHANGED_EVENT,
-  clearAuthToken,
-  getAuthToken,
-  hasClientAuthSessionHint,
-  setAuthToken,
-} from "@/lib/auth"
-import { apiFetch } from "@/lib/apiFetch"
-import { getHttpApiBase } from "@/lib/apiBase"
+import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { initializeApp, logout, refreshToken } from "@/lib/authSession"
 import { getJwtExpiresAt } from "@/lib/jwtUser"
 
 const REFRESH_SKEW_MS = 60_000
 const MIN_RETRY_MS = 15_000
 const VISIBILITY_REFRESH_WINDOW_MS = 2 * 60_000
 
-type RefreshPayload = {
-  access_token?: string
-}
-
 export default function AuthSessionSync() {
   const timeoutRef = useRef<number | null>(null)
-  const refreshInFlightRef = useRef<Promise<boolean> | null>(null)
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -59,68 +47,21 @@ export default function AuthSessionSync() {
     }
 
     const refreshAccessToken = async (): Promise<boolean> => {
-      if (refreshInFlightRef.current) {
-        return refreshInFlightRef.current
+      try {
+        await refreshToken()
+        scheduleRefreshFromToken()
+        return true
+      } catch {
+        clearScheduledRefresh()
+        await logout({ callBackend: false })
+        return false
       }
-
-      refreshInFlightRef.current = (async () => {
-        if (!hasClientAuthSessionHint()) {
-          clearScheduledRefresh()
-          return false
-        }
-
-        try {
-          const response = await apiFetch(`${getHttpApiBase()}/auth/refresh`, {
-            method: "POST",
-            timeoutMs: 18_000,
-          })
-
-          if (!response.ok) {
-            const statusUnauth = response.status === 401 || response.status === 403
-            if (statusUnauth) {
-              const token = getAuthToken()
-              const expiresAt = token ? getJwtExpiresAt(token) : null
-              const tokenExpiredOrMissing = !expiresAt || expiresAt <= Date.now()
-
-              if (tokenExpiredOrMissing) {
-                clearAuthToken()
-                clearScheduledRefresh()
-              } else {
-                scheduleRefreshFromToken()
-              }
-            } else {
-              scheduleRefreshFromToken()
-            }
-            return false
-          }
-
-          const payload = (await response.json()) as RefreshPayload
-          if (typeof payload.access_token !== "string" || payload.access_token.length === 0) {
-            scheduleRefreshFromToken()
-            return false
-          }
-
-          setAuthToken(payload.access_token)
-          scheduleRefreshFromToken()
-          return true
-        } catch {
-          scheduleRefreshFromToken()
-          return false
-        } finally {
-          refreshInFlightRef.current = null
-        }
-      })()
-
-      return refreshInFlightRef.current
     }
 
     const refreshIfNeeded = async (force: boolean) => {
       const token = getAuthToken()
 
       if (!token) {
-        if (hasClientAuthSessionHint()) {
-          await refreshAccessToken()
-        }
         return
       }
 
@@ -160,7 +101,9 @@ export default function AuthSessionSync() {
       }
     }
 
-    void refreshIfNeeded(false)
+    void initializeApp().then(() => {
+      void refreshIfNeeded(false)
+    })
 
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
     window.addEventListener("focus", onFocus)
