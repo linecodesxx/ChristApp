@@ -101,6 +101,8 @@ export class AuthService {
   }
 
   private requestMeta(req: Request): string {
+    const method = req.method || 'UNKNOWN';
+    const url = req.originalUrl || req.url || 'unknown-url';
     const ip =
       req.ip ||
       (Array.isArray(req.headers['x-forwarded-for'])
@@ -114,7 +116,7 @@ export class AuthService {
     const forwardedHost = req.headers['x-forwarded-host'] || 'no-x-forwarded-host';
     const secFetchSite = req.headers['sec-fetch-site'] || 'no-sec-fetch-site';
     const cookieHeaderPresent = typeof req.headers.cookie === 'string' && req.headers.cookie.length > 0;
-    return `ip=${ip}; host=${host}; xForwardedHost=${forwardedHost}; origin=${origin}; referer=${referer}; secFetchSite=${secFetchSite}; cookieHeaderPresent=${cookieHeaderPresent}; ua=${ua}`;
+    return `method=${method}; url=${url}; ip=${ip}; host=${host}; xForwardedHost=${forwardedHost}; origin=${origin}; referer=${referer}; secFetchSite=${secFetchSite}; cookieHeaderPresent=${cookieHeaderPresent}; ua=${ua}`;
   }
 
   private requestCookieInfo(req: Request): string {
@@ -123,15 +125,22 @@ export class AuthService {
     return `cookieNames=[${cookieNames.join(',')}]; hasRefreshCookie=${hasRefreshCookie}`;
   }
 
-  async register(dto: RegisterDto, res: Response) {
+  async register(dto: RegisterDto, res: Response, req?: Request) {
+    const meta = req ? this.requestMeta(req) : 'meta=not-provided';
     const nickname = dto.username.trim();
     const username = normalizeUsernameHandle(dto.username);
+    this.logger.log(
+      `register attempt: email=${dto.email.trim().toLowerCase()}; username=${username}; ${meta}`,
+    );
 
     const usernameTaken = await this.prisma.user.findFirst({
       where: { username },
       select: { id: true },
     });
     if (usernameTaken) {
+      this.logger.warn(
+        `register denied: username taken username=${username}; ${meta}`,
+      );
       throw new ConflictException(
         'Этот username уже занят. Выберите другой @username.',
       );
@@ -150,9 +159,18 @@ export class AuthService {
         },
       });
 
+      this.logger.log(
+        `register success: userId=${user.id}; username=${user.username}; ${meta}`,
+      );
+
       await this.issueRefreshSession(user.id, res);
       return this.buildAccessResponse(user.id);
     } catch (error) {
+      this.logger.error(
+        `register failed: username=${username}; ${meta}; reason=${
+          error instanceof Error ? error.message : 'unknown'
+        }`,
+      );
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -187,10 +205,14 @@ export class AuthService {
     }
   }
 
-  async login(dto: LoginDto, res: Response) {
+  async login(dto: LoginDto, res: Response, req?: Request) {
+    const meta = req ? this.requestMeta(req) : 'meta=not-provided';
     const identifier = dto.email.trim();
     const asEmail = identifier.toLowerCase();
     const asHandle = normalizeUsernameHandle(identifier);
+    this.logger.log(
+      `login attempt: identifier=${identifier}; asEmail=${asEmail}; asHandle=${asHandle}; ${meta}`,
+    );
 
     const user = await this.prisma.user.findFirst({
       where: {
@@ -200,7 +222,7 @@ export class AuthService {
 
     if (!user) {
       this.logger.warn(
-        `login failed: account not found for identifier=${identifier}`,
+        `login failed: account not found for identifier=${identifier}; ${meta}`,
       );
       throw new UnauthorizedException(
         'Аккаунт с таким email или username не найден. Проверьте написание или зарегистрируйтесь.',
@@ -210,14 +232,14 @@ export class AuthService {
     const valid = await bcrypt.compare(dto.password, user.password);
     if (!valid) {
       this.logger.warn(
-        `login failed: invalid password for userId=${user.id}; username=${user.username}`,
+        `login failed: invalid password for userId=${user.id}; username=${user.username}; ${meta}`,
       );
       throw new UnauthorizedException('Неверный пароль.');
     }
 
     await this.issueRefreshSession(user.id, res);
     this.logger.log(
-      `login success: userId=${user.id}; username=${user.username}; accessTtl=${this.accessExpiresIn}`,
+      `login success: userId=${user.id}; username=${user.username}; accessTtl=${this.accessExpiresIn}; ${meta}`,
     );
     return this.buildAccessResponse(user.id);
   }
@@ -236,7 +258,7 @@ export class AuthService {
       `refresh requested: tokenHash=${this.maskTokenHash(tokenHash)}; ${cookieInfo}; ${meta}`,
     );
 
-    await this.prisma.refreshSession.deleteMany({
+    const cleanup = await this.prisma.refreshSession.deleteMany({
       where: {
         isRevoked: true,
         revokedAt: {
@@ -244,6 +266,11 @@ export class AuthService {
         },
       },
     });
+    if (cleanup.count > 0) {
+      this.logger.log(
+        `refresh cleanup: deletedRevokedSessions=${cleanup.count}; ${meta}`,
+      );
+    }
 
     const session = await this.prisma.refreshSession.findUnique({
       where: { tokenHash },
@@ -256,6 +283,10 @@ export class AuthService {
       this.clearRefreshCookie(res);
       throw new UnauthorizedException();
     }
+
+    this.logger.log(
+      `refresh session found: sessionId=${session.id}; userId=${session.userId}; isRevoked=${session.isRevoked}; expiresAt=${session.expiresAt.toISOString()}; revokedAt=${session.revokedAt?.toISOString() ?? 'null'}; ${meta}`,
+    );
 
     if (session.expiresAt < new Date()) {
       this.logger.warn(
@@ -343,6 +374,9 @@ export class AuthService {
     });
 
     if (rotated.count === 0) {
+      this.logger.warn(
+        `refresh rotate race: update skipped for sessionId=${session.id}; tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+      );
       const again = await this.prisma.refreshSession.findUnique({
         where: { tokenHash },
       });
@@ -385,9 +419,9 @@ export class AuthService {
     const raw = req.cookies?.[REFRESH_TOKEN_COOKIE];
     if (raw && typeof raw === 'string') {
       const tokenHash = sha256Hex(raw);
-      await this.prisma.refreshSession.deleteMany({ where: { tokenHash } });
+      const deleted = await this.prisma.refreshSession.deleteMany({ where: { tokenHash } });
       this.logger.log(
-        `logout success: tokenHash=${this.maskTokenHash(tokenHash)}; ${meta}`,
+        `logout success: tokenHash=${this.maskTokenHash(tokenHash)}; deletedSessions=${deleted.count}; ${meta}`,
       );
     } else {
       this.logger.log(`logout without cookie; ${meta}`);
@@ -401,7 +435,7 @@ export class AuthService {
     const tokenHash = sha256Hex(raw);
     const expiresAt = new Date(Date.now() + this.refreshTtlMs);
 
-    await this.prisma.refreshSession.create({
+    const created = await this.prisma.refreshSession.create({
       data: {
         userId,
         tokenHash,
@@ -410,7 +444,7 @@ export class AuthService {
     });
 
     this.logger.log(
-      `issued refresh session: userId=${userId}; tokenHash=${this.maskTokenHash(tokenHash)}; expiresAt=${expiresAt.toISOString()}; cookieSameSite=lax; cookieSecure=${this.isCookieSecure()}; cookieMaxAgeMs=${this.refreshTtlMs}`,
+      `issued refresh session: sessionId=${created.id}; userId=${userId}; tokenHash=${this.maskTokenHash(tokenHash)}; expiresAt=${expiresAt.toISOString()}; cookieSameSite=lax; cookieSecure=${this.isCookieSecure()}; cookieMaxAgeMs=${this.refreshTtlMs}`,
     );
 
     res.cookie(
