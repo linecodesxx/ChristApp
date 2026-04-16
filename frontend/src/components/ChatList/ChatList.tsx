@@ -273,10 +273,7 @@ const ChatList = ({
   }
 
   return (
-    <section
-      className={`${styles.chatListSection} ${viewerIsVip ? styles.chatListSectionVip : ""}`}
-      data-viewer-vip={viewerIsVip ? "" : undefined}
-    >
+    <section className={styles.chatListSection}>
       {isUserPickerOpen && (
         <div className={styles.userPickerOverlay} onClick={closeUserPicker}>
           <section

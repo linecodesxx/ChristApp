@@ -100,6 +100,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
   private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🔥', '🥲', '😭', '🙏🏻']);
+  private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
+  private static readonly SOCKET_BAN_MS = 15 * 60 * 1000;
+
+  private static readonly ATTACK_PATTERNS: RegExp[] = [
+    /<\s*script\b/i,
+    /javascript\s*:/i,
+    /on(?:error|load|click|mouseover)\s*=/i,
+    /\bunion\s+select\b/i,
+    /\bdrop\s+table\b/i,
+    /\b(?:rm\s+-rf|wget\s+|curl\s+|powershell\s+-enc|cmd\.exe\b)\b/i,
+    /\.\.[/\\]/,
+    /%3c\s*script|%00|\\x[0-9a-f]{2}/i,
+  ];
 
   constructor(
     private jwt: JwtService,
@@ -110,6 +123,12 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   // userId → кількість активних з'єднань
   private onlineUsers = new Map<string, number>();
+
+  // userId → timestamps of suspicious attempts
+  private readonly suspiciousAttempts = new Map<string, number[]>();
+
+  // userId → epoch ms until blocked
+  private readonly tempBlockedUsers = new Map<string, number>();
 
   // таймер для "м'якого" офлайну (якщо вкладка швидко перезавантажується)
   private pendingDisconnectTimers = new Map<
@@ -123,6 +142,78 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userIds: Array.from(this.onlineUsers.keys()),
       count: this.onlineUsers.size,
     });
+  }
+
+  private isAttackPayload(content: string): boolean {
+    return ChatGateway.ATTACK_PATTERNS.some((pattern) => pattern.test(content));
+  }
+
+  private isUserTemporarilyBlocked(userId: string): boolean {
+    const blockedUntil = this.tempBlockedUsers.get(userId);
+    if (!blockedUntil) {
+      return false;
+    }
+    if (Date.now() >= blockedUntil) {
+      this.tempBlockedUsers.delete(userId);
+      return false;
+    }
+    return true;
+  }
+
+  private registerSuspiciousAttempt(userId: string): number {
+    const now = Date.now();
+    const recent = (this.suspiciousAttempts.get(userId) ?? []).filter(
+      (ts) => now - ts <= ChatGateway.ATTACK_WINDOW_MS,
+    );
+    recent.push(now);
+    this.suspiciousAttempts.set(userId, recent);
+    return recent.length;
+  }
+
+  private async handleSuspiciousMessage(
+    client: SocketWithUser,
+    user: SocketUser,
+    roomId: string,
+  ) {
+    const attempts = this.registerSuspiciousAttempt(user.id);
+
+    client.emit('securityFlag', {
+      level: attempts >= 2 ? 'danger' : 'warning',
+      reason: 'suspicious-message',
+      message:
+        attempts >= 2
+          ? 'Подозрительная активность. Вы временно ограничены.'
+          : 'Сообщение заблокировано системой защиты.',
+    });
+    client.emit(
+      'error',
+      attempts >= 2
+        ? 'Подозрительная активность. Доступ временно ограничен.'
+        : 'Сообщение заблокировано системой защиты.',
+    );
+
+    if (attempts === 1) {
+      return;
+    }
+
+    if (attempts === 2) {
+      await client.leave(roomId);
+      client.emit('roomModerationKick', {
+        roomId,
+        reason: 'suspicious-message',
+      });
+      return;
+    }
+
+    const blockedUntil = Date.now() + ChatGateway.SOCKET_BAN_MS;
+    this.tempBlockedUsers.set(user.id, blockedUntil);
+    client.emit('securityBlocked', {
+      until: new Date(blockedUntil).toISOString(),
+      reason: 'suspicious-message',
+      message: 'Подключение временно ограничено системой безопасности.',
+    });
+    client.emit('error', 'Подключение временно ограничено системой безопасности.');
+    client.disconnect(true);
   }
 
   private isUuid(value: string) {
@@ -215,6 +306,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       console.warn('[WS] Unauthorized socket connection');
       client.emit('error', 'Не авторизован');
       client.disconnect();
+      return;
+    }
+
+    if (this.isUserTemporarilyBlocked(user.id)) {
+      const blockedUntil = this.tempBlockedUsers.get(user.id) ?? Date.now();
+      client.emit('securityBlocked', {
+        until: new Date(blockedUntil).toISOString(),
+        reason: 'temporary-block',
+        message: 'Подключение временно ограничено системой безопасности.',
+      });
+      client.emit('error', 'Подключение временно ограничено системой безопасности.');
+      client.disconnect(true);
       return;
     }
 
@@ -1130,6 +1233,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const user = await this.resolveSocketUser(client);
     if (!user) return;
 
+    if (this.isUserTemporarilyBlocked(user.id)) {
+      const blockedUntil = this.tempBlockedUsers.get(user.id) ?? Date.now();
+      client.emit('securityBlocked', {
+        until: new Date(blockedUntil).toISOString(),
+        reason: 'temporary-block',
+        message: 'Отправка сообщений временно ограничена системой безопасности.',
+      });
+      client.emit('error', 'Отправка сообщений временно ограничена системой безопасности.');
+      client.disconnect(true);
+      return;
+    }
+
     const { roomId, content } = body;
 
     if (!roomId) {
@@ -1140,6 +1255,18 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     // Не надсилаємо порожні повідомлення
     if (!content?.trim()) return;
 
+    const normalizedContent = content.trim();
+
+    if (this.isAttackPayload(normalizedContent)) {
+      console.warn('[WS] suspicious message blocked', {
+        roomId,
+        userId: user.id,
+        username: user.username,
+      });
+      await this.handleSuspiciousMessage(client, user, roomId);
+      return;
+    }
+
     try {
       const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
       if (!hasAccess) {
@@ -1149,7 +1276,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const message = await this.messagesService.createRoomMessage({
         type: 'TEXT',
-        content: content.trim(),
+        content: normalizedContent,
         senderId: user.id,
         roomId,
       });

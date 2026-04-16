@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadingList, setLoadingList] = useState(false)
   const [patchingId, setPatchingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (loading) return
@@ -104,6 +105,46 @@ export default function AdminPage() {
     [t],
   )
 
+  const deleteMember = useCallback(
+    async (member: AdminMember) => {
+      const token = getAuthToken()
+      if (!token) {
+        window.alert(t("noToken"))
+        return
+      }
+
+      const displayName = member.nickname?.trim() || member.username
+      const confirmed = window.confirm(
+        t("deleteConfirm", {
+          name: displayName,
+          username: member.username,
+        }),
+      )
+      if (!confirmed) {
+        return
+      }
+
+      setDeletingId(member.id)
+      try {
+        const res = await apiFetch(`${getHttpApiBase()}/admin/members/${member.id}`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        })
+
+        if (!res.ok) {
+          throw new Error(t("deleteFailed", { status: res.status }))
+        }
+
+        setMembers((prev) => prev.filter((row) => row.id !== member.id))
+      } catch (e) {
+        window.alert(e instanceof Error ? e.message : t("deleteFailedGeneric"))
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [t],
+  )
+
   const sorted = useMemo(() => [...members].sort((a, b) => +new Date(b.createdAt) - +new Date(a.createdAt)), [members])
 
   if (loading || !user || !canSeeAdminPanelNav(user.username)) {
@@ -165,8 +206,16 @@ export default function AdminPage() {
               <div className={styles.actions}>
                 <button
                   type="button"
+                  className={styles.deleteBtn}
+                  disabled={patchingId === m.id || deletingId === m.id}
+                  onClick={() => void deleteMember(m)}
+                >
+                  {deletingId === m.id ? t("deleting") : t("deleteMember")}
+                </button>
+                <button
+                  type="button"
                   className={`${styles.vipBtn} ${m.isVip ? styles.vipBtnOn : ""}`}
-                  disabled={patchingId === m.id}
+                  disabled={patchingId === m.id || deletingId === m.id}
                   onClick={() => void toggleVip(m, !m.isVip)}
                 >
                   {m.isVip ? t("removeVip") : t("setVip")}

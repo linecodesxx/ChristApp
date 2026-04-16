@@ -19,71 +19,17 @@
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   }
 
-  &.chatListSectionVip {
-    background:
-      radial-gradient(ellipse 130% 90% at 50% -15%, rgba(168, 85, 247, 0.32), transparent 58%),
-      radial-gradient(ellipse 70% 55% at 100% 35%, rgba(139, 92, 246, 0.18), transparent 52%),
-      radial-gradient(ellipse 55% 45% at 0% 60%, rgba(192, 132, 252, 0.12), transparent 48%),
-      var(--background);
-    box-shadow:
-      inset 0 0 80px -20px rgba(168, 85, 247, 0.35),
-      inset 0 1px 0 rgba(233, 213, 255, 0.12);
-    animation: vip-list-ambient 5s ease-in-out infinite alternate;
-
-    .header h2 {
-      color: color-mix(in srgb, #ede9fe 88%, var(--foreground));
-      text-shadow:
-        0 0 18px rgba(192, 132, 252, 0.55),
-        0 0 32px rgba(139, 92, 246, 0.35);
-    }
-
-    .searchBar .userPickerSearch {
-      border-color: color-mix(in srgb, #a78bfa 45%, var(--line-soft));
-      box-shadow:
-        0 0 20px -6px rgba(168, 85, 247, 0.4),
-        inset 0 0 0 1px color-mix(in srgb, #a78bfa 15%, transparent);
-    }
-
-    .chatList .chatItem .chatItemContent {
-      box-shadow:
-        0 1px 2px 0 rgba(0, 0, 0, 0.06),
-        0 0 0 1px color-mix(in srgb, #a78bfa 36%, transparent),
-        0 8px 30px -12px rgba(139, 92, 246, 0.38);
-    }
-
-    .chatList .chatItem .chatItemContent:hover {
-      box-shadow:
-        0 0 0 1px color-mix(in srgb, #c4b5fd 55%, transparent),
-        0 12px 36px -14px rgba(167, 139, 250, 0.45);
-    }
-  }
-
   .vipModeBanner {
     width: 100%;
-    margin-bottom: 12px;
-    padding: 10px 14px;
-    border-radius: 14px;
+    margin-bottom: 10px;
+    padding: 4px 8px;
     text-align: center;
     font-family: "Inter", sans-serif;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.35;
-    color: #f5e9ff;
-    text-shadow:
-      0 0 12px rgba(192, 132, 252, 0.9),
-      0 0 28px rgba(139, 92, 246, 0.55);
-    border: 1px solid color-mix(in srgb, #c084fc 55%, transparent);
-    background: linear-gradient(
-      125deg,
-      color-mix(in srgb, rgba(88, 28, 135, 0.92) 70%, transparent),
-      color-mix(in srgb, rgba(109, 40, 217, 0.88) 55%, transparent),
-      color-mix(in srgb, rgba(126, 34, 206, 0.85) 100%, transparent)
-    );
-    box-shadow:
-      0 0 24px rgba(168, 85, 247, 0.45),
-      0 4px 20px -8px rgba(88, 28, 135, 0.65),
-      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    line-height: 1.4;
+    color: var(--text-muted);
   }
 
   .chatListWrapper {
@@ -1088,26 +1034,4 @@ html[data-theme="light"] .chatListSection {
     }
   }
 
-  &.chatListSectionVip .chatList .chatItem .chatItemContent:hover {
-    background: color-mix(in srgb, #ede9fe 22%, var(--surface-elevated));
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, #a78bfa 42%, transparent),
-      0 10px 28px -12px rgba(139, 92, 246, 0.38);
-  }
 }
-
-@keyframes vip-list-ambient {
-  0%,
-  100% {
-    box-shadow:
-      inset 0 0 80px -20px rgba(168, 85, 247, 0.35),
-      inset 0 1px 0 rgba(233, 213, 255, 0.12);
-  }
-
-  50% {
-    box-shadow:
-      inset 0 0 100px -16px rgba(192, 132, 252, 0.48),
-      inset 0 1px 0 rgba(233, 213, 255, 0.2);
-  }
-}
-

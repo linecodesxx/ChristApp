@@ -482,6 +482,7 @@ export default function ChatPageDetails() {
   const awaitingRoomHistoryRef = useRef(false)
   const [messages, setMessages] = useState<Message[]>([])
   const [pinnedMessageIds, setPinnedMessageIds] = useState<string[]>([])
+  const jumpToMessageRef = useRef<((messageId: string) => void) | null>(null)
   const [roomTitle, setRoomTitle] = useState<string>("")
   const [roomRawTitle, setRoomRawTitle] = useState<string>("")
   const [isSocketConnected, setIsSocketConnected] = useState(false)
@@ -2625,9 +2626,9 @@ export default function ChatPageDetails() {
       hideOwnSenderName={hideOwnSenderNameInGlobal}
       senderNameMode={useCompactSenderNamesInGlobal ? "compact-above" : "inline"}
       pinnedMessageIds={pinnedMessageIds}
-      pinnedEntries={pinnedEntries}
       canPinMessages={canPinMessages}
       onTogglePinMessage={handleTogglePinMessage}
+      jumpToMessageRef={jumpToMessageRef}
     />
   )
 
@@ -2738,6 +2739,27 @@ export default function ChatPageDetails() {
         </div>
       </div>
       </div>
+
+      {!authError && pinnedEntries.length > 0 ? (
+        <div className={styles.pinnedMessagesDock} role="region" aria-label={t("pinnedRegionAria")}>
+          <span className={styles.pinnedMessagesDockLabel}>{t("pinnedLabel")}</span>
+          <div className={styles.pinnedMessagesDockChips}>
+            {pinnedEntries.map((entry) => (
+              <button
+                key={entry.messageId}
+                type="button"
+                className={styles.pinnedMessagesDockChip}
+                onClick={() => jumpToMessageRef.current?.(entry.messageId)}
+              >
+                <span className={styles.pinnedMessagesDockChipIcon} aria-hidden>
+                  📌
+                </span>
+                <span className={styles.pinnedMessagesDockChipText}>{entry.preview}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
 
       {authError ? (
         <p className={styles.stateMessage}>{authError}</p>

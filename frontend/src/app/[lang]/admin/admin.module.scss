@@ -142,6 +142,31 @@
   margin-top: 4px;
 }
 
+.deleteBtn {
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--line-soft));
+  background: color-mix(in srgb, #ef4444 12%, var(--surface));
+  color: color-mix(in srgb, #7f1d1d 90%, var(--foreground));
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:hover:not(:disabled) {
+    background: color-mix(in srgb, #ef4444 22%, var(--surface));
+    border-color: color-mix(in srgb, #ef4444 55%, var(--line-soft));
+  }
+
+  &:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+}
+
 .vipBtn {
   font-family: "Inter", sans-serif;
   font-size: 13px;
