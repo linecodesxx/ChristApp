@@ -32,7 +32,7 @@ import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { Phone } from "lucide-react"
 import dynamic from "next/dynamic"
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
-import IncomingCallModal from "@/components/calls/IncomingCallModal"
+const IncomingCallModal = dynamic(() => import("@/components/calls/IncomingCallModal"), { ssr: false })
 import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
