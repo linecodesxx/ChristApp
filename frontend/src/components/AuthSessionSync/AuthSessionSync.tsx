@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
-import { initializeApp, logout, refreshToken } from "@/lib/authSession"
+import { initializeApp, isUnauthorizedAuthError, logout, refreshToken } from "@/lib/authSession"
 import { getJwtExpiresAt } from "@/lib/jwtUser"
 
 const REFRESH_SKEW_MS = 60_000
@@ -51,14 +51,21 @@ export default function AuthSessionSync() {
         await refreshToken()
         scheduleRefreshFromToken()
         return true
-      } catch {
+      } catch (error) {
         clearScheduledRefresh()
-        await logout({ callBackend: false })
+        if (isUnauthorizedAuthError(error)) {
+          await logout({ callBackend: false })
+          return false
+        }
+
+        timeoutRef.current = window.setTimeout(() => {
+          void refreshAccessToken()
+        }, MIN_RETRY_MS)
         return false
       }
     }
 
-    const refreshIfNeeded = async (force: boolean) => {
+    const refreshIfNeeded = async () => {
       const token = getAuthToken()
 
       if (!token) {
@@ -67,15 +74,11 @@ export default function AuthSessionSync() {
 
       const expiresAt = getJwtExpiresAt(token)
       if (!expiresAt) {
-        if (force) {
-          await refreshAccessToken()
-        } else {
-          scheduleRefreshFromToken()
-        }
+        scheduleRefreshFromToken()
         return
       }
 
-      if (force || expiresAt - Date.now() <= VISIBILITY_REFRESH_WINDOW_MS) {
+      if (expiresAt - Date.now() <= VISIBILITY_REFRESH_WINDOW_MS) {
         await refreshAccessToken()
         return
       }
@@ -88,21 +91,21 @@ export default function AuthSessionSync() {
     }
 
     const onFocus = () => {
-      void refreshIfNeeded(true)
+      void refreshIfNeeded()
     }
 
     const onOnline = () => {
-      void refreshIfNeeded(true)
+      void refreshIfNeeded()
     }
 
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
-        void refreshIfNeeded(true)
+        void refreshIfNeeded()
       }
     }
 
     void initializeApp().then(() => {
-      void refreshIfNeeded(false)
+      void refreshIfNeeded()
     })
 
     window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)

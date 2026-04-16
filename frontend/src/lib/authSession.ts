@@ -39,6 +39,8 @@ type FailedQueueEntry = {
   reject: (error: Error) => void
 }
 
+const AUTH_UNAUTHORIZED_ERROR_NAME = "AuthUnauthorizedError"
+
 const API_URL = getHttpApiBase()
 
 let authSnapshot: AuthSnapshot = {
@@ -74,7 +76,13 @@ function resolveQueue(token: string) {
 }
 
 function createUnauthorizedError(message = "Unauthorized") {
-  return new Error(message)
+  const error = new Error(message)
+  error.name = AUTH_UNAUTHORIZED_ERROR_NAME
+  return error
+}
+
+export function isUnauthorizedAuthError(error: unknown): boolean {
+  return error instanceof Error && error.name === AUTH_UNAUTHORIZED_ERROR_NAME
 }
 
 async function refreshRequest(): Promise<AuthSessionPayload> {
@@ -85,7 +93,10 @@ async function refreshRequest(): Promise<AuthSessionPayload> {
   })
 
   if (!response.ok) {
-    throw createUnauthorizedError(`Refresh failed with status ${response.status}`)
+    if (response.status === 401 || response.status === 403) {
+      throw createUnauthorizedError(`Refresh failed with status ${response.status}`)
+    }
+    throw new Error(`Refresh request failed with status ${response.status}`)
   }
 
   const payload = (await response.json()) as AuthSessionPayload
@@ -94,6 +105,26 @@ async function refreshRequest(): Promise<AuthSessionPayload> {
   }
 
   return payload
+}
+
+async function fetchMeWithToken(token: string): Promise<AuthUser> {
+  const meResponse = await fetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  })
+
+  if (!meResponse.ok) {
+    if (meResponse.status === 401 || meResponse.status === 403) {
+      throw createUnauthorizedError(`/auth/me failed with status ${meResponse.status}`)
+    }
+    throw new Error(`/auth/me request failed with status ${meResponse.status}`)
+  }
+
+  return (await meResponse.json()) as AuthUser
 }
 
 export function subscribeAuthSession(listener: () => void): () => void {
@@ -156,9 +187,11 @@ export async function refreshToken(): Promise<string> {
     resolveQueue(payload.access_token)
     return payload.access_token
   } catch (error) {
-    const authError = error instanceof Error ? error : createUnauthorizedError()
+    const authError = error instanceof Error ? error : new Error("Refresh request failed")
     rejectQueue(authError)
-    resetClientAuthState()
+    if (isUnauthorizedAuthError(authError)) {
+      resetClientAuthState()
+    }
     throw authError
   } finally {
     isRefreshing = false
@@ -166,9 +199,15 @@ export async function refreshToken(): Promise<string> {
 }
 
 export async function ensureAccessToken(): Promise<string> {
-  const token = getAuthToken()
-  if (token) {
-    return token
+  const memoryToken = getAuthToken()
+  if (memoryToken) {
+    return memoryToken
+  }
+
+  const persistedToken = readStoredAccessToken()
+  if (persistedToken) {
+    setAuthToken(persistedToken)
+    return persistedToken
   }
 
   return refreshToken()
@@ -186,28 +225,39 @@ export async function initializeApp(): Promise<void> {
   initializePromise = (async () => {
     const persistedToken = readStoredAccessToken()
     try {
-      const freshToken = await refreshToken()
-      const meResponse = await fetch(`${API_URL}/auth/me`, {
-        method: "GET",
-        credentials: "include",
-        cache: "no-store",
-        headers: {
-          Authorization: `Bearer ${freshToken}`,
-        },
-      })
+      const existingToken = getAuthToken() ?? persistedToken
+      if (existingToken) {
+        setAuthToken(existingToken)
+        try {
+          const user = await fetchMeWithToken(existingToken)
+          setAuthenticatedUser(user)
+          return
+        } catch (error) {
+          if (!isUnauthorizedAuthError(error)) {
+            throw error
+          }
 
-      if (!meResponse.ok) {
-        throw createUnauthorizedError(`/auth/me failed with status ${meResponse.status}`)
+          const freshToken = await refreshToken()
+          const user = await fetchMeWithToken(freshToken)
+          setAuthenticatedUser(user)
+          return
+        }
       }
 
-      const user = (await meResponse.json()) as AuthUser
+      const freshToken = await refreshToken()
+      const user = await fetchMeWithToken(freshToken)
       setAuthenticatedUser(user)
-    } catch {
-      if (persistedToken || hasPersistedAccessTokenInWebStorage()) {
+    } catch (error) {
+      if (
+        isUnauthorizedAuthError(error) &&
+        (persistedToken || hasPersistedAccessTokenInWebStorage())
+      ) {
         resetClientAuthState()
       } else {
-        clearAuthToken()
-        setAuthenticatedUser(null)
+        if (!persistedToken && !hasPersistedAccessTokenInWebStorage()) {
+          clearAuthToken()
+          setAuthenticatedUser(null)
+        }
       }
     } finally {
       setAuthSnapshot({ initialized: true })

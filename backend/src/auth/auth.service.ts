@@ -30,6 +30,7 @@ const USER_SAFE_SELECT = {
 } as const;
 
 const REFRESH_TOKEN_TTL_DAYS = 30;
+const ACCESS_TOKEN_TTL = '7d';
 
 function sha256Hex(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -50,7 +51,7 @@ export class AuthService {
     private config: ConfigService,
   ) {
     this.accessExpiresIn =
-      this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || '15m';
+      this.config.get<string>('JWT_ACCESS_EXPIRES_IN')?.trim() || ACCESS_TOKEN_TTL;
     const daysRaw = this.config.get<string>('JWT_REFRESH_DAYS')?.trim();
     const days = daysRaw ? Number.parseInt(daysRaw, 10) : REFRESH_TOKEN_TTL_DAYS;
     this.refreshTtlMs =
