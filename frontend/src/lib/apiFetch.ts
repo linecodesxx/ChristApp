@@ -129,6 +129,11 @@ const apiClient: Axios = axios.create({
   validateStatus: () => true,
 })
 
+// Anti-storm guard: after one failed refresh attempt, pause automatic refresh retries
+// for a short window to avoid hammering backend with duplicate /refresh calls.
+const REFRESH_FAILURE_COOLDOWN_MS = 30_000
+let refreshBlockedUntilTs = 0
+
 /**
  * 401 → один спільний refresh через `refreshToken()` у `authSession.ts` (mutex + черга),
  * потім повтор запиту з новим Bearer.
@@ -159,8 +164,13 @@ apiClient.interceptors.response.use(async (response) => {
     return response
   }
 
+  if (Date.now() < refreshBlockedUntilTs) {
+    return response
+  }
+
   try {
     const nextToken = await refreshToken()
+    refreshBlockedUntilTs = 0
     const nextHeaders = new Headers(originalRequest.headers as HeadersInit | undefined)
     nextHeaders.set("Authorization", `Bearer ${nextToken}`)
 
@@ -175,6 +185,7 @@ apiClient.interceptors.response.use(async (response) => {
 
     return await apiClient.request(retryRequest)
   } catch (error) {
+    refreshBlockedUntilTs = Date.now() + REFRESH_FAILURE_COOLDOWN_MS
     if (isUnauthorizedAuthError(error)) {
       await logout({ callBackend: false })
     }
