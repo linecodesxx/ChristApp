@@ -1,7 +1,6 @@
 import { BadRequestException, Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { AgoraService } from './agora.service';
-import { toAgoraUid } from './agora-uid.util';
 
 type AuthenticatedRequest = {
   user?: { id?: string };
@@ -27,7 +26,9 @@ export class CallsController {
       throw new BadRequestException('channelName обязателен');
     }
 
-    const uid = Number(toAgoraUid(userId));
+    // Generate a unique random uint32 uid per session to avoid UID_CONFLICT
+    // when two users share the same deterministic hash collision.
+    const uid = Math.floor(Math.random() * 0xfffffffe) + 1;
     const token = this.agoraService.generateToken(resolvedChannelName, uid);
 
     return {

@@ -12,7 +12,6 @@ import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
-import { formatLastSeenRelative } from "@/lib/chatLastSeenFormat"
 import { useAuth } from "@/hooks/useAuth"
 import { getAuthToken } from "@/lib/auth"
 import { apiFetch } from "@/lib/apiFetch"
@@ -33,7 +32,7 @@ import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { Phone } from "lucide-react"
 import dynamic from "next/dynamic"
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
-import IncomingCallModal from "@/components/calls/IncomingCallModal"
+const IncomingCallModal = dynamic(() => import("@/components/calls/IncomingCallModal"), { ssr: false })
 import {
   avatarLikesForUserQueryKey,
   avatarLikesMeQueryKey,
@@ -1701,13 +1700,13 @@ export default function ChatPageDetails() {
       return t("offline")
     }
 
-    return (
-      formatLastSeenRelative(lastSeenIso, nowTs, {
-        seconds: (n) => t("lastSeenSeconds", { count: n }),
-        minutes: (n) => t("lastSeenMinutes", { count: n }),
-        hours: (n) => t("lastSeenHours", { count: n }),
-      }) || t("offline")
-    )
+    const lastSeenTs = new Date(lastSeenIso).getTime()
+    if (Number.isNaN(lastSeenTs)) {
+      return t("offline")
+    }
+
+    const minutesAgo = Math.max(1, Math.floor((nowTs - lastSeenTs) / (60 * 1000)))
+    return t("lastSeenMinutes", { count: minutesAgo })
   }
 
   const statusLine = isHistoryLoading

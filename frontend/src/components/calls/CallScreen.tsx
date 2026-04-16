@@ -24,14 +24,25 @@ const HTTP_API = getHttpApiBase()
 const AGORA_APP_ID = process.env.NEXT_PUBLIC_AGORA_APP_ID?.trim() ?? ""
 
 export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUrl, onClose }: CallScreenProps) {
+  if (typeof window === "undefined") return null
+
   const clientRef = useRef<IAgoraRTCClient | null>(null)
   const micTrackRef = useRef<IMicrophoneAudioTrack | null>(null)
   const remoteTracksRef = useRef<Map<string, IAgoraRTCRemoteUser["audioTrack"]>>(new Map())
   const speakingResetTimeoutRef = useRef<number | null>(null)
+  const isJoiningRef = useRef(false)
+  const isHangingUpRef = useRef(false)
+  const isSpeakerOnRef = useRef(true)
+  const onCloseRef = useRef(onClose)
   const [status, setStatus] = useState("Connecting")
   const [isMuted, setIsMuted] = useState(false)
   const [isSpeakerOn, setIsSpeakerOn] = useState(true)
   const [isPeerSpeaking, setIsPeerSpeaking] = useState(false)
+  const [isHangingUp, setIsHangingUp] = useState(false)
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   const cleanupCall = useCallback(async () => {
     if (speakingResetTimeoutRef.current) {
@@ -53,13 +64,13 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
 
     const client = clientRef.current
     if (client) {
+      clientRef.current = null
       try {
         await client.leave()
       } catch {
         // ignore leave errors during teardown
       }
       client.removeAllListeners()
-      clientRef.current = null
     }
   }, [])
 
@@ -71,6 +82,9 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
     let active = true
 
     const startCall = async () => {
+      if (isJoiningRef.current) return
+      isJoiningRef.current = true
+
       if (!AGORA_APP_ID) {
         setStatus("Missing NEXT_PUBLIC_AGORA_APP_ID")
         return
@@ -106,7 +120,6 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
         // Voice-only call flow, using a supported client codec.
         const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" })
         clientRef.current = client
-        await client.setClientRole("host")
 
         client.on("user-published", async (user, mediaType) => {
           if (mediaType !== "audio") {
@@ -115,7 +128,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           await client.subscribe(user, mediaType)
           if (user.audioTrack) {
             user.audioTrack.play()
-            user.audioTrack.setVolume(isSpeakerOn ? 100 : 0)
+            user.audioTrack.setVolume(isSpeakerOnRef.current ? 100 : 0)
             remoteTracksRef.current.set(String(user.uid), user.audioTrack)
             setStatus("Connected")
           }
@@ -130,7 +143,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
 
         client.on("user-left", () => {
           void cleanupCall()
-          onClose()
+          onCloseRef.current()
         })
 
         client.enableAudioVolumeIndicator()
@@ -168,6 +181,8 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
       } catch (error) {
         console.error("Call setup failed", error)
         setStatus("Call connection failed")
+      } finally {
+        isJoiningRef.current = false
       }
     }
 
@@ -175,13 +190,14 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
 
     return () => {
       active = false
+      isJoiningRef.current = false
       void cleanupCall()
       setIsPeerSpeaking(false)
       setIsMuted(false)
       setIsSpeakerOn(true)
       setStatus("Connecting")
     }
-  }, [channelName, cleanupCall, isOpen, isSpeakerOn, onClose])
+  }, [channelName, cleanupCall, isOpen])
 
   const toggleMute = useCallback(async () => {
     const nextMuted = !isMuted
@@ -195,6 +211,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
   const toggleSpeaker = useCallback(() => {
     setIsSpeakerOn((prev) => {
       const next = !prev
+      isSpeakerOnRef.current = next
       remoteTracksRef.current.forEach((track) => {
         track?.setVolume(next ? 100 : 0)
       })
@@ -203,8 +220,16 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
   }, [])
 
   const hangup = useCallback(async () => {
-    await cleanupCall()
-    onClose()
+    if (isHangingUpRef.current) return
+    isHangingUpRef.current = true
+    setIsHangingUp(true)
+    try {
+      await cleanupCall()
+      onClose()
+    } finally {
+      isHangingUpRef.current = false
+      setIsHangingUp(false)
+    }
   }, [cleanupCall, onClose])
 
   return (
@@ -261,7 +286,12 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
             >
               {isSpeakerOn ? <Volume2 size={24} /> : <VolumeX size={24} />}
             </button>
-            <button type="button" onClick={() => void hangup()} className={`${styles.actionButton} ${styles.hangupButton}`}>
+            <button
+              type="button"
+              onClick={() => void hangup()}
+              disabled={isHangingUp}
+              className={`${styles.actionButton} ${styles.hangupButton}`}
+            >
               <PhoneOff size={24} />
             </button>
           </div>

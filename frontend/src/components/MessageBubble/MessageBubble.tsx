@@ -90,6 +90,7 @@ function MessageBubble({
 }: MessageBubbleProps) {
   const touchStartRef = useRef<{ x: number; y: number } | null>(null)
   const skipNextClickRef = useRef(false)
+  const reactionAnchorRef = useRef<HTMLDivElement | null>(null)
   const reactionTriggerRef = useRef<HTMLButtonElement | null>(null)
   const reactionPickerRef = useRef<HTMLDivElement | null>(null)
   const hydrated = useHydrated()
@@ -98,11 +99,17 @@ function MessageBubble({
 
   const updateReactionPickerPlacement = useCallback(() => {
     const trigger = reactionTriggerRef.current
+    const anchor = reactionAnchorRef.current
     const picker = reactionPickerRef.current
-    if (!trigger || !picker || typeof window === "undefined") {
+    if (!picker || typeof window === "undefined") {
       return
     }
-    const rect = trigger.getBoundingClientRect()
+    const placementNode = trigger && trigger.offsetParent !== null ? trigger : anchor
+    if (!placementNode) {
+      return
+    }
+
+    const rect = placementNode.getBoundingClientRect()
     const pad = 8
     const maxW = Math.min(380, window.innerWidth - 2 * pad)
     const fallbackContentW = REACTION_OPTIONS.length * 42 + 24
@@ -197,8 +204,8 @@ function MessageBubble({
   }, [isReactionPickerOpen, onToggleReaction])
 
   const longPressHandlers = useLongPress<HTMLElement>(openReactionPickerFromGesture, {
-    ms: 420,
-    moveThreshold: 16,
+    ms: 360,
+    moveThreshold: 24,
   })
 
   const handleReplyIntent = () => {
@@ -503,7 +510,7 @@ function MessageBubble({
           {message.isEdited ? " · изменено" : ""}
         </span>
         {onToggleReaction ? (
-          <div className={styles.reactionAnchor}>
+          <div ref={reactionAnchorRef} className={styles.reactionAnchor}>
             <button
               ref={reactionTriggerRef}
               type="button"
