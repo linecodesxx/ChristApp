@@ -58,6 +58,7 @@ const MIN_MESSAGES_FOR_RECENT_LINE = 14
 const DEFAULT_RECENT_MESSAGES_COUNT = 12
 const SCROLL_DOWN_TRIGGER_MESSAGES = 20
 const CHAT_VERTICAL_GAP_PX = 10
+const AUTO_SCROLL_FOLLOW_DISTANCE_PX = 80
 
 function ChatWindow({
   messages,
@@ -99,6 +100,7 @@ function ChatWindow({
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const highlightTimerRef = useRef<number | null>(null)
+  const shouldFollowBottomRef = useRef(true)
 
   const formatTypingLine = (statuses: Array<{ username: string; activity: "text" | "voice" }>) => {
     if (statuses.length === 0) {
@@ -130,6 +132,7 @@ function ChatWindow({
 
   useEffect(() => {
     didInitialScrollRef.current = false
+    shouldFollowBottomRef.current = true
     messageRefs.current.clear()
     setHighlightedMessageId(null)
     setShowScrollDown(false)
@@ -150,8 +153,16 @@ function ChatWindow({
   const typingStatusesKey = typingStatuses.map((item) => `${item.username}:${item.activity}`).join("|")
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: didInitialScrollRef.current ? "smooth" : "auto" })
-    didInitialScrollRef.current = true
+    if (!didInitialScrollRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "auto" })
+      didInitialScrollRef.current = true
+      shouldFollowBottomRef.current = true
+      return
+    }
+
+    if (shouldFollowBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
+    }
   }, [messages.length, typingStatusesKey])
 
   const estimateScrollDownThresholdPx = useCallback(() => {
@@ -180,6 +191,7 @@ function ChatWindow({
     }
 
     const distanceFromBottom = container.scrollHeight - container.clientHeight - container.scrollTop
+    shouldFollowBottomRef.current = distanceFromBottom <= AUTO_SCROLL_FOLLOW_DISTANCE_PX
     const thresholdPx = estimateScrollDownThresholdPx()
     setShowScrollDown(distanceFromBottom > thresholdPx)
   }, [estimateScrollDownThresholdPx])

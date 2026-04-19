@@ -378,6 +378,76 @@
   word-break: break-word;
 }
 
+.inlineLink {
+  color: color-mix(in srgb, var(--accent) 82%, #0b62f1);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inlineLink:hover {
+  opacity: 0.9;
+}
+
+.linkPreviewList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.linkPreviewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.linkPreviewCard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  width: 100%;
+  border-radius: 12px;
+  text-decoration: none;
+  background: color-mix(in srgb, var(--line-soft) 28%, transparent);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 62%, transparent);
+  color: var(--foreground);
+}
+
+.linkPreviewCard:hover {
+  background: color-mix(in srgb, var(--line-soft) 42%, transparent);
+}
+
+.linkPreviewTitle {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.linkPreviewUrl {
+  font-size: 11px;
+  line-height: 1.25;
+  opacity: 0.68;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.youtubeFrameWrap {
+  width: 100%;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 58%, transparent);
+  background: #000;
+}
+
+.youtubeFrame {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 0;
+}
+
 .senderCompact {
   margin: 0 0 3px;
   font-family: "Inter", sans-serif;
@@ -490,7 +560,7 @@ html[data-theme="dark"] .myBubble {
 
 .metaRow {
   position: relative;
-  z-index: 0;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -545,13 +615,16 @@ html[data-theme="dark"] .myBubble {
 
 .reactionAnchor {
   position: relative;
-  z-index: 4;
+  z-index: 12;
   display: inline-flex;
   align-items: center;
   justify-content: flex-end;
+  pointer-events: auto;
 }
 
 .reactionTrigger {
+  position: relative;
+  z-index: 13;
   border: none;
   background: color-mix(in srgb, rgba(255, 255, 255, 0.72) 82%, transparent);
   color: color-mix(in srgb, var(--foreground) 70%, #6d655d 30%);
@@ -587,13 +660,13 @@ html[data-theme="dark"] .myBubble {
   left: auto;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-content: flex-start;
   gap: 8px;
   padding: 8px 10px;
   box-sizing: border-box;
-  width: max-content;
-  min-width: min(100%, 180px);
+  width: min(220px, calc(100vw - 24px));
+  min-width: 190px;
   max-width: min(380px, calc(100vw - 24px));
   max-height: min(220px, 45vh);
   overflow: auto;
@@ -645,12 +718,28 @@ html[data-theme="dark"] .myBubble {
 
 .messageReactions {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
+  max-width: 100%;
+  margin-top: 10px;
+}
+
+.messageReactionsOwn {
+  justify-content: flex-start;
+  align-self: flex-start;
+}
+
+.messageReactionsPeer {
+  justify-content: flex-end;
   align-self: flex-end;
-  margin-top: 2px;
 }
 
 @media (max-width: 720px) {
+  .inlineLink {
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
   .reactionAnchor {
     justify-content: center;
   }
@@ -672,6 +761,12 @@ html[data-theme="dark"] .myBubble {
     justify-content: center;
     flex-wrap: wrap;
     max-width: min(190px, 100%);
+  }
+
+  .messageReactionsOwn,
+  .messageReactionsPeer {
+    align-self: center;
+    justify-content: center;
   }
 }
 

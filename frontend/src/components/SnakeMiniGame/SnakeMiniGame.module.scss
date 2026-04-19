@@ -96,8 +96,28 @@
 .mobileControls {
   margin-top: 8px;
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-areas:
+    ". up ."
+    "left . right"
+    ". down .";
   gap: 10px;
+}
+
+.controlUp {
+  grid-area: up;
+}
+
+.controlLeft {
+  grid-area: left;
+}
+
+.controlRight {
+  grid-area: right;
+}
+
+.controlDown {
+  grid-area: down;
 }
 
 .controlButton {

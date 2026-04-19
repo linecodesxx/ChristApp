@@ -114,7 +114,7 @@ type SnakeStatePayload = {
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
-  server: Server;
+  server!: Server;
 
   // Загальний чат — це просто кімната
   private readonly GLOBAL_ROOM = resolveGlobalRoomId();
@@ -123,7 +123,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly roomPlasmaBackground = new Map<string, boolean>();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🔥', '🥲', '😭', '🙏🏻', '👍', '⭐', '⚡']);
+  private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🤍', '🔥', '🥲', '😭', '🙏🏻']);
   private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
   private static readonly SOCKET_BAN_MS = 15 * 60 * 1000;
 

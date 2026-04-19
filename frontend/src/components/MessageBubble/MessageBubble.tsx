@@ -18,7 +18,7 @@ import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/
 import { useTranslations } from "next-intl"
 import { useHydrated } from "@/hooks/useHydrated"
 import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX } from "@/hooks/useMediaQuery"
-import { PenLine, Pin, PinOff, Star, ThumbsUp, Trash2, Zap } from "lucide-react"
+import { PenLine, Pin, PinOff, Trash2 } from "lucide-react"
 import { useLongPress } from "@/hooks/useLongPress"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
@@ -59,18 +59,15 @@ type MessageBubbleProps = {
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
-const REACTION_OPTIONS: AppReactionType[] = ["😂", "❤️", "🔥", "🥲", "😭", "🙏🏻", "👍", "⭐", "⚡"]
+const REACTION_OPTIONS: AppReactionType[] = ["😂", "❤️", "🤍", "🔥", "🥲", "😭", "🙏🏻"]
+const URL_REGEX = /((?:https?:\/\/|www\.)[^\s<]+)/gi
+
+type LinkChunk =
+  | { type: "text"; value: string }
+  | { type: "link"; value: string; href: string }
 
 function renderReactionPickerOption(reaction: AppReactionType) {
-  if (reaction === "👍") {
-    return <ThumbsUp size={16} strokeWidth={2.2} aria-hidden />
-  }
-  if (reaction === "⭐") {
-    return <Star size={16} strokeWidth={2.2} aria-hidden />
-  }
-  if (reaction === "⚡") {
-    return <Zap size={16} strokeWidth={2.2} aria-hidden />
-  }
+  
   return reaction
 }
 
@@ -88,6 +85,130 @@ function fmtTime(s: number): string {
   const m = Math.floor(s / 60)
   const sec = Math.floor(s % 60)
   return `${m}:${String(sec).padStart(2, "0")}`
+}
+
+function normalizeHref(raw: string): string {
+  const trimmed = raw.trim()
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+  return `https://${trimmed}`
+}
+
+function splitMessageWithLinks(content: string): LinkChunk[] {
+  const chunks: LinkChunk[] = []
+  let lastIndex = 0
+  URL_REGEX.lastIndex = 0
+
+  for (const match of content.matchAll(URL_REGEX)) {
+    const matched = match[0]
+    const start = match.index ?? 0
+    if (start > lastIndex) {
+      chunks.push({ type: "text", value: content.slice(lastIndex, start) })
+    }
+
+    const clean = matched.replace(/[),.;!?]+$/, "")
+    const suffix = matched.slice(clean.length)
+    chunks.push({ type: "link", value: clean, href: normalizeHref(clean) })
+    if (suffix) {
+      chunks.push({ type: "text", value: suffix })
+    }
+    lastIndex = start + matched.length
+  }
+
+  if (lastIndex < content.length) {
+    chunks.push({ type: "text", value: content.slice(lastIndex) })
+  }
+
+  if (chunks.length === 0) {
+    return [{ type: "text", value: content }]
+  }
+
+  return chunks
+}
+
+function extractYoutubeEmbedUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    const host = parsed.hostname.toLowerCase()
+
+    if (host === "youtu.be") {
+      const id = parsed.pathname.replace(/^\//, "").split("/")[0]
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : null
+    }
+
+    if (host.includes("youtube.com")) {
+      if (parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v")
+        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null
+      }
+      if (parsed.pathname.startsWith("/shorts/")) {
+        const id = parsed.pathname.split("/")[2]
+        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null
+      }
+      if (parsed.pathname.startsWith("/embed/")) {
+        const id = parsed.pathname.split("/")[2]
+        return id ? `https://www.youtube-nocookie.com/embed/${id}` : null
+      }
+    }
+  } catch {
+    return null
+  }
+
+  return null
+}
+
+function LinkPreviewCard({ href }: { href: string }) {
+  let hostname = href
+  try {
+    hostname = new URL(href).hostname.replace(/^www\./, "")
+  } catch {
+    // keep fallback hostname = href
+  }
+
+  const youtubeEmbedUrl = extractYoutubeEmbedUrl(href)
+
+  if (youtubeEmbedUrl) {
+    return (
+      <div className={styles.linkPreviewWrap} data-bubble-control>
+        <div className={styles.youtubeFrameWrap}>
+          <iframe
+            src={youtubeEmbedUrl}
+            className={styles.youtubeFrame}
+            title="YouTube preview"
+            loading="lazy"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            referrerPolicy="strict-origin-when-cross-origin"
+            allowFullScreen
+          />
+        </div>
+        <a
+          className={styles.linkPreviewCard}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className={styles.linkPreviewTitle}>YouTube</span>
+          <span className={styles.linkPreviewUrl}>{hostname}</span>
+        </a>
+      </div>
+    )
+  }
+
+  return (
+    <a
+      className={styles.linkPreviewCard}
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={(event) => event.stopPropagation()}
+      data-bubble-control
+    >
+      <span className={styles.linkPreviewTitle}>Ссылка</span>
+      <span className={styles.linkPreviewUrl}>{hostname}</span>
+    </a>
+  )
 }
 
 function toRawCloudinaryUrl(url: string): string {
@@ -219,7 +340,7 @@ function isInteractiveTarget(target: EventTarget | null): boolean {
     return false
   }
 
-  return Boolean(target.closest("button, a, input, textarea, select, audio, video, [data-bubble-control]"))
+  return Boolean(target.closest("button, a, input, textarea, select, audio, video, iframe, [data-bubble-control]"))
 }
 
 function MessageBubble({
@@ -429,11 +550,12 @@ function MessageBubble({
 
   const handleReactionPickerToggle = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
-    setIsReactionPickerOpen((prev) => {
-      if (prev) return false
-      closeOtherReactionPickers()
-      return true
-    })
+    if (isReactionPickerOpen) {
+      setIsReactionPickerOpen(false)
+      return
+    }
+    closeOtherReactionPickers()
+    setIsReactionPickerOpen(true)
   }
 
   const handleReactionPickerClose = (event: MouseEvent<HTMLElement>) => {
@@ -468,6 +590,7 @@ function MessageBubble({
 
   const bubbleClassName = `${bubble} ${isHighlighted ? styles.highlightedBubble : ""} ${isPinned ? styles.bubblePinned : ""}`
   const reactionPickerOpen = Boolean(onToggleReaction && isReactionPickerOpen)
+  const reactionsClassName = `${styles.messageReactions} ${isOwnMessage ? styles.messageReactionsOwn : styles.messageReactionsPeer}`
   const interactiveBubbleProps = {
     onClick: handleClick,
     onContextMenu: handleContextMenu,
@@ -647,6 +770,10 @@ function MessageBubble({
         const verseShare = parseVerseSharePayload(message.content)
         if (!verseShare.payload) {
           const showInlineAuthor = canShowSenderName && !showCompactSender
+          const chunks = splitMessageWithLinks(message.content)
+          const previewLinks = Array.from(
+            new Set(chunks.filter((chunk): chunk is Extract<LinkChunk, { type: "link" }> => chunk.type === "link").map((chunk) => chunk.href)),
+          ).slice(0, 2)
           return (
             <>
               {showCompactSender ? (
@@ -662,8 +789,31 @@ function MessageBubble({
                   </>
                 ) : null}
                 {showInlineAuthor ? " " : null}
-                {message.content}
+                {chunks.map((chunk, idx) =>
+                  chunk.type === "text" ? (
+                    <span key={`txt-${idx}`}>{chunk.value}</span>
+                  ) : (
+                    <a
+                      key={`lnk-${idx}`}
+                      className={styles.inlineLink}
+                      href={chunk.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(event) => event.stopPropagation()}
+                      data-bubble-control
+                    >
+                      {chunk.value}
+                    </a>
+                  ),
+                )}
               </p>
+              {previewLinks.length > 0 ? (
+                <div className={styles.linkPreviewList}>
+                  {previewLinks.map((href) => (
+                    <LinkPreviewCard key={href} href={href} />
+                  ))}
+                </div>
+              ) : null}
             </>
           )
         }
@@ -751,6 +901,9 @@ function MessageBubble({
                 <button
                   type="button"
                   className={styles.reactionTrigger}
+                  data-bubble-control
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => event.stopPropagation()}
                   onClick={handleReactionPickerToggle}
                   aria-label="Добавить реакцию"
                   title="Добавить реакцию"
@@ -804,8 +957,9 @@ function MessageBubble({
           </span>
         </div>
       </div>
+
       {reactionGroups.length > 0 ? (
-        <div className={styles.messageReactions}>
+        <div className={reactionsClassName}>
           {reactionGroups.map((reaction) => (
             <button
               key={reaction.emoji}
@@ -833,6 +987,7 @@ function MessageBubble({
           ))}
         </div>
       ) : null}
+
       {isOwnMessage && showReadReceipt ? (
         <div className={styles.readReceiptRow} aria-label={readReceiptLabel}>
           {readReceiptUsers.length > 0 ? (
