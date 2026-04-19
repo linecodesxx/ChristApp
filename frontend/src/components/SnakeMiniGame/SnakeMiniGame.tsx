@@ -343,10 +343,34 @@ export default function SnakeMiniGame({
         </div>
 
         <div className={styles.mobileControls}>
-          <button type="button" className={styles.controlButton} onClick={() => (nextDirectionRef.current = "left")}>←</button>
-          <button type="button" className={styles.controlButton} onClick={() => (nextDirectionRef.current = "up")}>↑</button>
-          <button type="button" className={styles.controlButton} onClick={() => (nextDirectionRef.current = "down")}>↓</button>
-          <button type="button" className={styles.controlButton} onClick={() => (nextDirectionRef.current = "right")}>→</button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlUp}`}
+            onClick={() => (nextDirectionRef.current = "up")}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlLeft}`}
+            onClick={() => (nextDirectionRef.current = "left")}
+          >
+            ←
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlRight}`}
+            onClick={() => (nextDirectionRef.current = "right")}
+          >
+            →
+          </button>
+          <button
+            type="button"
+            className={`${styles.controlButton} ${styles.controlDown}`}
+            onClick={() => (nextDirectionRef.current = "down")}
+          >
+            ↓
+          </button>
         </div>
       </div>
     </div>

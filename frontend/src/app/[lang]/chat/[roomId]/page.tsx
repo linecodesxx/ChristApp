@@ -385,13 +385,11 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
       if (
         reaction.type !== "😂" &&
         reaction.type !== "❤️" &&
+        reaction.type !== "🤍" &&
         reaction.type !== "🔥" &&
         reaction.type !== "🥲" &&
         reaction.type !== "😭" &&
-        reaction.type !== "🙏🏻" &&
-        reaction.type !== "👍" &&
-        reaction.type !== "⭐" &&
-        reaction.type !== "⚡"
+        reaction.type !== "🙏🏻"
       ) {
         return null
       }
@@ -1363,13 +1361,11 @@ export default function ChatPageDetails() {
           if (
             reaction.type !== "😂" &&
             reaction.type !== "❤️" &&
+            reaction.type !== "🤍" &&
             reaction.type !== "🔥" &&
             reaction.type !== "🥲" &&
             reaction.type !== "😭" &&
-            reaction.type !== "🙏🏻" &&
-            reaction.type !== "👍" &&
-            reaction.type !== "⭐" &&
-            reaction.type !== "⚡"
+            reaction.type !== "🙏🏻"
           ) {
             return null
           }
