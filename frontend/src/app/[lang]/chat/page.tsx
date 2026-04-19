@@ -1408,7 +1408,6 @@ export default function ChatPage() {
       verseNotesVisible={verseNotesVisible}
       adminDashboardVisible={adminDashboardVisible}
       isLoading={isChatListLoading}
-      viewerIsVip={Boolean(user?.isVip)}
     />
   )
 }

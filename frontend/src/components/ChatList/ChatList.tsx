@@ -1,8 +1,17 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent, type TouchEvent as ReactTouchEvent } from "react"
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react"
 import Image from "next/image"
-import { useTranslations } from "next-intl"
+import { useLocale, useTranslations } from "next-intl"
 import { Link } from "@/i18n/navigation"
 import styles from "@/components/ChatList/ChatList.module.scss"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
@@ -53,8 +62,6 @@ type ChatListProps = {
   verseNotesVisible?: boolean
   adminDashboardVisible?: boolean
   isLoading?: boolean
-  /** Поточний користувач — VIP: підсвітка списку чатів. */
-  viewerIsVip?: boolean
 }
 
 function toRenderText(value: unknown, fallback = ""): string {
@@ -76,8 +83,8 @@ const ChatList = ({
   verseNotesVisible = false,
   adminDashboardVisible = false,
   isLoading = false,
-  viewerIsVip = false,
 }: ChatListProps) => {
+  const locale = useLocale()
   const t = useTranslations("chat")
   const list: ChatListItem[] = items
   const [nowMs, setNowMs] = useState(() => Date.now())
@@ -120,7 +127,61 @@ const ChatList = ({
     })
   }, [chatCandidates, normalizedSearch])
 
+  const recentSplitIndex = useMemo(() => {
+    const globalChatIndex = filteredChatList.findIndex((chat) => chat.id === GLOBAL_ROOM_ID)
+
+    // Find first chat older than 2 days.
+    const TWO_DAYS_MS = 2 * 24 * 60 * 60 * 1000
+    const cutoffTime = nowMs - TWO_DAYS_MS
+    let firstOldChatIndex: number | null = null
+
+    for (let i = 0; i < filteredChatList.length; i++) {
+      const chat = filteredChatList[i]
+      if (!chat.lastActivityAt) {
+        continue
+      }
+      const activityTime = new Date(chat.lastActivityAt).getTime()
+      if (activityTime < cutoffTime) {
+        firstOldChatIndex = i
+        break
+      }
+    }
+
+    if (firstOldChatIndex == null || firstOldChatIndex <= 0) {
+      return null
+    }
+
+    // Keep global chat above the Recent divider for all users.
+    if (globalChatIndex >= 0) {
+      const minDividerIndex = globalChatIndex + 1
+      return minDividerIndex < filteredChatList.length
+        ? Math.max(firstOldChatIndex, minDividerIndex)
+        : null
+    }
+
+    return firstOldChatIndex
+  }, [filteredChatList, nowMs])
+
   const searchPlaceholder = t("listSearchPlaceholder")
+
+  const weekdayFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, { weekday: "short" }),
+    [locale],
+  )
+
+  const getWeekdayLabel = useCallback(
+    (lastActivityAt?: string) => {
+      if (!lastActivityAt) {
+        return ""
+      }
+      const parsedDate = new Date(lastActivityAt)
+      if (Number.isNaN(parsedDate.getTime())) {
+        return ""
+      }
+      return weekdayFormatter.format(parsedDate)
+    },
+    [weekdayFormatter],
+  )
 
   const renderSearchField = (id: string, autoFocus?: boolean) => (
     <label className={styles.userPickerSearch} htmlFor={id}>
@@ -359,11 +420,6 @@ const ChatList = ({
       )}
 
       <div className={styles.chatListWrapper}>
-        {viewerIsVip ? (
-          <div className={styles.vipModeBanner} role="status" aria-live="polite">
-            {t("listVipModeBanner")}
-          </div>
-        ) : null}
         <div className={styles.header}>
           <h2>ChristApp</h2>
           <div className={styles.headerActions}>
@@ -420,7 +476,8 @@ const ChatList = ({
           ) : null}
 
           {!isLoading &&
-            filteredChatList.map((chat) => (
+            filteredChatList.map((chat, index) => (
+              <Fragment key={chat.id}>
             <li
               key={chat.id}
               className={styles.chatItem}
@@ -455,6 +512,11 @@ const ChatList = ({
                 }
                 const safeTitle = toRenderText(chat.title)
                 const safeTimeLabel = toRenderText(chat.timeLabel)
+                const weekdayLabel = getWeekdayLabel(chat.lastActivityAt)
+                const chatTimeLabel =
+                  safeTimeLabel && weekdayLabel
+                    ? `${safeTimeLabel}, ${weekdayLabel}`
+                    : safeTimeLabel || weekdayLabel
                 const safePreview = toRenderText(chat.preview)
                 const presenceSubtitle =
                   chat.id !== GLOBAL_ROOM_ID &&
@@ -465,6 +527,7 @@ const ChatList = ({
                         seconds: (n) => t("lastSeenSeconds", { count: n }),
                         minutes: (n) => t("lastSeenMinutes", { count: n }),
                         hours: (n) => t("lastSeenHours", { count: n }),
+                        days: (n) => t("lastSeenDays", { count: n }),
                       })
                     : ""
 
@@ -503,13 +566,13 @@ const ChatList = ({
                               <h3 className={styles.title}>{safeTitle}</h3>
                               {chat.peerIsVip ? (
                                 <span className={styles.vipBadge} title="VIP">
-                                  VIP
+                                  vip
                                 </span>
                               ) : null}
                             </>
                           )}
                         </div>
-                        <span className={styles.chatTime}>{safeTimeLabel}</span>
+                        <span className={styles.chatTime}>{chatTimeLabel}</span>
                       </div>
                       {presenceSubtitle ? <p className={styles.presenceSubtitle}>{presenceSubtitle}</p> : null}
 
@@ -608,6 +671,14 @@ const ChatList = ({
                 )
               })()}
             </li>
+                {recentSplitIndex !== null && index === recentSplitIndex - 1 ? (
+                  <li key="recent-divider" className={styles.recentDivider} aria-label={t("recentDividerAria")}>
+                    <span className={styles.recentDividerLine} aria-hidden />
+                    <span className={styles.recentDividerLabel}>{t("recentDividerLabel")}</span>
+                    <span className={styles.recentDividerLine} aria-hidden />
+                  </li>
+                ) : null}
+              </Fragment>
             ))}
         </ul>
       </div>

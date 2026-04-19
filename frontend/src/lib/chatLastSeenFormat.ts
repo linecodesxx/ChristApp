@@ -2,7 +2,7 @@
 export function formatLastSeenRelative(
   iso: string,
   nowMs: number,
-  labels: { seconds: (n: number) => string; minutes: (n: number) => string; hours: (n: number) => string },
+  labels: { seconds: (n: number) => string; minutes: (n: number) => string; hours: (n: number) => string; days: (n: number) => string },
 ): string {
   const t = new Date(iso).getTime()
   if (Number.isNaN(t)) {
@@ -18,5 +18,9 @@ export function formatLastSeenRelative(
     return labels.minutes(Math.max(1, min))
   }
   const hours = Math.floor(min / 60)
-  return labels.hours(Math.max(1, hours))
+  if (hours < 24) {
+    return labels.hours(Math.max(1, hours))
+  }
+  const days = Math.floor(hours / 24)
+  return labels.days(Math.max(1, days))
 }

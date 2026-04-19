@@ -86,6 +86,29 @@ type DoodleStatePayload = {
   };
 };
 
+type SnakeScorePayload = {
+  roomId?: string;
+  score?: number;
+};
+
+type SnakeResetPayload = {
+  roomId?: string;
+};
+
+type SnakeStatePayload = {
+  roomId?: string;
+  state?: {
+    headX?: number;
+    headY?: number;
+    foodX?: number;
+    foodY?: number;
+    score?: number;
+    alive?: boolean;
+    emittedAt?: number;
+    body?: Array<{ x?: number; y?: number }>;
+  };
+};
+
 @WebSocketGateway({
   cors: { origin: '*' },
 })
@@ -100,7 +123,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly roomPlasmaBackground = new Map<string, boolean>();
 
   private static readonly DISCONNECT_GRACE_MS = 3000;
-  private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🔥', '🥲', '😭', '🙏🏻']);
+  private static readonly ALLOWED_REACTIONS = new Set(['😂', '❤️', '🔥', '🥲', '😭', '🙏🏻', '👍', '⭐', '⚡']);
   private static readonly ATTACK_WINDOW_MS = 10 * 60 * 1000;
   private static readonly SOCKET_BAN_MS = 15 * 60 * 1000;
 
@@ -704,6 +727,130 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         score: Math.max(0, Math.min(999999, Math.floor(score))),
         alive: Boolean(state.alive),
         emittedAt: Number.isFinite(emittedAt) ? Math.floor(emittedAt) : Date.now(),
+      },
+    });
+  }
+
+  @SubscribeMessage('snake-score')
+  async handleSnakeScore(
+    @MessageBody() body: SnakeScorePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    const rawScore = Number(body?.score);
+    if (!Number.isFinite(rawScore)) return;
+    const score = Math.max(0, Math.min(999999, Math.floor(rawScore)));
+
+    this.server.to(roomId).emit('snake-score-updated', {
+      roomId,
+      userId: user.id,
+      score,
+    });
+  }
+
+  @SubscribeMessage('snake-reset')
+  async handleSnakeReset(
+    @MessageBody() body: SnakeResetPayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    this.server.to(roomId).emit('snake-reset', {
+      roomId,
+    });
+  }
+
+  @SubscribeMessage('snake-state')
+  async handleSnakeState(
+    @MessageBody() body: SnakeStatePayload,
+    @ConnectedSocket() client: SocketWithUser,
+  ) {
+    const user = await this.resolveSocketUser(client);
+    if (!user) return;
+    if (!user.isVip) return;
+
+    const roomId = typeof body?.roomId === 'string' ? body.roomId.trim() : '';
+    if (!roomId) return;
+
+    const hasAccess = await canUserPostToRoom(this.prisma, user.id, roomId);
+    if (!hasAccess) return;
+
+    const room = await this.prisma.room.findUnique({
+      where: { id: roomId },
+      select: { title: true },
+    });
+    if (!room?.title?.startsWith('dm:')) return;
+
+    const state = body?.state;
+    if (!state) return;
+
+    const headX = Number(state.headX);
+    const headY = Number(state.headY);
+    const foodX = Number(state.foodX);
+    const foodY = Number(state.foodY);
+    const score = Number(state.score);
+    const emittedAt = Number(state.emittedAt);
+    if (
+      !Number.isFinite(headX) ||
+      !Number.isFinite(headY) ||
+      !Number.isFinite(foodX) ||
+      !Number.isFinite(foodY) ||
+      !Number.isFinite(score)
+    ) {
+      return;
+    }
+
+    const bodyPoints = Array.isArray(state.body)
+      ? state.body
+          .map((point) => ({
+            x: Number(point?.x),
+            y: Number(point?.y),
+          }))
+          .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+          .slice(0, 180)
+      : [];
+
+    this.server.to(roomId).emit('snake-state-updated', {
+      roomId,
+      userId: user.id,
+      state: {
+        headX,
+        headY,
+        foodX,
+        foodY,
+        score: Math.max(0, Math.min(999999, Math.floor(score))),
+        alive: Boolean(state.alive),
+        emittedAt: Number.isFinite(emittedAt) ? Math.floor(emittedAt) : Date.now(),
+        body: bodyPoints,
       },
     });
   }

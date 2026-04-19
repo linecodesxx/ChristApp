@@ -344,6 +344,7 @@ export default function DoodleMiniGame({
         </p>
         <p className={styles.bestLine}>Лучший результат: {bestScore}</p>
         <p className={styles.bestLine}>Пинг: {peerPingMs != null ? `${peerPingMs} мс` : "—"}</p>
+        <p className={styles.hint}>Управление: ← → или свайп</p>
         <div className={styles.canvasWrap}>
           <canvas
             ref={canvasRef}
@@ -409,7 +410,6 @@ export default function DoodleMiniGame({
             →
           </button>
         </div>
-        <p className={styles.hint}>Управление: ← → или свайп</p>
       </div>
     </div>
   )

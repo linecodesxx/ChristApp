@@ -234,6 +234,7 @@
     "lastSeenSeconds": "был(а) в сети {count} сек назад",
     "lastSeenMinutes": "был(а) в сети {count} мин назад",
     "lastSeenHours": "был(а) в сети {count} ч назад",
+    "lastSeenDays": "был(а) в сети {count} дн назад",
     "adminDashboardAria": "Админка",
     "adminDashboardTitle": "Админ — участники",
     "recordingVoice": "{name} записывает голосовое",

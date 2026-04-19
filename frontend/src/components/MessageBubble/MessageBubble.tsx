@@ -1,14 +1,24 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
-import { memo, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type MouseEvent, type TouchEvent } from "react"
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type MouseEvent,
+  type TouchEvent,
+} from "react"
 import Image from "next/image"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { type AppReactionType, type Message, isMessageFromCurrentUser } from "@/types/message"
 import { useTranslations } from "next-intl"
 import { useHydrated } from "@/hooks/useHydrated"
 import { CHAT_COMPOSER_TAB_LAYOUT_MAX_WIDTH_PX } from "@/hooks/useMediaQuery"
-import { PenLine, Pin, PinOff, Trash2 } from "lucide-react"
+import { PenLine, Pin, PinOff, Star, ThumbsUp, Trash2, Zap } from "lucide-react"
 import { useLongPress } from "@/hooks/useLongPress"
 import { getInitials } from "@/lib/utils"
 import styles from "@/components/MessageBubble/MessageBubble.module.scss"
@@ -49,7 +59,20 @@ type MessageBubbleProps = {
 
 const SWIPE_REPLY_THRESHOLD = 56
 const SWIPE_MAX_VERTICAL_DELTA = 42
-const REACTION_OPTIONS: AppReactionType[] = ["🤍", "😂", "❤️", "🔥", "😊", "😧", "🥲"]
+const REACTION_OPTIONS: AppReactionType[] = ["😂", "❤️", "🔥", "🥲", "😭", "🙏🏻", "👍", "⭐", "⚡"]
+
+function renderReactionPickerOption(reaction: AppReactionType) {
+  if (reaction === "👍") {
+    return <ThumbsUp size={16} strokeWidth={2.2} aria-hidden />
+  }
+  if (reaction === "⭐") {
+    return <Star size={16} strokeWidth={2.2} aria-hidden />
+  }
+  if (reaction === "⚡") {
+    return <Zap size={16} strokeWidth={2.2} aria-hidden />
+  }
+  return reaction
+}
 
 function isAudioFileName(name: string): boolean {
   const ext = name.split(".").pop()?.toLowerCase()
@@ -67,12 +90,22 @@ function fmtTime(s: number): string {
   return `${m}:${String(sec).padStart(2, "0")}`
 }
 
+function toRawCloudinaryUrl(url: string): string {
+  if (!url.includes("res.cloudinary.com")) return url
+  // Cloudinary may store PDFs as image type; switch to raw to serve the actual file
+  if (url.includes("/image/upload/")) {
+    return url.replace("/image/upload/", "/raw/upload/")
+  }
+  return url
+}
+
 function BookFileBubble({ href, filename }: { href: string; filename: string }) {
   const ext = filename.split(".").pop()?.toUpperCase() ?? "FILE"
+  const safeHref = toRawCloudinaryUrl(href)
   return (
     <a
       className={styles.bookFileBubble}
-      href={href}
+      href={safeHref}
       target="_blank"
       rel="noopener noreferrer"
       onClick={(e) => e.stopPropagation()}
@@ -756,7 +789,7 @@ function MessageBubble({
                           onClick={(event) => handleReactionClick(event, emoji)}
                           aria-label={`Реакция ${emoji}`}
                         >
-                          {emoji}
+                          {renderReactionPickerOption(emoji)}
                         </button>
                       ))}
                     </motion.div>

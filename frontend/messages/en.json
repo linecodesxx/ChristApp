@@ -234,6 +234,7 @@
     "lastSeenSeconds": "last seen {count}s ago",
     "lastSeenMinutes": "last seen {count}m ago",
     "lastSeenHours": "last seen {count}h ago",
+    "lastSeenDays": "last seen {count}d ago",
     "adminDashboardAria": "Admin dashboard",
     "adminDashboardTitle": "Admin — members",
     "recordingVoice": "{name} is recording a voice message",
