@@ -106,7 +106,7 @@ export class CloudinaryService {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'christapp/chat-files',
-          resource_type: 'auto',
+          resource_type: 'raw',
           use_filename: true,
           unique_filename: true,
           filename_override: originalFilename,

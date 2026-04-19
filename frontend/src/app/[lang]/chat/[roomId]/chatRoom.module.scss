@@ -138,7 +138,7 @@
   .pinnedMessagesDockLabel {
     display: block;
     font-family: "Inter", sans-serif;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -148,14 +148,22 @@
 
   .pinnedMessagesDockChips {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    flex-wrap: nowrap;
     gap: 6px;
+    height: 30px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
   }
 
   .pinnedMessagesDockChip {
     display: inline-flex;
     align-items: center;
     gap: 4px;
+    width: 100%;
     max-width: 100%;
     padding: 6px 10px;
     border-radius: 10px;
@@ -163,7 +171,7 @@
     background: color-mix(in srgb, var(--accent-soft) 12%, var(--surface));
     color: var(--foreground);
     font-family: "Inter", sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: 600;
     line-height: 1.25;
     text-align: left;
@@ -387,10 +395,14 @@
         }
       }
 
-      .doodleButton {
+      .gameMenuWrap {
+        position: relative;
         margin-left: auto;
+      }
+
+      .gameButton {
         height: 34px;
-        padding: 0 10px;
+        padding: 0 12px;
         border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
         border-radius: 9999px;
         background: color-mix(in srgb, var(--surface-elevated) 80%, var(--accent-soft) 20%);
@@ -398,6 +410,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        gap: 6px;
         cursor: pointer;
         font-size: 12px;
         font-weight: 700;
@@ -407,6 +420,42 @@
           transform: translateY(-1px);
           border-color: color-mix(in srgb, var(--accent) 55%, var(--line-soft) 45%);
           background: color-mix(in srgb, var(--surface-elevated) 72%, var(--accent-soft) 28%);
+        }
+      }
+
+      .gameMenu {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 6px);
+        z-index: 70;
+        min-width: 132px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px;
+        border-radius: 12px;
+        border: 1px solid color-mix(in srgb, var(--line-soft) 65%, transparent);
+        background: var(--surface);
+        box-shadow:
+          0 10px 28px -12px rgba(0, 0, 0, 0.45),
+          0 0 0 1px color-mix(in srgb, var(--line-soft) 12%, transparent);
+      }
+
+      .gameMenuItem {
+        width: 100%;
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 10px;
+        text-align: left;
+        background: transparent;
+        color: var(--foreground);
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+
+        &:hover {
+          background: color-mix(in srgb, var(--accent-soft) 24%, transparent);
         }
       }
 
@@ -663,6 +712,14 @@
     border-radius: 50%;
   }
 
+  .profilePreviewAvatarButton {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+  }
+
   .profilePreviewAvatar {
     object-fit: cover;
     object-position: center;
@@ -811,7 +868,7 @@ html[data-theme="light"] .chat {
 
       .participantsButton,
       .callButton,
-      .doodleButton {
+      .gameButton {
         border-color: color-mix(in srgb, #bb9850 42%, var(--line-soft));
         background: color-mix(in srgb, var(--surface-elevated) 86%, #f2e6cc 14%);
         color: color-mix(in srgb, #5b4624 68%, var(--foreground));
@@ -944,6 +1001,7 @@ html[data-theme="dark"] .chat {
   padding-top: 6px;
 
   @media (max-width: 1023px) {
+    padding-top: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
@@ -958,8 +1016,12 @@ html[data-theme="dark"] .chat {
   box-shadow:
     inset 0 1px 0 rgba(255, 243, 211, 0.14),
     0 10px 34px -26px rgba(0, 0, 0, 0.52);
-  padding: 8px 10px;
+  padding: 2px 5px;
   display: flex;
   flex-direction: column;
   gap: 6px;
+
+  @media (max-width: 1023px) {
+    padding: 1px 2px;
+  }
 }

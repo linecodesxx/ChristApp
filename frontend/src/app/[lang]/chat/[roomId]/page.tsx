@@ -32,10 +32,12 @@ import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
-import { Phone } from "lucide-react"
+import { Gamepad2, Phone, Pin } from "lucide-react"
 import dynamic from "next/dynamic"
 import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame"
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame"
+import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame"
+import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame"
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
 const IncomingCallModal = dynamic(() => import("@/components/calls/IncomingCallModal"), { ssr: false })
 import {
@@ -221,6 +223,22 @@ type DoodleStateUpdatedPayload = {
   state?: DoodleRuntimeState
 }
 
+type SnakeScoreUpdatedPayload = {
+  roomId?: string
+  userId?: string
+  score?: number
+}
+
+type SnakeResetPayload = {
+  roomId?: string
+}
+
+type SnakeStateUpdatedPayload = {
+  roomId?: string
+  userId?: string
+  state?: SnakeRuntimeState
+}
+
 function persistLastSentPreview(roomKey: string, message: string, directUserId?: string) {
   if (typeof window === "undefined") return
 
@@ -365,13 +383,15 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
     .map((reaction) => {
       if (!reaction?.id || !reaction.userId) return null
       if (
-        reaction.type !== "🤍" &&
         reaction.type !== "😂" &&
         reaction.type !== "❤️" &&
         reaction.type !== "🔥" &&
-        reaction.type !== "😊" &&
-        reaction.type !== "😧" &&
-        reaction.type !== "🥲"
+        reaction.type !== "🥲" &&
+        reaction.type !== "😭" &&
+        reaction.type !== "🙏🏻" &&
+        reaction.type !== "👍" &&
+        reaction.type !== "⭐" &&
+        reaction.type !== "⚡"
       ) {
         return null
       }
@@ -511,10 +531,16 @@ export default function ChatPageDetails() {
   const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
   const [pendingOutgoingCall, setPendingOutgoingCall] = useState<IncomingCallPayload | null>(null)
   const [isDoodleOpen, setIsDoodleOpen] = useState(false)
+  const [isSnakeOpen, setIsSnakeOpen] = useState(false)
+  const [isGameMenuOpen, setIsGameMenuOpen] = useState(false)
   const [myDoodleScore, setMyDoodleScore] = useState(0)
   const [peerDoodleScore, setPeerDoodleScore] = useState(0)
   const [peerDoodleState, setPeerDoodleState] = useState<DoodleRuntimeState | null>(null)
   const [peerDoodlePingMs, setPeerDoodlePingMs] = useState<number | null>(null)
+  const [mySnakeScore, setMySnakeScore] = useState(0)
+  const [peerSnakeScore, setPeerSnakeScore] = useState(0)
+  const [peerSnakeState, setPeerSnakeState] = useState<SnakeRuntimeState | null>(null)
+  const [peerSnakePingMs, setPeerSnakePingMs] = useState<number | null>(null)
   const [socketAuthEpoch, setSocketAuthEpoch] = useState(0)
   const userIdRef = useRef<string | undefined>(undefined)
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null)
@@ -589,6 +615,26 @@ export default function ChatPageDetails() {
     document.body.classList.add("chatRoomPage")
     return () => document.body.classList.remove("chatRoomPage")
   }, [])
+
+  useEffect(() => {
+    if (!isGameMenuOpen) {
+      return
+    }
+
+    const onCloseMenu = () => setIsGameMenuOpen(false)
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsGameMenuOpen(false)
+      }
+    }
+
+    document.addEventListener("click", onCloseMenu)
+    window.addEventListener("keydown", onEscape)
+    return () => {
+      document.removeEventListener("click", onCloseMenu)
+      window.removeEventListener("keydown", onEscape)
+    }
+  }, [isGameMenuOpen])
 
   const effectiveSocketRoomId = useMemo(() => {
     if (!routeRoomId) return null
@@ -1315,13 +1361,15 @@ export default function ChatPageDetails() {
         .map((reaction) => {
           if (!reaction?.id || !reaction.userId) return null
           if (
-            reaction.type !== "🤍" &&
             reaction.type !== "😂" &&
             reaction.type !== "❤️" &&
             reaction.type !== "🔥" &&
-            reaction.type !== "😊" &&
-            reaction.type !== "😧" &&
-            reaction.type !== "🥲"
+            reaction.type !== "🥲" &&
+            reaction.type !== "😭" &&
+            reaction.type !== "🙏🏻" &&
+            reaction.type !== "👍" &&
+            reaction.type !== "⭐" &&
+            reaction.type !== "⚡"
           ) {
             return null
           }
@@ -1497,6 +1545,82 @@ export default function ChatPageDetails() {
     }
     socket.on("doodle-state-updated", onDoodleStateUpdated)
 
+    const onSnakeScoreUpdated = (payload: SnakeScoreUpdatedPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId || !payload?.userId) {
+        return
+      }
+      const nextScore = Number(payload.score)
+      if (!Number.isFinite(nextScore)) {
+        return
+      }
+      const normalized = Math.max(0, Math.floor(nextScore))
+      if (payload.userId === userIdRef.current) {
+        setMySnakeScore(normalized)
+      } else {
+        setPeerSnakeScore(normalized)
+      }
+    }
+    socket.on("snake-score-updated", onSnakeScoreUpdated)
+
+    const onSnakeReset = (payload: SnakeResetPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId) {
+        return
+      }
+      setMySnakeScore(0)
+      setPeerSnakeScore(0)
+      setPeerSnakeState(null)
+      setPeerSnakePingMs(null)
+    }
+    socket.on("snake-reset", onSnakeReset)
+
+    const onSnakeStateUpdated = (payload: SnakeStateUpdatedPayload) => {
+      const joinedId = joinedRoomRef.current
+      if (!joinedId || payload?.roomId !== joinedId || !payload?.userId || !payload.state) {
+        return
+      }
+      const state = payload.state
+      if (
+        !Number.isFinite(state.headX) ||
+        !Number.isFinite(state.headY) ||
+        !Number.isFinite(state.foodX) ||
+        !Number.isFinite(state.foodY) ||
+        !Number.isFinite(state.score)
+      ) {
+        return
+      }
+
+      if (payload.userId === userIdRef.current) {
+        setMySnakeScore(Math.max(0, Math.floor(state.score)))
+        return
+      }
+
+      if (Number.isFinite(state.emittedAt)) {
+        const lag = Math.max(0, Math.min(9999, Math.floor(Date.now() - Number(state.emittedAt))))
+        setPeerSnakePingMs(lag)
+      }
+
+      const body = Array.isArray(state.body)
+        ? state.body
+            .map((point) => ({ x: Number(point.x), y: Number(point.y) }))
+            .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y))
+        : []
+
+      setPeerSnakeState({
+        headX: state.headX,
+        headY: state.headY,
+        foodX: state.foodX,
+        foodY: state.foodY,
+        body,
+        score: Math.max(0, Math.floor(state.score)),
+        alive: Boolean(state.alive),
+        emittedAt: Number.isFinite(state.emittedAt) ? Number(state.emittedAt) : undefined,
+      })
+      setPeerSnakeScore(Math.max(0, Math.floor(state.score)))
+    }
+    socket.on("snake-state-updated", onSnakeStateUpdated)
+
     return () => {
       socket.off("connect", onConnect)
       socket.off("disconnect", onDisconnect)
@@ -1529,6 +1653,9 @@ export default function ChatPageDetails() {
       socket.off("doodle-score-updated", onDoodleScoreUpdated)
       socket.off("doodle-reset", onDoodleReset)
       socket.off("doodle-state-updated", onDoodleStateUpdated)
+      socket.off("snake-score-updated", onSnakeScoreUpdated)
+      socket.off("snake-reset", onSnakeReset)
+      socket.off("snake-state-updated", onSnakeStateUpdated)
       stopIncomingRingtone()
       if (outgoingCallTimeoutRef.current !== null) {
         window.clearTimeout(outgoingCallTimeoutRef.current)
@@ -1871,6 +1998,13 @@ export default function ChatPageDetails() {
     [profileModalUser?.avatarUrl],
   )
 
+  const canOpenBigAvatarFromProfile =
+    isUserProfileOpen &&
+    !peekProfileUserId &&
+    canOpenAvatarPreview &&
+    Boolean(profileModalUser?.id) &&
+    profileModalUser?.id === directChatTargetUserId
+
   const isDirectTargetOnline = Boolean(directChatTargetUserId && onlineUserIds.has(directChatTargetUserId))
   const globalOnlineCount = onlineCount
   const directTargetLastSeenAt = directChatTargetUserId
@@ -1894,6 +2028,7 @@ export default function ChatPageDetails() {
       seconds: (count) => t("lastSeenSeconds", { count }),
       minutes: (count) => t("lastSeenMinutes", { count }),
       hours: (count) => t("lastSeenHours", { count }),
+      days: (count) => t("lastSeenDays", { count }),
     })
 
     if (!formatted) {
@@ -2185,6 +2320,8 @@ export default function ChatPageDetails() {
     if (!socket?.connected) {
       return
     }
+    setIsSnakeOpen(false)
+    setIsGameMenuOpen(false)
     setIsDoodleOpen(true)
     setMyDoodleScore(0)
     setPeerDoodleScore(0)
@@ -2222,6 +2359,61 @@ export default function ChatPageDetails() {
     doodleStateEmitTsRef.current = now
 
     socket.emit("doodle-state", {
+      roomId: joinedId,
+      state: {
+        ...state,
+        emittedAt: Date.now(),
+      },
+    })
+  }, [])
+
+  const handleOpenSnake = useCallback(() => {
+    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+      return
+    }
+    const socket = socketRef.current
+    if (!socket?.connected) {
+      return
+    }
+    setIsDoodleOpen(false)
+    setIsGameMenuOpen(false)
+    setIsSnakeOpen(true)
+    setMySnakeScore(0)
+    setPeerSnakeScore(0)
+    setPeerSnakeState(null)
+    setPeerSnakePingMs(null)
+    socket.emit("snake-reset", { roomId: effectiveSocketRoomId })
+    socket.emit("snake-score", { roomId: effectiveSocketRoomId, score: 0 })
+  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip])
+
+  const handleSnakeScoreChange = useCallback((score: number) => {
+    setMySnakeScore(score)
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) {
+      return
+    }
+    socket.emit("snake-score", {
+      roomId: joinedId,
+      score,
+    })
+  }, [])
+
+  const snakeStateEmitTsRef = useRef(0)
+  const handleSnakeStateChange = useCallback((state: SnakeRuntimeState) => {
+    const socket = socketRef.current
+    const joinedId = joinedRoomRef.current
+    if (!socket?.connected || !joinedId) {
+      return
+    }
+
+    const now = Date.now()
+    if (now - snakeStateEmitTsRef.current < 70 && state.alive) {
+      return
+    }
+    snakeStateEmitTsRef.current = now
+
+    socket.emit("snake-state", {
       roomId: joinedId,
       state: {
         ...state,
@@ -2648,12 +2840,12 @@ export default function ChatPageDetails() {
           <Link href="/chat">
             <Image className={styles.backIcon} src="/back-icon.svg" alt={t("backAlt")} width={24} height={24} />
           </Link>
-          {canOpenAvatarPreview ? (
+          {canOpenDirectUserProfile ? (
             <button
               type="button"
               className={`${headerAvatarClassName} ${styles.headerAvatarButton}`}
-              onClick={() => setIsAvatarPreviewOpen(true)}
-              aria-label="Открыть аватар"
+              onClick={() => setIsUserProfileOpen(true)}
+              aria-label={t("profileButtonAria", { name: resolvedTitle })}
             >
               <AvatarWithFallback
                 src={headerAvatarSrc}
@@ -2685,17 +2877,6 @@ export default function ChatPageDetails() {
           <div className={styles.wrapContent}>
             <div className={styles.titleRow}>
               <h2 className={styles.chatName}>{resolvedTitle}</h2>
-              {canOpenDirectUserProfile ? (
-                <button
-                  type="button"
-                  className={styles.profileButton}
-                  onClick={() => setIsUserProfileOpen(true)}
-                  aria-label={t("profileButtonAria", { name: resolvedTitle })}
-                  title={t("profileButton")}
-                >
-                  {t("profileButton")}
-                </button>
-              ) : null}
             </div>
             {statusLine ? <span className={styles.status}>{statusLine}</span> : null}
           </div>
@@ -2717,18 +2898,36 @@ export default function ChatPageDetails() {
               />
             </button>
           ) : null}
-          {directChatTargetUser ? (
-            user?.isVip ? (
+          {directChatTargetUser && user?.isVip ? (
+            <div className={styles.gameMenuWrap}>
               <button
                 type="button"
-                className={styles.doodleButton}
-                onClick={handleOpenDoodle}
-                aria-label="Открыть игру Doodle"
-                title="Doodle"
+                className={styles.gameButton}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setIsGameMenuOpen((prev) => !prev)
+                }}
+                aria-label="Открыть меню игр"
+                title="Game"
               >
-                Doodle
+                <Gamepad2 size={14} strokeWidth={2.2} aria-hidden />
+                <span>Game</span>
               </button>
-            ) : null
+              {isGameMenuOpen ? (
+                <div
+                  className={styles.gameMenu}
+                  role="menu"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <button type="button" className={styles.gameMenuItem} role="menuitem" onClick={handleOpenDoodle}>
+                    Doodle
+                  </button>
+                  <button type="button" className={styles.gameMenuItem} role="menuitem" onClick={handleOpenSnake}>
+                    Snake
+                  </button>
+                </div>
+              ) : null}
+            </div>
           ) : null}
           {directChatTargetUser ? (
             <button
@@ -2757,7 +2956,7 @@ export default function ChatPageDetails() {
                 onClick={() => jumpToMessageRef.current?.(entry.messageId)}
               >
                 <span className={styles.pinnedMessagesDockChipIcon} aria-hidden>
-                  📌
+                  <Pin size={14} strokeWidth={2.1} />
                 </span>
                 <span className={styles.pinnedMessagesDockChipText}>{entry.preview}</span>
               </button>
@@ -2890,17 +3089,42 @@ export default function ChatPageDetails() {
               ×
             </button>
 
-            <AvatarWithFallback
-              src={profileModalAvatarSrc}
-              initials={getInitials(profileModalTitle)}
-              colorSeed={profileModalUser.id ?? roomId ?? profileModalTitle}
-              width={88}
-              height={88}
-              imageClassName={styles.profilePreviewAvatar}
-              fallbackClassName={styles.profilePreviewAvatarFallback}
-              loading="eager"
-              fallbackTint="onError"
-            />
+            {canOpenBigAvatarFromProfile ? (
+              <button
+                type="button"
+                className={styles.profilePreviewAvatarButton}
+                onClick={() => {
+                  setIsUserProfileOpen(false)
+                  setPeekProfileUserId(null)
+                  setIsAvatarPreviewOpen(true)
+                }}
+                aria-label="Открыть большую аватарку"
+              >
+                <AvatarWithFallback
+                  src={profileModalAvatarSrc}
+                  initials={getInitials(profileModalTitle)}
+                  colorSeed={profileModalUser.id ?? roomId ?? profileModalTitle}
+                  width={88}
+                  height={88}
+                  imageClassName={styles.profilePreviewAvatar}
+                  fallbackClassName={styles.profilePreviewAvatarFallback}
+                  loading="eager"
+                  fallbackTint="onError"
+                />
+              </button>
+            ) : (
+              <AvatarWithFallback
+                src={profileModalAvatarSrc}
+                initials={getInitials(profileModalTitle)}
+                colorSeed={profileModalUser.id ?? roomId ?? profileModalTitle}
+                width={88}
+                height={88}
+                imageClassName={styles.profilePreviewAvatar}
+                fallbackClassName={styles.profilePreviewAvatarFallback}
+                loading="eager"
+                fallbackTint="onError"
+              />
+            )}
 
             <div className={styles.profilePreviewIdentity}>
               <h3 className={styles.profilePreviewTitle}>{profileModalTitle}</h3>
@@ -2994,6 +3218,17 @@ export default function ChatPageDetails() {
         onClose={() => setIsDoodleOpen(false)}
         onScoreChange={handleDoodleScoreChange}
         onStateChange={handleDoodleStateChange}
+      />
+      <SnakeMiniGame
+        open={isSnakeOpen}
+        myScore={mySnakeScore}
+        peerScore={peerSnakeScore}
+        peerName={directChatTargetUser?.nickname ?? directChatTargetUser?.username ?? "Собеседник"}
+        peerState={peerSnakeState}
+        peerPingMs={peerSnakePingMs}
+        onClose={() => setIsSnakeOpen(false)}
+        onScoreChange={handleSnakeScoreChange}
+        onStateChange={handleSnakeStateChange}
       />
       </section>
     </div>

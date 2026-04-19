@@ -492,6 +492,50 @@
       line-height: 15px;
     }
 
+    .recentDivider {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      width: 100%;
+      padding: 18px 16px 10px 16px;
+      flex-shrink: 0;
+      box-sizing: border-box;
+    }
+
+    .recentDividerLine {
+      flex: 1;
+      min-width: 12px;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(212, 175, 55, 0.2) 18%,
+        rgba(212, 175, 55, 0.65) 50%,
+        rgba(212, 175, 55, 0.2) 82%,
+        transparent 100%
+      );
+    }
+
+    .recentDividerLabel {
+      flex-shrink: 0;
+      padding: 7px 20px;
+      border-radius: 999px;
+      font-family: "Inter", sans-serif;
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: color-mix(in srgb, #d4af37 92%, var(--foreground) 8%);
+      border: 1.5px solid rgba(212, 175, 55, 0.88);
+      background: color-mix(in srgb, var(--surface-elevated) 38%, transparent);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      box-shadow:
+        0 0 0 1px rgba(212, 175, 55, 0.12),
+        0 8px 28px -12px rgba(212, 175, 55, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+
     .chatItem {
       display: flex;
       justify-content: space-between;
@@ -1022,6 +1066,27 @@ html[data-theme="light"] .chatListSection {
   }
 
   .chatList {
+    .recentDividerLabel {
+      color: color-mix(in srgb, #9a7b1a 88%, var(--foreground) 12%);
+      background: color-mix(in srgb, var(--surface-elevated) 72%, transparent);
+      border-color: rgba(180, 140, 40, 0.75);
+      box-shadow:
+        0 0 0 1px rgba(180, 140, 40, 0.1),
+        0 6px 20px -10px rgba(180, 140, 40, 0.25),
+        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    }
+
+    .recentDividerLine {
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(180, 140, 40, 0.15) 20%,
+        rgba(180, 140, 40, 0.45) 50%,
+        rgba(180, 140, 40, 0.15) 80%,
+        transparent 100%
+      );
+    }
+
     .chatItem {
       .chatItemContent {
         &:hover {
