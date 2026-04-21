@@ -12,9 +12,20 @@ type UseVideoRecorderOptions = {
 type UseVideoRecorderResult = {
   start: () => Promise<void>
   stop: () => Promise<void>
+  closeScene: () => Promise<void>
+  switchCamera: () => Promise<void>
   isRecording: boolean
   isUploading: boolean
+  isSceneOpen: boolean
+  elapsedSeconds: number
+  maxDurationSeconds: number
+  facingMode: "user" | "environment"
+  previewVideoRef: React.MutableRefObject<HTMLVideoElement | null>
 }
+
+const MAX_VIDEO_NOTE_SECONDS = 60
+
+const VIDEO_NOTE_MIME_ALLOW = new Set(["video/webm", "video/mp4", "video/quicktime"])
 
 function pickVideoMimeType(): string {
   const candidates = [
@@ -42,15 +53,46 @@ export function useVideoRecorder({
 }: UseVideoRecorderOptions): UseVideoRecorderResult {
   const [isRecording, setIsRecording] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isSceneOpen, setIsSceneOpen] = useState(false)
+  const [elapsedSeconds, setElapsedSeconds] = useState(0)
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user")
 
   const recorderRef = useRef<MediaRecorder | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null)
+  const startedAtRef = useRef<number | null>(null)
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+    if (previewVideoRef.current) {
+      previewVideoRef.current.srcObject = null
+    }
   }, [])
+
+  const startPreviewStream = useCallback(
+    async (nextFacingMode: "user" | "environment") => {
+      stopStream()
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: { ideal: 480 },
+          height: { ideal: 480 },
+          aspectRatio: { ideal: 1 },
+          facingMode: nextFacingMode,
+        },
+        audio: true,
+      })
+
+      streamRef.current = stream
+      const previewVideo = previewVideoRef.current
+      if (previewVideo) {
+        previewVideo.srcObject = stream
+        await previewVideo.play().catch(() => undefined)
+      }
+    },
+    [stopStream],
+  )
 
   const uploadBlob = useCallback(
     async (blob: Blob) => {
@@ -59,13 +101,13 @@ export function useVideoRecorder({
         throw new Error("Нет токена авторизации")
       }
 
-      const ext = blob.type.includes("webm") ? "webm" : "mp4"
-      const file = new File([blob], `video-note.${ext}`, {
-        type: blob.type || "video/webm",
-      })
+      const sourceMime = blob.type.split(";")[0].trim().toLowerCase()
+      const normalizedMime = VIDEO_NOTE_MIME_ALLOW.has(sourceMime) ? sourceMime : "video/webm"
+      const ext = normalizedMime.includes("mp4") ? "mp4" : normalizedMime.includes("quicktime") ? "mov" : "webm"
+      const normalizedBlob = sourceMime === normalizedMime ? blob : new Blob([blob], { type: normalizedMime })
 
       const formData = new FormData()
-      formData.append("file", file)
+      formData.append("file", normalizedBlob, `video-note.${ext}`)
 
       const response = await fetch(uploadUrl, {
         method: "POST",
@@ -102,17 +144,13 @@ export function useVideoRecorder({
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 480 },
-          height: { ideal: 480 },
-          aspectRatio: { ideal: 1 },
-          facingMode: "user",
-        },
-        audio: true,
-      })
+      setIsSceneOpen(true)
+      await startPreviewStream(facingMode)
 
-      streamRef.current = stream
+      const stream = streamRef.current
+      if (!stream) {
+        throw new Error("Не удалось запустить превью камеры")
+      }
       const mimeType = pickVideoMimeType()
       const options = mimeType ? { mimeType } : undefined
       const recorder = new MediaRecorder(stream, options)
@@ -127,10 +165,13 @@ export function useVideoRecorder({
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || "video/webm" })
         chunksRef.current = []
-        stopStream()
         setIsRecording(false)
+        startedAtRef.current = null
+        setElapsedSeconds(0)
 
         if (!blob.size) {
+          stopStream()
+          setIsSceneOpen(false)
           return
         }
 
@@ -141,18 +182,23 @@ export function useVideoRecorder({
             onError?.(message)
           })
           .finally(() => {
+            stopStream()
+            setIsSceneOpen(false)
             setIsUploading(false)
           })
       }
 
       recorderRef.current = recorder
       recorder.start(160)
+      startedAtRef.current = Date.now()
+      setElapsedSeconds(0)
       setIsRecording(true)
     } catch {
       stopStream()
+      setIsSceneOpen(false)
       onError?.("Нет доступа к камере или микрофону")
     }
-  }, [isUploading, onError, stopStream, uploadBlob])
+  }, [facingMode, isUploading, onError, startPreviewStream, stopStream, uploadBlob])
 
   const stop = useCallback(async () => {
     const recorder = recorderRef.current
@@ -161,6 +207,8 @@ export function useVideoRecorder({
     if (!recorder) {
       stopStream()
       setIsRecording(false)
+      startedAtRef.current = null
+      setElapsedSeconds(0)
       return
     }
 
@@ -169,8 +217,61 @@ export function useVideoRecorder({
     } else {
       stopStream()
       setIsRecording(false)
+      startedAtRef.current = null
+      setElapsedSeconds(0)
     }
   }, [stopStream])
+
+  const closeScene = useCallback(async () => {
+    if (isRecording) {
+      await stop()
+    } else {
+      stopStream()
+      setElapsedSeconds(0)
+      startedAtRef.current = null
+      setIsSceneOpen(false)
+    }
+  }, [isRecording, stop, stopStream])
+
+  const switchCamera = useCallback(async () => {
+    if (isRecording) {
+      onError?.("Камеру можно перевернуть до начала записи")
+      return
+    }
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      onError?.("Камера недоступна на этом устройстве")
+      return
+    }
+
+    const nextFacingMode = facingMode === "user" ? "environment" : "user"
+    try {
+      await startPreviewStream(nextFacingMode)
+      setFacingMode(nextFacingMode)
+    } catch {
+      onError?.("Не удалось переключить камеру")
+    }
+  }, [facingMode, isRecording, onError, startPreviewStream])
+
+  useEffect(() => {
+    if (!isRecording) {
+      return
+    }
+
+    const intervalId = window.setInterval(() => {
+      const startedAt = startedAtRef.current
+      if (!startedAt) {
+        return
+      }
+
+      const seconds = Math.floor((Date.now() - startedAt) / 1000)
+      setElapsedSeconds(seconds)
+      if (seconds >= MAX_VIDEO_NOTE_SECONDS) {
+        void stop()
+      }
+    }, 200)
+
+    return () => window.clearInterval(intervalId)
+  }, [isRecording, stop])
 
   useEffect(() => {
     return () => {
@@ -186,7 +287,14 @@ export function useVideoRecorder({
   return {
     start,
     stop,
+    closeScene,
+    switchCamera,
     isRecording,
     isUploading,
+    isSceneOpen,
+    elapsedSeconds,
+    maxDurationSeconds: MAX_VIDEO_NOTE_SECONDS,
+    facingMode,
+    previewVideoRef,
   }
 }
