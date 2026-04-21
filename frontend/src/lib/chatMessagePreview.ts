@@ -11,6 +11,9 @@ export type ChatMessagePreviewInput = {
 
 /** Текст прев'ю для списку чатів, сповіщень і відповідей. */
 export function chatMessagePreview(m: ChatMessagePreviewInput): string {
+  if (m.type === "VIDEO_NOTE") {
+    return "Видео-овечка"
+  }
   if (m.type === "FILE") {
     return "Файл"
   }
