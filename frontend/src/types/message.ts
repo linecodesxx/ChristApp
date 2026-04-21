@@ -1,4 +1,4 @@
-export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE"
+export type AppMessageType = "TEXT" | "VOICE" | "IMAGE" | "FILE" | "VIDEO_NOTE"
 export type AppReactionType = "😂" | "❤️" | "🤍" | "🔥" | "🥲" | "😭" | "🙏🏻"
 
 export type MessageReply = {

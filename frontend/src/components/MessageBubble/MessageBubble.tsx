@@ -28,6 +28,7 @@ import { VOICE_META_PREFIX, VOICE_META_SUFFIX } from "@/lib/voiceMessage"
 import { parseStickerMessagePayload } from "@/lib/stickerMessage"
 import VoiceMessageBubble from "@/components/VoiceMessageBubble/VoiceMessageBubble"
 import { ScriptureText } from "@/components/ScriptureText/ScriptureText"
+import VideoSheep from "@/components/VideoSheep/VideoSheep"
 
 type MessageBubbleProps = {
   message: Message
@@ -638,6 +639,25 @@ function MessageBubble({
         }
 
         const imgUrl = message.fileUrl?.trim()
+        if (message.type === "VIDEO_NOTE" && imgUrl) {
+          return (
+            <div className={styles.imageMessage}>
+              {showCompactSender ? (
+                <p className={styles.senderCompact}>
+                  <SenderName name={senderName} isVip={senderVip} as="span" />
+                </p>
+              ) : null}
+              {canShowSenderName && !showCompactSender ? (
+                <p className={styles.imageMessageMeta}>
+                  <SenderName name={senderName} isVip={senderVip} as="strong" />
+                  <span> — видео-овечка</span>
+                </p>
+              ) : null}
+              <VideoSheep src={imgUrl} />
+            </div>
+          )
+        }
+
         if (message.type === "IMAGE" && imgUrl) {
           return (
             <div className={styles.imageMessage}>
@@ -870,7 +890,12 @@ function MessageBubble({
               {isPinned ? <PinOff size={15} strokeWidth={2.1} aria-hidden /> : <Pin size={15} strokeWidth={2.1} aria-hidden />}
             </button>
           ) : null}
-          {isOwnMessage && onEdit && message.type !== "VOICE" && message.type !== "IMAGE" && message.type !== "FILE" ? (
+          {isOwnMessage &&
+          onEdit &&
+          message.type !== "VOICE" &&
+          message.type !== "IMAGE" &&
+          message.type !== "FILE" &&
+          message.type !== "VIDEO_NOTE" ? (
             <button
               type="button"
               className={styles.metaActionIcon}

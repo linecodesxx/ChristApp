@@ -42,6 +42,7 @@ const VOICE_MIME_ALLOW = new Set([
 ]);
 
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
+const VIDEO_NOTE_MAX_BYTES = 30 * 1024 * 1024;
 const FILE_MAX_BYTES = 50 * 1024 * 1024;
 const FILE_MIME_ALLOW = new Set([
   'application/pdf',
@@ -248,6 +249,48 @@ export class MessagesController {
       this.logger.warn('uploadImage failed', err);
       const reason = uploadErrorMessage(err);
       throw new ServiceUnavailableException(`Не удалось загрузить изображение: ${reason}`);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('video-note')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: VIDEO_NOTE_MAX_BYTES },
+    }),
+  )
+  async uploadVideoNote(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    const userId = req.user?.id;
+    if (!userId) {
+      throw new UnauthorizedException();
+    }
+
+    if (!this.cloudinaryService.isReady()) {
+      throw new ServiceUnavailableException(
+        'Загрузка видео недоступна: задайте CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET в .env (см. backend/.env.example).',
+      );
+    }
+
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Нужен видеофайл в поле file');
+    }
+
+    const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
+    if (!mime.startsWith('video/')) {
+      throw new BadRequestException(`Ожидается видео, получено: ${mime || '—'}`);
+    }
+
+    try {
+      const secureUrl = await this.cloudinaryService.uploadVideoNote(file.buffer);
+      return { secure_url: secureUrl };
+    } catch (err) {
+      this.logger.warn('uploadVideoNote failed', err);
+      const reason = uploadErrorMessage(err);
+      throw new ServiceUnavailableException(`Не удалось загрузить видео: ${reason}`);
     }
   }
 

@@ -1,0 +1,52 @@
+.recordButton {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 0;
+  background: transparent;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.icon {
+  position: relative;
+  z-index: 2;
+  font-size: 23px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.micIcon {
+  color: rgba(92, 64, 51, 0.65);
+
+  :global(html[data-theme="dark"]) & {
+    color: rgba(255, 255, 255, 0.88);
+  }
+}
+
+.recordPulse {
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 2px solid #d92121;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+}

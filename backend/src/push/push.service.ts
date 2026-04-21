@@ -167,6 +167,8 @@ export class PushService {
     const normalizedBody =
       input.messageType === MessageType.IMAGE
         ? 'Фото'
+        : input.messageType === ('VIDEO_NOTE' as MessageType)
+          ? 'Видео-заметка'
         : this.normalizeMessageBody(input.content);
     if (!normalizedBody) {
       return;

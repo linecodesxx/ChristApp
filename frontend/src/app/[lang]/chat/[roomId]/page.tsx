@@ -32,6 +32,7 @@ import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
 import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
+import { useVideoRecorder } from "@/hooks/useVideoRecorder"
 import { Gamepad2, Phone, Pin } from "lucide-react"
 import dynamic from "next/dynamic"
 import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame"
@@ -374,9 +375,14 @@ function normalizeIncomingMessage(raw: IncomingSocketMessage | null | undefined,
   const displayName = raw?.username ?? raw?.sender?.nickname ?? raw?.sender?.username ?? "Unknown"
   const rawContent = String(raw?.content ?? "")
   const { content, replyTo } = parseMessageWithReply(rawContent)
+  const normalizedTypeRaw = typeof raw?.type === "string" ? raw.type.trim().toUpperCase() : ""
   const type =
-    raw?.type === "TEXT" || raw?.type === "VOICE" || raw?.type === "IMAGE" || raw?.type === "FILE"
-      ? raw.type
+    normalizedTypeRaw === "TEXT" ||
+    normalizedTypeRaw === "VOICE" ||
+    normalizedTypeRaw === "IMAGE" ||
+    normalizedTypeRaw === "FILE" ||
+    normalizedTypeRaw === "VIDEO_NOTE"
+      ? normalizedTypeRaw
       : undefined
   const fileUrl = raw?.fileUrl?.trim() ? raw.fileUrl.trim() : undefined
   const reactions = (raw?.reactions ?? [])
@@ -2474,6 +2480,51 @@ export default function ChatPageDetails() {
     return true
   }
 
+  const handleVideoNoteUploaded = useCallback(
+    async (secureUrl: string) => {
+      const targetRoomId = effectiveSocketRoomId
+      const socket = socketRef.current
+      if (!targetRoomId || !secureUrl || !socket?.connected) {
+        setSendNotice(t("roomNotReady"))
+        return
+      }
+
+      if (routeRoomId === SHARE_WITH_JESUS_SLUG && !resolvedShareJesusRoomId) {
+        setSendNotice(t("roomConnecting"))
+        return
+      }
+
+      if (!availableRoomIdsRef.current.has(targetRoomId) && targetRoomId !== GLOBAL_ROOM_ID) {
+        if (routeRoomId && !openingDirectRoomRef.current.has(routeRoomId)) {
+          openingDirectRoomRef.current.add(routeRoomId)
+          socket.emit("openDirectRoom", { targetUserId: routeRoomId })
+        }
+        setSendNotice(t("roomNotReady"))
+        return
+      }
+
+      setSendNotice(null)
+      persistLastSentPreview(targetRoomId, "Видео-овечка", directChatTargetUserId)
+      socket.emit("sendMessage", {
+        roomId: targetRoomId,
+        type: "video_note",
+        fileUrl: secureUrl,
+      })
+    },
+    [directChatTargetUserId, effectiveSocketRoomId, resolvedShareJesusRoomId, routeRoomId, t],
+  )
+
+  const {
+    start: startVideoRecording,
+    stop: stopVideoRecording,
+    isRecording: isVideoRecording,
+  } = useVideoRecorder({
+    uploadUrl: `${CHAT_HTTP_API}/messages/video-note`,
+    getAuthToken: async () => (await ensureAccessToken().catch(() => null)) ?? getAuthToken(),
+    onUploaded: handleVideoNoteUploaded,
+    onError: (message) => setSendNotice(message),
+  })
+
   const handleSendVoice = useCallback(
     async (audioBlob: Blob): Promise<boolean> => {
       const targetRoomId = effectiveSocketRoomId
@@ -3024,6 +3075,9 @@ export default function ChatPageDetails() {
             onSendVoice={authError || routeRoomId === user?.id ? undefined : handleSendVoice}
             onSendImage={authError || routeRoomId === user?.id ? undefined : handleSendImage}
             onSendSticker={authError || routeRoomId === user?.id ? undefined : handleSendSticker}
+            onStartVideoRecording={authError || routeRoomId === user?.id ? undefined : startVideoRecording}
+            onStopVideoRecording={authError || routeRoomId === user?.id ? undefined : stopVideoRecording}
+            isVideoRecording={isVideoRecording}
           />
           {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
         </div>

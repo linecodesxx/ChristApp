@@ -96,6 +96,40 @@ export class CloudinaryService {
     });
   }
 
+  /** Видеозаметка в чат (папка `christapp/chat-video-notes`) с квадратным кадрированием по лицу. */
+  async uploadVideoNote(buffer: Buffer): Promise<string> {
+    if (!this.ready) {
+      throw new Error('Cloudinary is not configured');
+    }
+
+    return new Promise((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        {
+          folder: 'christapp/chat-video-notes',
+          resource_type: 'video',
+          transformation: [
+            { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+            { fetch_format: 'mp4', quality: 'auto' },
+          ],
+        },
+        (err, result) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+          const url = result?.secure_url;
+          if (!url) {
+            reject(new Error('Cloudinary returned no URL'));
+            return;
+          }
+          resolve(url);
+        },
+      );
+
+      Readable.from(buffer).pipe(uploadStream);
+    });
+  }
+
   /** Документи/аудіо-файли в чат (папка `christapp/chat-files`). */
   async uploadChatFile(buffer: Buffer, originalFilename?: string): Promise<string> {
     if (!this.ready) {

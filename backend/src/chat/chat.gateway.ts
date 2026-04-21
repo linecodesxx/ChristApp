@@ -1375,7 +1375,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   // ================= НАДСИЛАННЯ ПОВІДОМЛЕННЯ =================
   @SubscribeMessage('sendMessage')
   async handleMessage(
-    @MessageBody() body: { roomId: string; content: string },
+    @MessageBody() body: { roomId: string; content?: string; type?: string; fileUrl?: string },
     @ConnectedSocket() client: SocketWithUser,
   ) {
     const user = await this.resolveSocketUser(client);
@@ -1393,19 +1393,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       return;
     }
 
-    const { roomId, content } = body;
+    const { roomId } = body;
 
     if (!roomId) {
       client.emit('error', 'roomId обязателен');
       return;
     }
 
-    // Не надсилаємо порожні повідомлення
-    if (!content?.trim()) return;
+    const normalizedType = String(body?.type || '').trim().toLowerCase();
+    const isVideoNote = normalizedType === 'video_note';
 
-    const normalizedContent = content.trim();
+    const normalizedContent = String(body?.content || '').trim();
+    const normalizedFileUrl = String(body?.fileUrl || '').trim();
 
-    if (this.isAttackPayload(normalizedContent)) {
+    if (!isVideoNote && !normalizedContent) {
+      return;
+    }
+
+    if (isVideoNote && !normalizedFileUrl) {
+      client.emit('error', 'fileUrl обязателен для video_note');
+      return;
+    }
+
+    if (!isVideoNote && this.isAttackPayload(normalizedContent)) {
       console.warn('[WS] suspicious message blocked', {
         roomId,
         userId: user.id,
@@ -1422,12 +1432,19 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         return;
       }
 
-      const message = await this.messagesService.createRoomMessage({
-        type: 'TEXT',
-        content: normalizedContent,
-        senderId: user.id,
-        roomId,
-      });
+      const message = isVideoNote
+        ? await this.messagesService.createRoomMessage({
+            type: 'VIDEO_NOTE',
+            fileUrl: normalizedFileUrl,
+            senderId: user.id,
+            roomId,
+          })
+        : await this.messagesService.createRoomMessage({
+            type: 'TEXT',
+            content: normalizedContent,
+            senderId: user.id,
+            roomId,
+          });
 
       await this.broadcastNewChatMessage(roomId, message);
     } catch (err) {

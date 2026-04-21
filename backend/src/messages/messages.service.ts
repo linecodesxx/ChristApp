@@ -112,15 +112,21 @@ export class MessagesService {
           type: 'FILE';
           fileUrl: string;
           content?: string;
+        }
+      | {
+          roomId: string;
+          senderId: string;
+          type: 'VIDEO_NOTE';
+          fileUrl: string;
         },
   ) {
     const { roomId, senderId, type } = params;
-    const content = type === 'IMAGE' ? null : params.content;
-    const fileUrl = type === 'IMAGE' || type === 'FILE' ? params.fileUrl : null;
+    const content = type === 'IMAGE' || type === 'VIDEO_NOTE' ? null : params.content;
+    const fileUrl = type === 'IMAGE' || type === 'FILE' || type === 'VIDEO_NOTE' ? params.fileUrl : null;
     const voiceDuration = type === 'VOICE' ? params.voiceDuration : null;
     return this.prisma.message.create({
       data: {
-        type,
+        type: type as MessageType,
         content,
         fileUrl,
         voiceDuration: voiceDuration || null,

@@ -10,6 +10,7 @@ import Image from "next/image"
 import type { Message } from "@/types/message"
 import VoiceInput from "@/components/VoiceInput/VoiceInput"
 import StickerPicker, { type StickerItem } from "@/components/StickerPicker/StickerPicker"
+import SheepRecordButton from "@/components/SheepRecordButton/SheepRecordButton"
 
 type ComposerMode = "text" | "voice"
 
@@ -34,6 +35,9 @@ type MessageInputProps = {
   onSelectFiles?: (files: File[]) => void | Promise<void>
   onSendSticker?: (sticker: StickerItem) => void | Promise<boolean>
   onVoiceRecordingActivity?: (active: boolean) => void
+  onStartVideoRecording?: () => void | Promise<void>
+  onStopVideoRecording?: () => void | Promise<void>
+  isVideoRecording?: boolean
 }
 
 const MAX_MESSAGE_LENGTH = 2000
@@ -68,6 +72,9 @@ export default function MessageInput({
   onSelectFiles,
   onSendSticker,
   onVoiceRecordingActivity,
+  onStartVideoRecording,
+  onStopVideoRecording,
+  isVideoRecording = false,
 }: MessageInputProps) {
   const t = useTranslations("chat")
   const tabBarOverlay = useTabBarOverlayOptional()
@@ -77,6 +84,7 @@ export default function MessageInput({
   const [isSending, setIsSending] = useState(false)
   const isSendingRef = useRef(false)
   const [mode, setMode] = useState<ComposerMode>("text")
+  const [recordMode, setRecordMode] = useState<"voice" | "sheep">("voice")
   const [isStickerPickerOpen, setIsStickerPickerOpen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const imageFileInputRef = useRef<HTMLInputElement | null>(null)
@@ -88,6 +96,7 @@ export default function MessageInput({
   const narrowViewport = useMediaQuery(chatComposerTabLayoutMediaQuery())
   const sendOnEnter = !narrowViewport
   const voiceEnabled = Boolean(onSendVoice)
+  const sheepVideoEnabled = Boolean(onStartVideoRecording && onStopVideoRecording)
   const imageEnabled = Boolean(onSendImage)
   const filesEnabled = Boolean(onSelectFiles)
   const stickerEnabled = Boolean(onSendSticker)
@@ -126,16 +135,6 @@ export default function MessageInput({
       setIsStickerPickerOpen(false)
     }
   }, [mode])
-
-  useEffect(() => {
-    if (!onVoiceRecordingActivity) {
-      return
-    }
-    onVoiceRecordingActivity(mode === "voice")
-    return () => {
-      onVoiceRecordingActivity(false)
-    }
-  }, [mode, onVoiceRecordingActivity])
 
   useEffect(() => {
     if (!editingMessage) {
@@ -240,6 +239,20 @@ export default function MessageInput({
 
   const backToTextMode = () => {
     setMode("text")
+  }
+
+  const handleRecordButtonLongPressStart = async () => {
+    if (disabled) return
+    if (recordMode === "voice") {
+      openVoiceMode()
+      return
+    }
+    await Promise.resolve(onStartVideoRecording?.())
+  }
+
+  const handleRecordButtonLongPressEnd = async () => {
+    if (disabled || recordMode !== "sheep") return
+    await Promise.resolve(onStopVideoRecording?.())
   }
 
   const handleVoiceComplete = async (blob: Blob) => {
@@ -444,16 +457,29 @@ export default function MessageInput({
             <Image src="/icon-send.svg" className={styles.iconGraphic} alt="" width={20} height={20} />
           </button>
         ) : voiceEnabled ? (
-          <button
-            type="button"
-            className={styles.iconButton}
-            aria-label={t("voiceMessageAria")}
-            title={t("voiceMessageTitle")}
-            onClick={openVoiceMode}
-            disabled={disabled}
-          >
-            <Image src="/icon-micro.svg" alt="" width={40} height={40} className={styles.microIconGraphic} />
-          </button>
+          sheepVideoEnabled ? (
+            <SheepRecordButton
+              mode={recordMode}
+              disabled={disabled}
+              isRecording={isVideoRecording}
+              onToggleMode={() => {
+                setRecordMode((prev) => (prev === "voice" ? "sheep" : "voice"))
+              }}
+              onLongPressStart={handleRecordButtonLongPressStart}
+              onLongPressEnd={handleRecordButtonLongPressEnd}
+            />
+          ) : (
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label={t("voiceMessageAria")}
+              title={t("voiceMessageTitle")}
+              onClick={openVoiceMode}
+              disabled={disabled}
+            >
+              <Image src="/icon-micro.svg" alt="" width={40} height={40} className={styles.microIconGraphic} />
+            </button>
+          )
         ) : (
           <button
             type="button"
