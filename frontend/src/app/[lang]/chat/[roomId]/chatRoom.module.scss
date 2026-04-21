@@ -1025,3 +1025,42 @@ html[data-theme="dark"] .chat {
     padding: 1px 2px;
   }
 }
+
+.callReturnButton {
+  position: fixed;
+  right: 16px;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px);
+  z-index: 75;
+  height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(235, 206, 149, 0.5);
+  background:
+    linear-gradient(155deg, rgba(62, 49, 28, 0.94), rgba(33, 29, 22, 0.96)),
+    color-mix(in srgb, var(--surface-elevated) 88%, transparent);
+  color: #fff8e7;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 246, 220, 0.18),
+    0 10px 24px -14px rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+}
+
+.callReturnButton:hover {
+  border-color: rgba(241, 214, 160, 0.72);
+}
+
+@media (max-width: 1023px) {
+  .callReturnButton {
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 80px);
+    height: 40px;
+    padding: 0 12px;
+  }
+}

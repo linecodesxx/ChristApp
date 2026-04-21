@@ -31,7 +31,7 @@ const BOARD_CELLS_Y = 16
 const CELL_SIZE = 18
 const WORLD_W = BOARD_CELLS_X * CELL_SIZE
 const WORLD_H = BOARD_CELLS_Y * CELL_SIZE
-const TICK_MS = 110
+const TICK_MS = 145
 
 type Direction = "up" | "down" | "left" | "right"
 

@@ -7,6 +7,9 @@ type Platform = {
   x: number
   y: number
   w: number
+  kind: "solid" | "breakable"
+  broken: boolean
+  fallSpeed: number
 }
 
 export type DoodleRuntimeState = {
@@ -34,9 +37,13 @@ const WORLD_W = 320
 const WORLD_H = 480
 const PLAYER_W = 24
 const PLAYER_H = 24
-const GRAVITY = 0.28
-const JUMP_VELOCITY = -8.2
+const MOBILE_GRAVITY = 0.28
+const MOBILE_JUMP_VELOCITY = -8.2
+const DESKTOP_GRAVITY = 0.22
+const DESKTOP_JUMP_VELOCITY = -6.9
 const MOVE_SPEED = 3.8
+const BREAKABLE_SCORE_THRESHOLD = 1000
+const BREAKABLE_PLATFORM_CHANCE = 0.3
 
 export default function DoodleMiniGame({
   open,
@@ -68,6 +75,12 @@ export default function DoodleMiniGame({
 
   const isMyWinner = useMemo(() => myScore > peerScore, [myScore, peerScore])
   const isPeerWinner = useMemo(() => peerScore > myScore, [myScore, peerScore])
+  const isDesktop = useMemo(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(min-width: 1024px) and (pointer: fine)").matches
+  }, [])
+  const gravity = isDesktop ? DESKTOP_GRAVITY : MOBILE_GRAVITY
+  const jumpVelocity = isDesktop ? DESKTOP_JUMP_VELOCITY : MOBILE_JUMP_VELOCITY
 
   useEffect(() => {
     peerStateRef.current = peerState
@@ -128,13 +141,33 @@ export default function DoodleMiniGame({
       x: Math.max(0, Math.min(WORLD_W - 86, player.x - 28)),
       y: basePlatformY,
       w: 86,
+      kind: "solid",
+      broken: false,
+      fallSpeed: 0,
     })
     for (let i = 1; i < 9; i += 1) {
       platforms.push({
         x: Math.random() * (WORLD_W - 72),
         y: basePlatformY - i * 64,
         w: 72,
+        kind: "solid",
+        broken: false,
+        fallSpeed: 0,
       })
+    }
+
+    const drawRoundedRect = (x: number, y: number, w: number, h: number, r: number) => {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
     }
 
     const draw = () => {
@@ -157,8 +190,65 @@ export default function DoodleMiniGame({
       for (const platform of platforms) {
         const py = platform.y - cameraY
         if (py < -20 || py > WORLD_H + 20) continue
-        ctx.fillStyle = "#d4b159"
-        ctx.fillRect(platform.x, py, platform.w, 8)
+
+        if (platform.broken) {
+          ctx.fillStyle = "#ba9550"
+          ctx.save()
+          ctx.translate(platform.x + platform.w * 0.32, py + 5)
+          ctx.rotate(-0.22)
+          ctx.fillRect(-platform.w * 0.28, -3, platform.w * 0.48, 6)
+          ctx.restore()
+
+          ctx.save()
+          ctx.translate(platform.x + platform.w * 0.72, py + 7)
+          ctx.rotate(0.28)
+          ctx.fillRect(-platform.w * 0.22, -3, platform.w * 0.44, 6)
+          ctx.restore()
+          continue
+        }
+
+        // Платформа-овечка: ушки + мягкая "шерстяная" подушка.
+        ctx.fillStyle = "#d9b889"
+        ctx.beginPath()
+        ctx.ellipse(platform.x + 8, py + 7, 6, 4, 0, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.ellipse(platform.x + platform.w - 8, py + 7, 6, 4, 0, 0, Math.PI * 2)
+        ctx.fill()
+
+        drawRoundedRect(platform.x, py + 2, platform.w, 10, 5)
+        ctx.fillStyle = platform.kind === "breakable" ? "#f0c98b" : "#f3ecd9"
+        ctx.fill()
+
+        ctx.strokeStyle = platform.kind === "breakable" ? "#c7864f" : "#d4b159"
+        ctx.lineWidth = 1
+        ctx.stroke()
+
+        // Мордочка овечки
+        const cx = platform.x + platform.w / 2
+        ctx.fillStyle = "rgba(110, 80, 44, 0.82)"
+        ctx.beginPath()
+        ctx.arc(cx - 5, py + 7, 1.2, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.beginPath()
+        ctx.arc(cx + 5, py + 7, 1.2, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.strokeStyle = "rgba(110, 80, 44, 0.82)"
+        ctx.lineWidth = 1
+        ctx.beginPath()
+        ctx.arc(cx, py + 9, 2.4, 0.1, Math.PI - 0.1)
+        ctx.stroke()
+
+        if (platform.kind === "breakable") {
+          // Трещины на ломающихся платформах после 1000 очков.
+          ctx.strokeStyle = "rgba(120, 72, 34, 0.55)"
+          ctx.lineWidth = 1
+          ctx.beginPath()
+          ctx.moveTo(platform.x + platform.w * 0.42, py + 3)
+          ctx.lineTo(platform.x + platform.w * 0.52, py + 11)
+          ctx.lineTo(platform.x + platform.w * 0.61, py + 5)
+          ctx.stroke()
+        }
       }
 
       const peerY = ghost.initialized ? ghost.y - (ghost.cameraY - cameraY) : null
@@ -213,23 +303,39 @@ export default function DoodleMiniGame({
       if (player.x < -PLAYER_W) player.x = WORLD_W
       if (player.x > WORLD_W) player.x = -PLAYER_W
 
-      player.vy += GRAVITY
+      player.vy += gravity
       const prevY = player.y
       player.y += player.vy
 
       if (player.vy > 0) {
         for (const p of platforms) {
+          if (p.broken) {
+            continue
+          }
           const playerBottomPrev = prevY + PLAYER_H
           const playerBottomNext = player.y + PLAYER_H
           const platformTop = p.y
           const intersectsX = player.x + PLAYER_W > p.x && player.x < p.x + p.w
           const crossedTop = playerBottomPrev <= platformTop && playerBottomNext >= platformTop
           if (intersectsX && crossedTop) {
-            player.y = p.y - PLAYER_H
-            player.vy = JUMP_VELOCITY
+            if (p.kind === "breakable" && score >= BREAKABLE_SCORE_THRESHOLD) {
+              p.broken = true
+              p.fallSpeed = 2.2
+            } else {
+              player.y = p.y - PLAYER_H
+              player.vy = jumpVelocity
+            }
             break
           }
         }
+      }
+
+      for (const p of platforms) {
+        if (!p.broken) {
+          continue
+        }
+        p.y += p.fallSpeed
+        p.fallSpeed += 0.22
       }
 
       if (player.y - cameraY < WORLD_H * 0.35) {
@@ -240,6 +346,10 @@ export default function DoodleMiniGame({
         if (p.y - cameraY > WORLD_H + 24) {
           p.y -= WORLD_H + 90
           p.x = Math.random() * (WORLD_W - p.w)
+          const canBreak = p.w <= 72 && score >= BREAKABLE_SCORE_THRESHOLD && Math.random() < BREAKABLE_PLATFORM_CHANCE
+          p.kind = canBreak ? "breakable" : "solid"
+          p.broken = false
+          p.fallSpeed = 0
         }
       }
 
@@ -294,7 +404,7 @@ export default function DoodleMiniGame({
         frameRef.current = null
       }
     }
-  }, [isStarted, onScoreChange, onStateChange, open])
+  }, [gravity, isStarted, jumpVelocity, onScoreChange, onStateChange, open])
 
   useEffect(() => {
     if (!open) return

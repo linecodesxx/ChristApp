@@ -272,7 +272,8 @@ export class MessagesController {
       new ParseFilePipeBuilder()
         .addMaxSizeValidator({ maxSize: VIDEO_NOTE_MAX_BYTES })
         .addFileTypeValidator({
-          fileType: /^(video\/webm|video\/mp4|video\/quicktime)$/i,
+          // Разрешаем суффиксы кодеков, например video/webm;codecs=vp9,opus
+          fileType: /^(video\/webm|video\/mp4|video\/quicktime)(;.*)?$/i,
         })
         .build({
           fileIsRequired: true,
