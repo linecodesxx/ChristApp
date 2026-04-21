@@ -104,10 +104,14 @@ export function useVideoRecorder({
       const sourceMime = blob.type.split(";")[0].trim().toLowerCase()
       const normalizedMime = VIDEO_NOTE_MIME_ALLOW.has(sourceMime) ? sourceMime : "video/webm"
       const ext = normalizedMime.includes("mp4") ? "mp4" : normalizedMime.includes("quicktime") ? "mov" : "webm"
-      const normalizedBlob = sourceMime === normalizedMime ? blob : new Blob([blob], { type: normalizedMime })
+
+      // Всегда создаём File с явным чистым MIME без codec-суффиксов,
+      // иначе Multer может передать «video/webm;codecs=vp9,opus» в file.mimetype
+      // и NestJS FileTypeValidator / ручная проверка завалится.
+      const fileToUpload = new File([blob], `video-note.${ext}`, { type: normalizedMime })
 
       const formData = new FormData()
-      formData.append("file", normalizedBlob, `video-note.${ext}`)
+      formData.append("file", fileToUpload)
 
       const response = await fetch(uploadUrl, {
         method: "POST",

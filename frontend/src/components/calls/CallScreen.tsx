@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import AgoraRTC, { type IAgoraRTCClient, type IAgoraRTCRemoteUser, type IMicrophoneAudioTrack } from "agora-rtc-sdk-ng"
 import { AnimatePresence, motion } from "framer-motion"
-import { Mic, MicOff, PhoneOff, Volume2, VolumeX } from "lucide-react"
+import { Mic, MicOff, Minus, PhoneOff, Volume2, VolumeX } from "lucide-react"
 import AvatarWithFallback from "@/components/AvatarWithFallback/AvatarWithFallback"
 import { ensureAccessToken } from "@/lib/authSession"
 import { getInitials } from "@/lib/utils"
@@ -14,10 +14,12 @@ import styles from "./CallScreen.module.scss"
 
 type CallScreenProps = {
   isOpen: boolean
+  isVisible?: boolean
   channelName: string | null
   peerName: string
   peerAvatarUrl?: string | null
   onClose: () => void
+  onMinimize?: () => void
   onCallEnded?: (durationSeconds: number) => void
 }
 
@@ -30,7 +32,16 @@ function formatCallDuration(seconds: number): string {
   return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
 }
 
-export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUrl, onClose, onCallEnded }: CallScreenProps) {
+export default function CallScreen({
+  isOpen,
+  isVisible = true,
+  channelName,
+  peerName,
+  peerAvatarUrl,
+  onClose,
+  onMinimize,
+  onCallEnded,
+}: CallScreenProps) {
   const clientRef = useRef<IAgoraRTCClient | null>(null)
   const micTrackRef = useRef<IMicrophoneAudioTrack | null>(null)
   const remoteTracksRef = useRef<Map<string, IAgoraRTCRemoteUser["audioTrack"]>>(new Map())
@@ -271,7 +282,7 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
 
   return (
     <AnimatePresence>
-      {isOpen ? (
+      {isOpen && isVisible ? (
         <motion.div
           className={styles.overlay}
           initial={{ opacity: 0, backdropFilter: "blur(2px)" }}
@@ -279,6 +290,15 @@ export default function CallScreen({ isOpen, channelName, peerName, peerAvatarUr
           exit={{ opacity: 0, backdropFilter: "blur(2px)" }}
           transition={{ duration: 0.28, ease: "easeOut" }}
         >
+          <button
+            type="button"
+            className={styles.minimizeButton}
+            onClick={onMinimize}
+            aria-label="Hide call"
+            title="Hide call"
+          >
+            <Minus size={20} />
+          </button>
           <div className={styles.peerName}>{peerName}</div>
           <div className={styles.status}>
             {status === "Connected" ? formatCallDuration(callDuration) : status}

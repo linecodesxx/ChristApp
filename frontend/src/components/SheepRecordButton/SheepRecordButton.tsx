@@ -1,6 +1,7 @@
 "use client"
 
 import { AnimatePresence, motion } from "framer-motion"
+import Image from "next/image"
 import { useRef } from "react"
 import styles from "./SheepRecordButton.module.scss"
 
@@ -91,8 +92,8 @@ export default function SheepRecordButton({
           {mode === "voice" ? (
             <svg
               className={styles.micIcon}
-              width="36"
-              height="36"
+              width="50"
+              height="50"
               viewBox="0 0 36 36"
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
@@ -102,33 +103,7 @@ export default function SheepRecordButton({
               <path d="M20.5 12.1667C20.5 10.786 19.3807 9.66675 18 9.66675C16.6193 9.66675 15.5 10.786 15.5 12.1667V18.0001C15.5 19.3808 16.6193 20.5001 18 20.5001C19.3807 20.5001 20.5 19.3808 20.5 18.0001V12.1667Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <svg
-              width="32"
-              height="32"
-              viewBox="0 0 36 36"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              {/* Ears (behind everything) */}
-              <circle cx="9" cy="20" r="6" fill="#C8BFB0" />
-              <circle cx="27" cy="20" r="6" fill="#C8BFB0" />
-              <circle cx="9" cy="20" r="3.5" fill="#EAC9C0" />
-              <circle cx="27" cy="20" r="3.5" fill="#EAC9C0" />
-              {/* Fluffy wool head */}
-              <circle cx="14" cy="11" r="7" fill="#EDE7DC" />
-              <circle cx="18" cy="8" r="8" fill="#EDE7DC" />
-              <circle cx="22" cy="11" r="7" fill="#EDE7DC" />
-              <circle cx="18" cy="18" r="9" fill="#EDE7DC" />
-              {/* Dark face */}
-              <ellipse cx="18" cy="23" rx="6.5" ry="7.5" fill="#2D1B0E" />
-              {/* Eyes */}
-              <circle cx="15" cy="21" r="2" fill="white" />
-              <circle cx="21" cy="21" r="2" fill="white" />
-              <circle cx="15.6" cy="21.5" r="1" fill="#111" />
-              <circle cx="21.6" cy="21.5" r="1" fill="#111" />
-              {/* Nose */}
-              <ellipse cx="18" cy="25.5" rx="2.5" ry="1.5" fill="#5C3018" />
-            </svg>
+            <Image src="/sheep.png" alt="Овечка" width={50} height={25} />
           )}
         </motion.span>
       </AnimatePresence>

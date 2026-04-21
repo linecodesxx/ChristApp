@@ -40,6 +40,7 @@ import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame"
 import type { DoodleRuntimeState } from "@/components/DoodleMiniGame/DoodleMiniGame"
 import SnakeMiniGame from "@/components/SnakeMiniGame/SnakeMiniGame"
 import type { SnakeRuntimeState } from "@/components/SnakeMiniGame/SnakeMiniGame"
+import ChristianFilwordMiniGame from "@/components/ChristianFilwordMiniGame/ChristianFilwordMiniGame"
 const CallScreen = dynamic(() => import("@/components/calls/CallScreen"), { ssr: false })
 const IncomingCallModal = dynamic(() => import("@/components/calls/IncomingCallModal"), { ssr: false })
 import {
@@ -534,9 +535,11 @@ export default function ChatPageDetails() {
   const [peekProfileUserId, setPeekProfileUserId] = useState<string | null>(null)
   const [incomingCall, setIncomingCall] = useState<IncomingCallPayload | null>(null)
   const [activeCall, setActiveCall] = useState<IncomingCallPayload | null>(null)
+  const [isCallOverlayVisible, setIsCallOverlayVisible] = useState(true)
   const [pendingOutgoingCall, setPendingOutgoingCall] = useState<IncomingCallPayload | null>(null)
   const [isDoodleOpen, setIsDoodleOpen] = useState(false)
   const [isSnakeOpen, setIsSnakeOpen] = useState(false)
+  const [isFilwordOpen, setIsFilwordOpen] = useState(false)
   const [isGameMenuOpen, setIsGameMenuOpen] = useState(false)
   const [myDoodleScore, setMyDoodleScore] = useState(0)
   const [peerDoodleScore, setPeerDoodleScore] = useState(0)
@@ -1419,6 +1422,7 @@ export default function ChatPageDetails() {
         outgoingCallTimeoutRef.current = null
       }
       setActiveCall(pending)
+      setIsCallOverlayVisible(true)
       setPendingOutgoingCall(null)
       setSendNotice(null)
     }
@@ -2315,6 +2319,12 @@ export default function ChatPageDetails() {
     user,
   ])
 
+  useEffect(() => {
+    if (!activeCall?.channelName) {
+      setIsCallOverlayVisible(true)
+    }
+  }, [activeCall?.channelName])
+
   const handleOpenDoodle = useCallback(() => {
     if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
       return
@@ -2324,6 +2334,7 @@ export default function ChatPageDetails() {
       return
     }
     setIsSnakeOpen(false)
+    setIsFilwordOpen(false)
     setIsGameMenuOpen(false)
     setIsDoodleOpen(true)
     setMyDoodleScore(0)
@@ -2379,6 +2390,7 @@ export default function ChatPageDetails() {
       return
     }
     setIsDoodleOpen(false)
+    setIsFilwordOpen(false)
     setIsGameMenuOpen(false)
     setIsSnakeOpen(true)
     setMySnakeScore(0)
@@ -2387,6 +2399,16 @@ export default function ChatPageDetails() {
     setPeerSnakePingMs(null)
     socket.emit("snake-reset", { roomId: effectiveSocketRoomId })
     socket.emit("snake-score", { roomId: effectiveSocketRoomId, score: 0 })
+  }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip])
+
+  const handleOpenFilword = useCallback(() => {
+    if (!user?.isVip || !directChatTargetUserId || !effectiveSocketRoomId) {
+      return
+    }
+    setIsDoodleOpen(false)
+    setIsSnakeOpen(false)
+    setIsGameMenuOpen(false)
+    setIsFilwordOpen(true)
   }, [directChatTargetUserId, effectiveSocketRoomId, user?.isVip])
 
   const handleSnakeScoreChange = useCallback((score: number) => {
@@ -2981,6 +3003,9 @@ export default function ChatPageDetails() {
                   <button type="button" className={styles.gameMenuItem} role="menuitem" onClick={handleOpenSnake}>
                     Snake
                   </button>
+                  <button type="button" className={styles.gameMenuItem} role="menuitem" onClick={handleOpenFilword}>
+                    Филворд
+                  </button>
                 </div>
               ) : null}
             </div>
@@ -3263,11 +3288,25 @@ export default function ChatPageDetails() {
           }
           stopIncomingRingtone()
           setActiveCall(incomingCall)
+          setIsCallOverlayVisible(true)
           setIncomingCall(null)
         }}
       />
+      {activeCall?.channelName && !isCallOverlayVisible ? (
+        <button
+          type="button"
+          className={styles.callReturnButton}
+          onClick={() => setIsCallOverlayVisible(true)}
+          aria-label="Вернуться к звонку"
+          title="Вернуться к звонку"
+        >
+          <Phone size={15} strokeWidth={2.25} aria-hidden />
+          <span>Вернуться к звонку</span>
+        </button>
+      ) : null}
       <CallScreen
         isOpen={Boolean(activeCall?.channelName)}
+        isVisible={isCallOverlayVisible}
         channelName={activeCall?.channelName ?? null}
         peerName={
           activeCall?.initiator?.name ||
@@ -3276,7 +3315,11 @@ export default function ChatPageDetails() {
           t("chatFallback")
         }
         peerAvatarUrl={activeCall?.initiator?.avatarUrl ?? null}
-        onClose={() => setActiveCall(null)}
+        onMinimize={() => setIsCallOverlayVisible(false)}
+        onClose={() => {
+          setActiveCall(null)
+          setIsCallOverlayVisible(true)
+        }}
         onCallEnded={handleCallEnded}
       />
       <DoodleMiniGame
@@ -3300,6 +3343,10 @@ export default function ChatPageDetails() {
         onClose={() => setIsSnakeOpen(false)}
         onScoreChange={handleSnakeScoreChange}
         onStateChange={handleSnakeStateChange}
+      />
+      <ChristianFilwordMiniGame
+        open={isFilwordOpen}
+        onClose={() => setIsFilwordOpen(false)}
       />
       </section>
     </div>
