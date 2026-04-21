@@ -108,7 +108,7 @@ export class CloudinaryService {
           folder: 'christapp/chat-video-notes',
           resource_type: 'video',
           transformation: [
-            { width: 400, height: 400, crop: 'fill', gravity: 'face' },
+            { width: 400, height: 400, crop: 'fill', gravity: 'center' },
             { fetch_format: 'mp4', quality: 'auto' },
           ],
         },

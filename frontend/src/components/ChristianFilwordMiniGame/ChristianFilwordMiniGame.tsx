@@ -318,6 +318,26 @@ export default function ChristianFilwordMiniGame({ open, onClose }: ChristianFil
     vibrateLight()
   }
 
+  const updatePathFromClientPoint = (clientX: number, clientY: number) => {
+    if (typeof document === "undefined") {
+      return
+    }
+
+    const element = document.elementFromPoint(clientX, clientY)
+    const cellElement = element?.closest<HTMLButtonElement>("[data-filword-cell='1']")
+    if (!cellElement) {
+      return
+    }
+
+    const row = Number(cellElement.dataset.row)
+    const col = Number(cellElement.dataset.col)
+    if (!Number.isFinite(row) || !Number.isFinite(col)) {
+      return
+    }
+
+    updatePath({ row, col })
+  }
+
   const updatePath = (endPoint: Point) => {
     const startPoint = startPointRef.current
     if (!startPoint) {
@@ -371,7 +391,18 @@ export default function ChristianFilwordMiniGame({ open, onClose }: ChristianFil
   const selectedCellKeys = new Set(selectedPath.map((point) => keyOf(point)))
 
   return (
-    <div className={styles.overlay} onPointerUp={completeSelection} onClick={onClose}>
+    <div
+      className={styles.overlay}
+      onPointerMove={(event) => {
+        if (!dragActiveRef.current) {
+          return
+        }
+        updatePathFromClientPoint(event.clientX, event.clientY)
+      }}
+      onPointerUp={completeSelection}
+      onPointerCancel={completeSelection}
+      onClick={onClose}
+    >
       <div className={styles.card} onClick={(event) => event.stopPropagation()}>
         <div className={styles.topRow}>
           <p className={styles.title}>Христианский филворд</p>
@@ -403,6 +434,9 @@ export default function ChristianFilwordMiniGame({ open, onClose }: ChristianFil
                 <button
                   key={key}
                   type="button"
+                  data-filword-cell="1"
+                  data-row={rowIndex}
+                  data-col={colIndex}
                   className={`${styles.cell}${isSelected ? ` ${styles.cellSelected}` : ""}${isFound ? ` ${styles.cellFound}` : ""}`}
                   onPointerDown={(event) => {
                     event.preventDefault()
