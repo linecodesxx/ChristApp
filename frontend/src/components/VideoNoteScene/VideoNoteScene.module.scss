@@ -1,0 +1,168 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 85;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 10, 12, 0.52);
+  backdrop-filter: blur(10px);
+}
+
+.stage {
+  position: relative;
+  z-index: 1;
+  width: min(92vw, 430px);
+  display: grid;
+  gap: 14px;
+}
+
+.sheepFrame {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 3.4rem;
+  background: #0b0b0e;
+  border: 2px solid rgba(240, 235, 225, 0.25);
+  box-shadow:
+    0 16px 52px rgba(0, 0, 0, 0.48),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.sheepFrameRecording {
+  box-shadow:
+    0 16px 52px rgba(0, 0, 0, 0.48),
+    0 0 28px rgba(255, 80, 80, 0.35),
+    0 0 56px rgba(255, 80, 80, 0.2);
+}
+
+.ear {
+  position: absolute;
+  top: -12px;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  background: #c9bda9;
+  z-index: 2;
+  border: 2px solid rgba(31, 26, 20, 0.14);
+}
+
+.earLeft {
+  left: 20%;
+}
+
+.earRight {
+  right: 20%;
+}
+
+.preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.switchCameraButton {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(18, 18, 22, 0.54);
+  color: #f8f6f2;
+  font-size: 20px;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.switchCameraButton:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.timerBar {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  border-radius: 999px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(14, 14, 18, 0.66);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-family: "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timerDivider {
+  opacity: 0.75;
+}
+
+.recordDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #ff5e5e;
+}
+
+.recordDotPulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.secondaryButton,
+.primaryButton {
+  flex: 1 1 0;
+  border-radius: 12px;
+  height: 42px;
+  border: 1px solid transparent;
+  font-family: "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.secondaryButton {
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(24, 24, 28, 0.66);
+  color: #f6f4ef;
+}
+
+.primaryButton {
+  background: linear-gradient(145deg, #b78935, #8e6829);
+  color: #fff9ef;
+}
+
+.secondaryButton:disabled,
+.primaryButton:disabled {
+  opacity: 0.5;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+  70% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.9);
+    opacity: 0.5;
+  }
+}

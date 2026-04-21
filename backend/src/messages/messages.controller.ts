@@ -5,8 +5,10 @@ import {
   ForbiddenException,
   forwardRef,
   Get,
+  HttpStatus,
   Inject,
   Logger,
+  ParseFilePipeBuilder,
   Post,
   Query,
   Req,
@@ -44,6 +46,11 @@ const VOICE_MIME_ALLOW = new Set([
 const IMAGE_MAX_BYTES = 8 * 1024 * 1024;
 const VIDEO_NOTE_MAX_BYTES = 30 * 1024 * 1024;
 const FILE_MAX_BYTES = 50 * 1024 * 1024;
+const VIDEO_NOTE_MIME_ALLOW = new Set([
+  'video/webm',
+  'video/mp4',
+  'video/quicktime',
+]);
 const FILE_MIME_ALLOW = new Set([
   'application/pdf',
   'application/epub+zip',
@@ -261,7 +268,18 @@ export class MessagesController {
     }),
   )
   async uploadVideoNote(
-    @UploadedFile() file: Express.Multer.File | undefined,
+    @UploadedFile(
+      new ParseFilePipeBuilder()
+        .addMaxSizeValidator({ maxSize: VIDEO_NOTE_MAX_BYTES })
+        .addFileTypeValidator({
+          fileType: /^(video\/webm|video\/mp4|video\/quicktime)$/i,
+        })
+        .build({
+          fileIsRequired: true,
+          errorHttpStatusCode: HttpStatus.BAD_REQUEST,
+        }),
+    )
+    file: Express.Multer.File,
     @Req() req: AuthenticatedRequest,
   ) {
     const userId = req.user?.id;
@@ -280,7 +298,7 @@ export class MessagesController {
     }
 
     const mime = (file.mimetype || '').split(';')[0].trim().toLowerCase();
-    if (!mime.startsWith('video/')) {
+    if (!VIDEO_NOTE_MIME_ALLOW.has(mime)) {
       throw new BadRequestException(`Ожидается видео, получено: ${mime || '—'}`);
     }
 

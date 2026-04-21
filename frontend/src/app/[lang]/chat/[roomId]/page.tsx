@@ -33,6 +33,7 @@ import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { useVideoRecorder } from "@/hooks/useVideoRecorder"
+import VideoNoteScene from "@/components/VideoNoteScene/VideoNoteScene"
 import { Gamepad2, Phone, Pin } from "lucide-react"
 import dynamic from "next/dynamic"
 import DoodleMiniGame from "@/components/DoodleMiniGame/DoodleMiniGame"
@@ -2517,7 +2518,15 @@ export default function ChatPageDetails() {
   const {
     start: startVideoRecording,
     stop: stopVideoRecording,
+    closeScene: closeVideoRecordingScene,
+    switchCamera: switchVideoCamera,
     isRecording: isVideoRecording,
+    isUploading: isVideoUploading,
+    isSceneOpen: isVideoSceneOpen,
+    elapsedSeconds: videoElapsedSeconds,
+    maxDurationSeconds: videoMaxDurationSeconds,
+    facingMode: videoFacingMode,
+    previewVideoRef,
   } = useVideoRecorder({
     uploadUrl: `${CHAT_HTTP_API}/messages/video-note`,
     getAuthToken: async () => (await ensureAccessToken().catch(() => null)) ?? getAuthToken(),
@@ -3082,6 +3091,18 @@ export default function ChatPageDetails() {
           {sendNotice ? <p className={styles.sendNotice}>{sendNotice}</p> : null}
         </div>
       </div>
+      <VideoNoteScene
+        open={isVideoSceneOpen}
+        isRecording={isVideoRecording}
+        isUploading={isVideoUploading}
+        elapsedSeconds={videoElapsedSeconds}
+        maxDurationSeconds={videoMaxDurationSeconds}
+        facingMode={videoFacingMode}
+        previewVideoRef={previewVideoRef}
+        onSwitchCamera={switchVideoCamera}
+        onStop={stopVideoRecording}
+        onClose={closeVideoRecordingScene}
+      />
       <OnlineUsersDrawer
         open={participantsOverlayOpen}
         onClose={() => setIsParticipantsDrawerOpen(false)}
