@@ -103,7 +103,7 @@ export default function SheepRecordButton({
               <path d="M20.5 12.1667C20.5 10.786 19.3807 9.66675 18 9.66675C16.6193 9.66675 15.5 10.786 15.5 12.1667V18.0001C15.5 19.3808 16.6193 20.5001 18 20.5001C19.3807 20.5001 20.5 19.3808 20.5 18.0001V12.1667Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           ) : (
-            <Image src="/sheep.png" alt="Овечка" width={50} height={25} />
+            <Image src="/sheep.png" alt="Овечка" width={50} height={25} className={styles.sheepIcon} />
           )}
         </motion.span>
       </AnimatePresence>

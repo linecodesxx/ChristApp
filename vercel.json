@@ -9,5 +9,11 @@
       "entrypoint": "backend",
       "routePrefix": "/_/backend"
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/nest/:path*",
+      "destination": "/_/backend/:path*"
+    }
+  ]
 }
