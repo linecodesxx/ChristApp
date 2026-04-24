@@ -5,7 +5,6 @@ import createSocket from "socket.io-client"
 import { getDirectApiOrigin } from "@/lib/apiBase"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { ensureAccessToken } from "@/lib/authSession"
-import { usePathname } from "@/i18n/navigation"
 
 const WS_URL = getDirectApiOrigin()
 type PresenceSocket = ReturnType<typeof createSocket>
@@ -29,8 +28,6 @@ type PresenceSocketProviderProps = {
 }
 
 const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
-  const pathname = usePathname()
-  const shouldUsePresenceSocket = pathname === "/chat" || !pathname?.startsWith("/chat/")
   const socketRef = useRef<PresenceSocket | null>(null)
   const currentTokenRef = useRef<string | null>(null)
   const [socket, setSocket] = useState<PresenceSocket | null>(null)
@@ -48,11 +45,6 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
     }
 
     const syncPresenceSocket = async () => {
-      if (!shouldUsePresenceSocket) {
-        disconnectSocket()
-        return
-      }
-
       let token = getAuthToken()
       if (!token) {
         try {
@@ -108,7 +100,7 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
       document.removeEventListener("visibilitychange", onAuthChanged)
       disconnectSocket()
     }
-  }, [shouldUsePresenceSocket])
+  }, [])
 
   const contextValue = useMemo(
     () => ({

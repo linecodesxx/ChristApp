@@ -25,8 +25,6 @@ import { chatComposerTabLayoutMediaQuery, useMediaQuery } from "@/hooks/useMedia
 import { syncAppBadgeFromUnreadCount } from "@/lib/appBadge"
 import { useAuth } from "@/hooks/useAuth"
 
-const UNREAD_REFRESH_INTERVAL_MS = 15_000
-
 export default function TabBar() {
   const t = useTranslations("nav")
   const pathname = usePathname()
@@ -53,7 +51,6 @@ export default function TabBar() {
     queryFn: fetchUnreadSummaryForQuery,
     enabled: Boolean(userId),
     staleTime: 20_000,
-    refetchInterval: UNREAD_REFRESH_INTERVAL_MS,
   })
 
   const unreadCount = Number(unreadQuery.data?.totalUnread ?? 0)

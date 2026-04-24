@@ -20,8 +20,6 @@ import {
 import CrossLoader from "@/components/CrossLoader/CrossLoader"
 import styles from "./PushNotificationCenter.module.scss"
 
-const REFRESH_INTERVAL_MS = 45_000
-
 type PermissionState = NotificationPermission | "unsupported"
 
 function getPermissionState(): PermissionState {
@@ -73,7 +71,6 @@ export default function PushNotificationCenter() {
     queryFn: fetchPushStatusForQuery,
     enabled: Boolean(token && userId),
     staleTime: 45_000,
-    refetchInterval: REFRESH_INTERVAL_MS,
   })
 
   const unreadQuery = useQuery({
@@ -81,7 +78,6 @@ export default function PushNotificationCenter() {
     queryFn: fetchUnreadSummaryForQuery,
     enabled: Boolean(token && userId),
     staleTime: 20_000,
-    refetchInterval: REFRESH_INTERVAL_MS,
   })
 
   const isPushConfigured = Boolean(pushStatusQuery.data?.enabled)
