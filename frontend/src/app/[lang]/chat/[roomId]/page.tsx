@@ -6,14 +6,13 @@ import MessageInput from "@/components/MessageInput/MessageInput"
 import { isMessageFromCurrentUser, type AppReactionType, type Message, type MessageReply } from "@/types/message"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import createSocket from "socket.io-client"
 import { useParams } from "next/navigation"
 import { useLocale, useTranslations } from "next-intl"
 import { useRouter } from "@/i18n/navigation"
 import { getInitials } from "@/lib/utils"
 import { resolvePublicAvatarUrl } from "@/lib/avatarUrl"
 import { useAuth } from "@/hooks/useAuth"
-import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
+import { getAuthToken } from "@/lib/auth"
 import { ensureAccessToken } from "@/lib/authSession"
 import { apiFetch } from "@/lib/apiFetch"
 import { dispatchChatUnreadChangedEvent } from "@/lib/chatUnreadEvents"
@@ -29,7 +28,7 @@ import { type StickerItem } from "@/components/StickerPicker/StickerPicker"
 import { fetchRoomMessagesOrThrow } from "@/lib/chatMessagesApi"
 import { chatRoomHistoryQueryKey } from "@/lib/chatQueryKeys"
 import { chatMyRoomsQueryKey } from "@/lib/chatRoomsQuery"
-import { getDirectApiOrigin, getHttpApiBase } from "@/lib/apiBase"
+import { getHttpApiBase } from "@/lib/apiBase"
 import OnlineUsersDrawer from "@/components/OnlineUsersDrawer/OnlineUsersDrawer"
 import { useMediaQuery } from "@/hooks/useMediaQuery"
 import { useVideoRecorder } from "@/hooks/useVideoRecorder"
@@ -50,8 +49,8 @@ import {
   toggleAvatarLikeForUser,
 } from "@/lib/queries/avatarLikesQueries"
 import { canSeeAdminPanelNav } from "@/lib/adminDashboardNav"
+import { usePresenceSocket } from "@/components/PresenceSocket/PresenceSocket"
 
-const CHAT_SOCKET_URL = getDirectApiOrigin()
 const CHAT_HTTP_API = getHttpApiBase()
 const HISTORY_PAGE_SIZE = 250
 const LAST_SENT_PREVIEW_STORAGE_KEY = "chat:last-sent-previews"
@@ -69,7 +68,7 @@ const ALLOWED_FILE_ATTACHMENT_TYPES = new Set([
   "audio/m4a",
   "audio/mp4",
 ])
-type AppSocket = ReturnType<typeof createSocket>
+type AppSocket = NonNullable<ReturnType<typeof usePresenceSocket>["socket"]>
 
 type IncomingSocketMessage = {
   id?: string | number
@@ -495,6 +494,7 @@ export default function ChatPageDetails() {
   const t = useTranslations("chat")
   const lang = useLocale()
   const { user, users, loading } = useAuth({ redirectIfUnauthenticated: "/" })
+  const { socket: sharedSocket } = usePresenceSocket()
   const queryClient = useQueryClient()
   // Runtime refs потрібні для socket callbacks, щоб уникнути stale state усередині listeners.
   const socketRef = useRef<AppSocket | null>(null)
@@ -549,7 +549,6 @@ export default function ChatPageDetails() {
   const [peerSnakeScore, setPeerSnakeScore] = useState(0)
   const [peerSnakeState, setPeerSnakeState] = useState<SnakeRuntimeState | null>(null)
   const [peerSnakePingMs, setPeerSnakePingMs] = useState<number | null>(null)
-  const [socketAuthEpoch, setSocketAuthEpoch] = useState(0)
   const userIdRef = useRef<string | undefined>(undefined)
   const pendingOutgoingCallRef = useRef<IncomingCallPayload | null>(null)
   const outgoingCallTimeoutRef = useRef<number | null>(null)
@@ -748,12 +747,6 @@ export default function ChatPageDetails() {
     pendingOutgoingCallRef.current = pendingOutgoingCall
   }, [pendingOutgoingCall])
 
-  useEffect(() => {
-    const onAuthChanged = () => setSocketAuthEpoch((value) => value + 1)
-    window.addEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
-    return () => window.removeEventListener(AUTH_CHANGED_EVENT, onAuthChanged)
-  }, [])
-
   const stopIncomingRingtone = useCallback(() => {
     if (ringtoneIntervalRef.current !== null) {
       window.clearInterval(ringtoneIntervalRef.current)
@@ -886,30 +879,12 @@ export default function ChatPageDetails() {
   useEffect(() => {
     if (loading) return
 
-    if (socketRef.current) {
+    if (!sharedSocket) {
+      setIsSocketConnected(false)
       return
     }
 
-    const token = getAuthToken()
-    if (!token) {
-      void ensureAccessToken()
-        .then(() => setSocketAuthEpoch((value) => value + 1))
-        .catch(() => {
-          setAuthError(roomI18nRef.current.noAuthToken)
-          setIsHistoryLoading(false)
-        })
-      return
-    }
-
-    const socket = createSocket(CHAT_SOCKET_URL, {
-      auth: { token },
-      transports: ["websocket"],
-      reconnection: true,
-      reconnectionAttempts: Infinity,
-      reconnectionDelay: 400,
-      reconnectionDelayMax: 4000,
-      randomizationFactor: 0.35,
-    })
+    const socket = sharedSocket
 
     socketRef.current = socket
 
@@ -1669,10 +1644,10 @@ export default function ChatPageDetails() {
         outgoingCallTimeoutRef.current = null
       }
       leaveCurrentRoom(socket)
-      socket.disconnect()
       socketRef.current = null
     }
   }, [
+    sharedSocket,
     joinRoom,
     leaveCurrentRoom,
     loading,
@@ -1682,7 +1657,6 @@ export default function ChatPageDetails() {
     stopIncomingRingtone,
     t,
     user,
-    socketAuthEpoch,
   ])
 
   const prevRouteForSocketRef = useRef<string | undefined>(undefined)
