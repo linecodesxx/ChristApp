@@ -2,11 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import createSocket from "socket.io-client"
-import { getDirectApiOrigin } from "@/lib/apiBase"
+import { getSocketConnectionConfig } from "@/lib/apiBase"
 import { AUTH_CHANGED_EVENT, getAuthToken } from "@/lib/auth"
 import { ensureAccessToken } from "@/lib/authSession"
 
-const WS_URL = getDirectApiOrigin()
 type PresenceSocket = ReturnType<typeof createSocket>
 
 type PresenceSocketContextValue = {
@@ -71,12 +70,15 @@ const PresenceSocketProvider = ({ children }: PresenceSocketProviderProps) => {
         socketRef.current.disconnect()
       }
 
-      const nextSocket = createSocket(WS_URL, {
+      const socketConfig = getSocketConnectionConfig()
+      const nextSocket = createSocket(socketConfig.url, {
         auth: { token },
         transports: ["websocket"],
+        ...(socketConfig.path ? { path: socketConfig.path } : {}),
       })
       nextSocket.on("connect", () => setIsConnected(true))
       nextSocket.on("disconnect", () => setIsConnected(false))
+      nextSocket.on("connect_error", () => setIsConnected(false))
 
       socketRef.current = nextSocket
       setSocket(nextSocket)
