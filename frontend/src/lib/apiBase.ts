@@ -38,7 +38,35 @@ export function getDirectApiOrigin(): string {
   if (api) {
     return api.replace(/\/+$/, "")
   }
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+    return window.location.origin.replace(/\/+$/, "")
+  }
   return "http://127.0.0.1:3001"
+}
+
+/**
+ * Конфіг socket.io для браузера.
+ * У production без явного `NEXT_PUBLIC_WS_URL` використовуємо same-origin через `/api/nest` проксі.
+ */
+export function getSocketConnectionConfig(): { url: string; path?: string } {
+  const explicitWs = process.env.NEXT_PUBLIC_WS_URL?.trim()
+  if (explicitWs) {
+    return { url: explicitWs.replace(/\/+$/, "") }
+  }
+
+  const explicitApi = process.env.NEXT_PUBLIC_API_URL?.trim()
+  if (explicitApi) {
+    return { url: explicitApi.replace(/\/+$/, "") }
+  }
+
+  if (typeof window !== "undefined" && process.env.NODE_ENV === "production") {
+    return {
+      url: window.location.origin.replace(/\/+$/, ""),
+      path: "/api/nest/socket.io",
+    }
+  }
+
+  return { url: "http://127.0.0.1:3001" }
 }
 
 /**

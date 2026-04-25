@@ -921,6 +921,11 @@ export default function ChatPageDetails() {
     }
     socket.on("connect", onConnect)
 
+    setIsSocketConnected(socket.connected)
+    if (socket.connected) {
+      onConnect()
+    }
+
     const onDisconnect = () => {
       setIsSocketConnected(false)
       setIsHistoryLoading((prev) => awaitingRoomHistoryRef.current || prev)
